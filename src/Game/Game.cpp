@@ -1,7 +1,5 @@
 #include "Game.hpp"
 #include "../Window/Window.hpp"
-#include "GameBot.hpp"
-#include "GameUtils.hpp"
 
 /* #define DEBUG_MODE */
 
@@ -145,4 +143,4 @@ void Game::revert_state() {
 
 void Game::exit_game() { mWantExit = true; }
 
-void set_winsound_playable(bool p) { winSound.first = p; }
+void set_winsound_playable(bool p) {}

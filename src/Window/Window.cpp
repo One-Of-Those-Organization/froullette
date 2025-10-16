@@ -1,5 +1,4 @@
 #include "Window.hpp"
-#include "../Game/GameUtils.hpp"
 
 void Window::_apply_option(const char *title) {
     mName = title;
@@ -54,9 +53,9 @@ bool Window::start_window_loop() {
     if (mState.read_from_file(CONFIG_PATH)) {
         if (mState.mWindowSize.x > 100 || mState.mWindowSize.y > 100) {
             set_window_size(mState.mWindowSize);
-            _change_res_helper(&mGame);
+            // _change_res_helper(&mGame);
         }
-        if (mState.mIsFullscreen) _window_flag_helper(&mGame);
+        // if (mState.mIsFullscreen) _window_flag_helper(&mGame);
     }
 
     while (!WindowShouldClose()) {
