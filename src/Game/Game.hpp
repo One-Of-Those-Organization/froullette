@@ -3,7 +3,7 @@
 
 static void gameInit(ArsEng *engine) {
     auto rec = new Object();
-    rec->rec = {0, 0, 100, 100};
+    rec->rec = {50, 50, 25, 25};
     engine->om.add_object(rec, 1);
     (void)engine;
 }

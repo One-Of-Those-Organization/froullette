@@ -31,7 +31,7 @@ class Window {
             // Do post-processing here
             Texture2D *txt = &engine->canvas.texture;
             DrawTexturePro(*txt,
-                    Rectangle{0, 0, (float)txt->width, -(float)txt->height},
+                    Rectangle{0, 0, (float)this->size.x, -(float)this->size.y},
                     Rectangle{0, 0, size.x, size.y},
                     Vector2{0, 0}, 0.0f, WHITE);
 
