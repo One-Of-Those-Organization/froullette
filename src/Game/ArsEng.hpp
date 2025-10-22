@@ -3,7 +3,7 @@
 #include <raylib.h>
 #include "../Object/ObjectManager.hpp"
 
-static const Vector2 CANVAS_SIZE = Vector2{640, 480};
+static const Vector2 CANVAS_SIZE = Vector2{640, 360};
 
 class ArsEng {
     public:
@@ -14,6 +14,8 @@ class ArsEng {
 
         ArsEng(): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
+            SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
+            SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
         }
         ~ArsEng() = default;
         void render_to_canvas() {
