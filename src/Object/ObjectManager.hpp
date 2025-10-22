@@ -17,9 +17,8 @@ public:
     std::vector<ObjectSlot> objects;
     std::vector<Object*> sorted;
     int counter;
-    Game* game;
 
-    ObjectManager() : counter(0), game(nullptr) {}
+    ObjectManager() : counter(0) {}
     ~ObjectManager() { clear(); }
 
     int add_object(Object* obj, int z) {

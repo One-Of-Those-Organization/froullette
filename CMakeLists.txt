@@ -29,6 +29,7 @@ FetchContent_MakeAvailable(raylib)
 
 set(FILE_IN
     src/main.cpp
+    src/Object/Object.cpp
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
