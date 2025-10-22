@@ -23,6 +23,17 @@ class ArsEng {
 
         ~ArsEng() = default;
 
+        void check_and_recreate_canvas() {
+            if (canvas.texture.id == 0) {
+                UnloadRenderTexture(canvas);
+                canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
+                SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
+                SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
+                this->canvas_size.x = this->canvas.texture.width;
+                this->canvas_size.y = this->canvas.texture.height;
+            }
+        }
+
         void render_to_canvas() {
             BeginTextureMode(canvas);
             ClearBackground(BLACK);

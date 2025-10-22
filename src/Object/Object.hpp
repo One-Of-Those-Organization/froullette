@@ -11,7 +11,6 @@ class Object {
         bool show;
         GameState state;
         void *engine;
-        Vector2 speed;
 
         Object() {};
         virtual ~Object() = default;
