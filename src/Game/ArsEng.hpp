@@ -25,6 +25,7 @@ class ArsEng {
 
         void render_to_canvas() {
             BeginTextureMode(canvas);
+            ClearBackground(BLACK);
             for (auto &obj: om.sorted) {
                 if (!has_flag(state, obj->state)) continue;
                 obj->render();
