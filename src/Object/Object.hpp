@@ -12,7 +12,12 @@ class Object {
         GameState state;
         void *engine;
 
-        Object() {};
+        Object() {
+            this->engine = nullptr;
+            this->text   = nullptr;
+            this->show   = true;
+            this->state  = GameState::ALL;
+        };
         virtual ~Object() = default;
         virtual void render();
         virtual void logic(float dt);

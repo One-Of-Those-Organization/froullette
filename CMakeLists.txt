@@ -30,6 +30,7 @@ FetchContent_MakeAvailable(raylib)
 set(FILE_IN
     src/main.cpp
     src/Object/Object.cpp
+    src/Shader/ShadersManager.cpp
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -52,18 +53,15 @@ endif()
 
 
 if(EMSCRIPTEN)
+    add_compile_definitions(PLATFORM_WEB)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
     target_link_options(${PROJECT_NAME} PRIVATE
-        "-sUSE_GLFW=3"
-        "-sASYNCIFY"
-        "-sALLOW_MEMORY_GROWTH=1"
-        "-sINITIAL_MEMORY=134217728"
-        "-sTOTAL_STACK=67108864"
-        "-sWASM=1"
-        "-sEXIT_RUNTIME=0"
-        "-sUSE_WEBGL2=1"
-        "-sFULL_ES3=1"
-        "--preload-file"
-        "assets@/assets"
-    )
+    "-sUSE_GLFW=3"
+    "-sASYNCIFY"
+    "-sALLOW_MEMORY_GROWTH=1"
+    "-sUSE_WEBGL2=1"
+    "-sGL_ENABLE_GET_PROC_ADDRESS=1"
+    "--preload-file"
+    "../assets@/assets"
+)
 endif()

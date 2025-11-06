@@ -28,8 +28,9 @@ class Window {
 
         bool loop() {
             while (!WindowShouldClose()) {
+                float dt = GetFrameTime();
                 engine->check_and_recreate_canvas();
-                engine->update(GetFrameTime());
+                engine->update(dt);
                 engine->render_to_canvas();
                 BeginDrawing();
 

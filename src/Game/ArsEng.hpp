@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include "../Object/ObjectManager.hpp"
+#include "../Shader/ShadersManager.hpp"
 
 static const Vector2 CANVAS_SIZE = Vector2{128, 72};
 
@@ -10,6 +11,7 @@ class ArsEng {
 
         RenderTexture2D canvas;
         ObjectManager om;
+        ShadersManager sm;
         GameState state;
         Vector2 canvas_size = {};
 

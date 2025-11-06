@@ -22,15 +22,21 @@ class Balls: public Object {
         void logic(float dt) override {
             if (engine) {
                 ArsEng *e = (ArsEng*) this->engine;
-                if ( e->canvas_size.x <= this->rec.x + this->rec.width ||
+                if (e->canvas_size.x <= this->rec.x + this->rec.width ||
                         this->rec.x - this->rec.width <= 0) {
+                    this->rec.x = e->canvas_size.x <= this->rec.x + this->rec.width
+                        ? e->canvas_size.x - this->rec.width
+                        : 0 + this->rec.width;
                     this->speed.x *= -1;
                 }
 
                 this->rec.x += this->speed.x * dt;
 
-                if ( e->canvas_size.y <= this->rec.y + this->rec.height ||
+                if (e->canvas_size.y <= this->rec.y + this->rec.height ||
                         this->rec.y - this->rec.height <= 0) {
+                    this->rec.y = e->canvas_size.y <= this->rec.y + this->rec.width
+                        ? e->canvas_size.y - this->rec.width
+                        : 0 + this->rec.width;
                     this->speed.y *= -1;
                 }
 
