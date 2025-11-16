@@ -19,8 +19,9 @@ static void gameInit(ArsEng *engine) {
     // engine->om.add_object(ball, z++);
 
     auto desk = new Desk();
-    desk->angle = {0.0f, 0.4f};
-    desk->rec = {10, wsize.y / 2, wsize.x - 20, wsize.y};
+    desk->angle = {0.0f, 0.5f};
+    float offset = 12;
+    desk->rec = {offset, wsize.y / 2 + 5, wsize.x - offset * 2, wsize.y - 5};
+    desk->state = GameState::INGAME;
     engine->om.add_object(desk, z++);
-
 }

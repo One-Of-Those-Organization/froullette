@@ -27,7 +27,7 @@ public:
         slot.z = z;
         slot.obj = obj;
         slot.obj->show = true;
-        slot.obj->state = GameState::MENU;
+        slot.obj->state = obj->state;
         objects.push_back(slot);
         regenerate_sorted_data();
         return slot.id;
