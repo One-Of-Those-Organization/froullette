@@ -14,6 +14,7 @@ class ArsEng {
         ShadersManager sm;
         GameState state;
         Vector2 canvas_size = {};
+        Vector2 cursor = {};
 
         ArsEng(): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
@@ -47,6 +48,11 @@ class ArsEng {
         }
 
         void update(float dt) {
+#ifdef MOBILE
+            this->cursor = GetTouchPosition();
+#else
+            this->cursor = GetMousePosition();
+#endif
             for (const auto &o: this->om.sorted) {
                 o->logic(dt);
             }
