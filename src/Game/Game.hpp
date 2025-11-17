@@ -21,12 +21,21 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 }
 
-static void initMenu(ArsEng *engine, int *z) {
+static Button *createButton(std::string text, ArsEng *engine, void (*callback)(void *data)) {
     auto btn = new Button();
     btn->rec = {0,0,100,100};
     btn->state = GameState::MENU;
-    btn->callback = [](void *data) {};
-    engine->om.add_object(btn, *z++);
+    btn->text = text;
+    btn->text_size = 12;
+    btn->curpos = &engine->cursor;
+    btn->callback = callback;
+    return btn;
+}
+
+static void initMenu(ArsEng *engine, int *z) {
+    engine->om.add_object(
+            createButton("Play", engine, [] (void *data) {})
+            , *z++);
 }
 
 static void gameInit(ArsEng *engine) {
