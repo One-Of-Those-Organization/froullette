@@ -1,1 +1,1 @@
-cd build && make -j8 && cd .. && ./build/froullete
+cd build && make -j8 && ./froullete

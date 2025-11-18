@@ -27,7 +27,7 @@ class ArsEng {
                 LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
                            96, NULL, 95);
 #ifdef MOBILE
-            SetGestureEnabled(GESTURE_TAP);
+            SetGesturesEnabled(GESTURE_TAP);
 #endif
         }
 
