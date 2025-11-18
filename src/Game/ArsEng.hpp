@@ -15,6 +15,7 @@ class ArsEng {
         GameState state;
         Vector2 canvas_size = {};
         Vector2 cursor = {};
+        Font font;
 
         ArsEng(): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
@@ -22,9 +23,17 @@ class ArsEng {
             SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
             this->canvas_size.x = this->canvas.texture.width;
             this->canvas_size.y = this->canvas.texture.height;
+            this->font =
+                LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
+                           96, NULL, 95);
+#ifdef MOBILE
+            SetGestureEnabled(GESTURE_TAP);
+#endif
         }
 
-        ~ArsEng() = default;
+        ~ArsEng() {
+            UnloadFont(this->font);
+        };
 
         void check_and_recreate_canvas() {
             if (canvas.texture.id == 0) {
