@@ -21,7 +21,8 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 }
 
-static Button *createButton(std::string text, ArsEng *engine, void (*callback)(void *data)) {
+static Button *createButton(std::string text, ArsEng *engine, void (*callback)()) {
+    // TODO: Just copy from uwurg how do i setup some stuff
     auto btn = new Button();
     btn->rec = {0,0,100,100};
     btn->state = GameState::MENU;
@@ -34,7 +35,7 @@ static Button *createButton(std::string text, ArsEng *engine, void (*callback)(v
 
 static void initMenu(ArsEng *engine, int *z) {
     engine->om.add_object(
-            createButton("Play", engine, [] (void *data) {})
+            createButton("Play", engine, [] () { TraceLog(LOG_INFO, "Hello!"); })
             , *z++);
 }
 
