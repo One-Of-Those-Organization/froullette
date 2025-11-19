@@ -8,7 +8,7 @@ static const Vector2 CANVAS_SIZE = Vector2{128, 72};
 
 class ArsEng {
     public:
-
+        Vector2 window_size;
         RenderTexture2D canvas;
         ObjectManager om;
         ShadersManager sm;
@@ -65,10 +65,12 @@ class ArsEng {
 
         void update(float dt) {
 #ifdef MOBILE
-            this->cursor = GetTouchPosition();
+            Vector2 raw_cursor = GetTouchPosition();
 #else
-            this->cursor = GetMousePosition();
+            Vector2 raw_cursor = GetMousePosition();
 #endif
+            this->cursor.x = (raw_cursor.x / this->window_size.x) * this->canvas_size.x;
+            this->cursor.y = (raw_cursor.y / this->window_size.y) * this->canvas_size.y;
             for (const auto &o: this->om.sorted) {
                 o->logic(dt);
             }
