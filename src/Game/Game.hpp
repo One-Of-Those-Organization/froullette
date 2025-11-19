@@ -21,7 +21,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 }
 
-static Button *createButton(std::string text, ArsEng *engine, void (*callback)()) {
+static Button *createButton(std::string text, ArsEng *engine, std::function<void()> callback) {
     auto btn = new Button();
     btn->rec = {0,0,1,1};
     btn->state = GameState::MENU;

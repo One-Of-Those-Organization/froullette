@@ -2,6 +2,7 @@
 
 #include "Object.hpp"
 #include <string>
+#include <functional>
 #include <raylib.h>
 
 class Button : public Object {
@@ -12,7 +13,7 @@ class Button : public Object {
         Font *font;
         int padding;
         Color color[4];
-        void (*callback)();
+        std::function<void()> callback;
         bool _hovered;
         int _spacing;
 
