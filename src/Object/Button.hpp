@@ -28,10 +28,9 @@ class Button : public Object {
         void render() override {
             if (!this->show || !font) return;
 
+            this->calculate_rec();
             Color &fgcolor = _hovered ? color[3]: color[1];
             Color &bgcolor = _hovered ? color[2]: color[0];
-            rec.width = this->_get_width() + this->padding * 2;
-            rec.height = this->text_size + this->padding * 2;
             DrawRectangleRec(rec, bgcolor);
 
             if (text != "") {
@@ -39,6 +38,11 @@ class Button : public Object {
                             Vector2(rec.x + padding, rec.y + padding), Vector2(0, 0), 0.0f, text_size,
                             _spacing, fgcolor);
             }
+        }
+
+        void calculate_rec() {
+            rec.width = this->_get_width() + this->padding * 2;
+            rec.height = this->text_size + this->padding * 2;
         }
 
         void logic(float dt) override {

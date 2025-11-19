@@ -1,8 +1,16 @@
 #pragma once
+
 #include "ArsEng.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Button.hpp"
+
+static const int scale_factor[] = {
+    2, // 640x480
+    4, // 1280x720
+    6, // 1920x1080
+};
+static int active_factor = 1;
 
 static void initTestObject(ArsEng *engine, int *z) {
     auto ball = new Balls();
@@ -39,23 +47,32 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, int
     return btn;
 }
 
-static void initMenu(ArsEng *engine, int *z) {
-    engine->om.add_object(
-            createButton(engine, "Play", 24, 10, GameState::MENU, {0,0}, [engine](){
-                    TraceLog(LOG_INFO, "Changing the state to `gameplay`");
-                    engine->state = GameState::INGAME;
-                })
-            , *z++);
+static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
+    auto btn = createButton(engine,
+                            "Play",
+                            12 * scale_factor[active_factor],
+                            5 * scale_factor[active_factor],
+                            GameState::MENU,
+                            {wsize->x / 2, wsize->y / 2},
+                            [engine](){
+                                TraceLog(LOG_INFO, "Changing the state to `gameplay`");
+                                engine->state = GameState::INGAME;
+                            });
+    btn->calculate_rec();
+    btn->rec.y -= btn->rec.height / 2.0f;
+    btn->rec.x -= btn->rec.width / 2.0f;
+    engine->om.add_object(btn , *z++);
 }
 
 static void gameInit(ArsEng *engine) {
     int z = 1;
-    Vector2 wsize = {
+    Vector2 canvas_size = {
         engine->canvas_size.x,
         engine->canvas_size.y,
     };
+    Vector2 win_size = engine->window_size;
 
     // Load Object
-    initMenu(engine, &z);
-    initInGame(engine, &wsize, &z);
+    initMenu(engine, &win_size, &z);
+    initInGame(engine, &canvas_size, &z);
 }
