@@ -51,6 +51,7 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, int
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
+    // Play Button
     auto btn = createButton(engine,
                             "Play",
                             apply(12),
@@ -65,6 +66,38 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     btn->rec.y -= btn->rec.height / 2.0f;
     btn->rec.x -= btn->rec.width / 2.0f;
     engine->om.add_object(btn , *z++);
+
+    // Setting Button
+    auto btnSettings = createButton(engine,
+                            "Settings",
+                            apply(12),
+                            apply(5),
+                            GameState::MENU,
+                            {wsize->x / 2, wsize->y / 2 + apply(25)},
+                            [engine](){
+                                TraceLog(LOG_INFO, "Changing the state to `settings`");
+                                engine->state = GameState::SETTINGS;
+                            });
+    btnSettings->calculate_rec();
+    btnSettings->rec.y -= btnSettings->rec.height / 2.0f;
+    btnSettings->rec.x -= btnSettings->rec.width / 2.0f;
+    engine->om.add_object(btnSettings , *z++);
+
+    // Exit Button
+    auto btnExit = createButton(engine,
+                            "Exit",
+                            apply(12),
+                            apply(5),
+                            GameState::MENU,
+                            {wsize->x / 2, wsize->y / 2 + apply(50)},
+                            [engine](){
+                                TraceLog(LOG_INFO, "Exiting the game");
+                                engine->state = GameState::EXIT;
+                            });
+    btnExit->calculate_rec();
+    btnExit->rec.y -= btnExit->rec.height / 2.0f;
+    btnExit->rec.x -= btnExit->rec.width / 2.0f;
+    engine->om.add_object(btnExit , *z++);
 }
 
 static void gameInit(ArsEng *engine) {
