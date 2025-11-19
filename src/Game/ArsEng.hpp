@@ -26,7 +26,13 @@ class ArsEng {
             this->font =
                 LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
                            96, NULL, 95);
-            asm("int3");
+
+            if (this->font.texture.id == 0)
+                TraceLog(LOG_FATAL,
+                         TextFormat("%s\n",
+                         "Try to launch the game from the correct path."
+                         " The game expect the `assets` folder in cwd."));
+
 #ifdef MOBILE
             SetGesturesEnabled(GESTURE_TAP);
 #endif

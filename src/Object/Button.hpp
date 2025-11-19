@@ -17,32 +17,34 @@ class Button : public Object {
         int _spacing;
 
         Button() {
-            int defaultFontSize = 10;
-            if (this->text_size < defaultFontSize) this->text_size = defaultFontSize;
-            this->_spacing = this->text_size / defaultFontSize;
+            this->_spacing = 1;
+            // int defaultFontSize = 10;
+            // if (this->text_size < defaultFontSize) this->text_size = defaultFontSize;
+            // this->_spacing = this->text_size / defaultFontSize;
         }
         virtual ~Button() = default;
 
         void render() override {
-            if (!this->show) return;
+            if (!this->show || !font) return;
 
             Color &fgcolor = _hovered ? color[3]: color[1];
             Color &bgcolor = _hovered ? color[2]: color[0];
-            if (rec.width > 0 && rec.height > 0)
-                DrawRectangleRec(Rectangle(rec.x - padding, rec.y - padding,
-                                 rec.width + (padding * 2), rec.height + (padding * 2)),
-                                 bgcolor);
+            rec.width = this->_get_width() + this->padding * 2;
+            rec.height = this->text_size + this->padding * 2;
+            DrawRectangleRec(rec, bgcolor);
 
-            if (!font) return;
-            // if (font->texture.id <= 0) return;
-            if (text != "")
+            if (text != "") {
                 DrawTextPro(*font, text.c_str(),
-                            Vector2(rec.x, rec.y), Vector2(0, 0), 0.0f, text_size,
+                            Vector2(rec.x + padding, rec.y + padding), Vector2(0, 0), 0.0f, text_size,
                             _spacing, fgcolor);
+            }
         }
 
         void logic(float dt) override {
             (void)dt;
+            // NOTE: Collison chenck is owned by the window or engine!
+            // add new method something like "isCollidingWithCursor"
+            // or add new method to convert to global var
             if (!curpos) return;
             if (CheckCollisionPointRec(*curpos, this->rec)) {
                 this->_hovered = true;
