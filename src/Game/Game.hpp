@@ -42,8 +42,8 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, int
 static void initMenu(ArsEng *engine, int *z) {
     engine->om.add_object(
             createButton(engine, "Play", 24, 10, GameState::MENU, {0,0}, [engine](){
-                    engine->state = GameState::INGAME;
                     TraceLog(LOG_INFO, "Changing the state to `gameplay`");
+                    engine->state = GameState::INGAME;
                 })
             , *z++);
 }
@@ -57,5 +57,5 @@ static void gameInit(ArsEng *engine) {
 
     // Load Object
     initMenu(engine, &z);
-    // initInGame(engine, &wsize, &z);
+    initInGame(engine, &wsize, &z);
 }
