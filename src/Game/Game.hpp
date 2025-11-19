@@ -1,9 +1,10 @@
 #pragma once
-
 #include "ArsEng.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Button.hpp"
+
+#define apply(value) (value * scale_factor[active_factor])
 
 static const int scale_factor[] = {
     2, // 640x480
@@ -27,6 +28,8 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
     desk->state = GameState::INGAME;
     engine->om.add_object(desk, *z++);
+
+    auto p2 = new Object();
 }
 
 static Button *createButton(ArsEng *engine, std::string text, int text_size, int padding, GameState state, Vector2 pos, std::function<void()> callback) {
@@ -43,15 +46,15 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, int
     btn->color[0] = {GetColor(0xffffffff)};
     btn->color[1] = {GetColor(0x000000ff)};
     btn->color[2] = {GetColor(0x999999ff)};
-    btn->color[3] = {GetColor(0x333333ff)};
+    btn->color[3] = {GetColor(0xffffffff)};
     return btn;
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     auto btn = createButton(engine,
                             "Play",
-                            12 * scale_factor[active_factor],
-                            5 * scale_factor[active_factor],
+                            apply(12),
+                            apply(5),
                             GameState::MENU,
                             {wsize->x / 2, wsize->y / 2},
                             [engine](){
