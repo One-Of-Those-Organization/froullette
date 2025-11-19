@@ -21,12 +21,12 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 }
 
-static Button *createButton(ArsEng *engine, std::string text, GameState state, Vector2 pos, std::function<void()> callback) {
+static Button *createButton(ArsEng *engine, std::string text, int text_size, GameState state, Vector2 pos, std::function<void()> callback) {
     auto btn = new Button();
     btn->rec = {pos.x,pos.y,1,1};
     btn->state = state;
     btn->text = text;
-    btn->text_size = 12;
+    btn->text_size = text_size;
     btn->curpos = &engine->cursor;
     btn->padding = 2;
     btn->callback = callback;
@@ -40,7 +40,7 @@ static Button *createButton(ArsEng *engine, std::string text, GameState state, V
 
 static void initMenu(ArsEng *engine, int *z) {
     engine->om.add_object(
-            createButton(engine, "Play", GameState::MENU, {0,0}, [](){ TraceLog(LOG_INFO, "Hello!"); })
+            createButton(engine, "Play", 10, GameState::MENU, {0,0}, [](){ TraceLog(LOG_INFO, "Hello!"); })
             , *z++);
 }
 
