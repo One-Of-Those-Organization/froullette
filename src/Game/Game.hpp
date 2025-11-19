@@ -21,16 +21,17 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 }
 
-static Button *createButton(ArsEng *engine, std::string text, int text_size, GameState state, Vector2 pos, std::function<void()> callback) {
+static Button *createButton(ArsEng *engine, std::string text, int text_size, int padding, GameState state, Vector2 pos, std::function<void()> callback) {
     auto btn = new Button();
     btn->rec = {pos.x,pos.y,1,1};
     btn->state = state;
     btn->text = text;
     btn->text_size = text_size;
     btn->curpos = &engine->cursor;
-    btn->padding = 2;
+    btn->padding = padding;
     btn->callback = callback;
     btn->font = &engine->font;
+    btn->draw_in_canvas = false;
     btn->color[0] = {GetColor(0xffffffff)};
     btn->color[1] = {GetColor(0x000000ff)};
     btn->color[2] = {GetColor(0x999999ff)};
@@ -40,7 +41,10 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, Gam
 
 static void initMenu(ArsEng *engine, int *z) {
     engine->om.add_object(
-            createButton(engine, "Play", 10, GameState::MENU, {0,0}, [](){ TraceLog(LOG_INFO, "Hello!"); })
+            createButton(engine, "Play", 24, 10, GameState::MENU, {0,0}, [engine](){
+                    engine->state = GameState::INGAME;
+                    TraceLog(LOG_INFO, "Changing the state to `gameplay`");
+                })
             , *z++);
 }
 

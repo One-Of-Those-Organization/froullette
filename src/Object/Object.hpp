@@ -11,6 +11,7 @@ class Object {
         bool show;
         GameState state;
         void *engine;
+        bool draw_in_canvas = true;
 
         Object() {
             this->engine = nullptr;

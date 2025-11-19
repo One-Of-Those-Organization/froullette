@@ -15,7 +15,9 @@ class ArsEng {
         GameState state;
         Vector2 canvas_size = {};
         Vector2 cursor = {};
+        Vector2 canvas_cursor = {};
         Font font;
+        std::vector<Object *> render_later;
 
         ArsEng(): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
@@ -53,26 +55,39 @@ class ArsEng {
             }
         }
 
+        void render() {
+            for (auto &obj: this->render_later) {
+                if (!has_flag(state, obj->state)) continue;
+                obj->render();
+            }
+            render_later.clear();
+        }
+
         void render_to_canvas() {
+            render_later.clear();
             BeginTextureMode(canvas);
             ClearBackground(BLACK);
             for (auto &obj: om.sorted) {
                 if (!has_flag(state, obj->state)) continue;
-                obj->render();
+                if (obj->draw_in_canvas) obj->render();
+                else render_later.push_back(obj);
             }
             EndTextureMode();
         }
 
         void update(float dt) {
 #ifdef MOBILE
-            Vector2 raw_cursor = GetTouchPosition();
+            this->cursor = GetTouchPosition();
 #else
-            Vector2 raw_cursor = GetMousePosition();
+            this->cursor = GetMousePosition();
 #endif
-            this->cursor.x = (raw_cursor.x / this->window_size.x) * this->canvas_size.x;
-            this->cursor.y = (raw_cursor.y / this->window_size.y) * this->canvas_size.y;
+            this->canvas_cursor.x =
+                (this->cursor.x / this->window_size.x) * this->canvas_size.x;
+            this->canvas_cursor.y =
+                (this->cursor.y / this->window_size.y) * this->canvas_size.y;
             for (const auto &o: this->om.sorted) {
-                o->logic(dt);
+                if (!has_flag(state, o->state)) continue;
+                if (o->show) o->logic(dt);
             }
         }
 };

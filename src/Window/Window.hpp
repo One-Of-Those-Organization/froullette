@@ -42,6 +42,9 @@ class Window {
                         Rectangle{0, 0, size.x, size.y},
                         Vector2{0, 0}, 0.0f, WHITE);
 
+                // Render later object (for ui and stuff)
+                engine->render();
+
                 EndDrawing();
             }
             return true;
