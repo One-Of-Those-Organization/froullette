@@ -29,6 +29,7 @@ static Button *createButton(std::string text, ArsEng *engine, void (*callback)()
     btn->text_size = 12;
     btn->curpos = &engine->cursor;
     btn->callback = callback;
+    btn->font = &engine->font;
     return btn;
 }
 

@@ -34,7 +34,7 @@ class Button : public Object {
                                  bgcolor);
 
             if (!font) return;
-            if (font->texture.id <= 0) return;
+            // if (font->texture.id <= 0) return;
             if (text != "")
                 DrawTextPro(*font, text.c_str(),
                             Vector2(rec.x, rec.y), Vector2(0, 0), 0.0f, text_size,

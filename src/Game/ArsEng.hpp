@@ -26,6 +26,7 @@ class ArsEng {
             this->font =
                 LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
                            96, NULL, 95);
+            asm("int3");
 #ifdef MOBILE
             SetGesturesEnabled(GESTURE_TAP);
 #endif
