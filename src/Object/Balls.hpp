@@ -13,9 +13,9 @@ class Balls: public Object {
 
             if (text != nullptr && text->width > 0 && text->height > 0) {
                 DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height),
-                        rec, Vector2(0, 0), 0.0f, WHITE);
+                        rec, Vector2(0, 0), 0.0f, GRAY);
             } else {
-                DrawCircleV(Vector2{rec.x, rec.y}, rec.width, WHITE);
+                DrawCircleV(Vector2{rec.x, rec.y}, rec.width, GRAY);
             }
         }
 

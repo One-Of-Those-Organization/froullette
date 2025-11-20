@@ -20,6 +20,7 @@ static void initTestObject(ArsEng *engine, int *z) {
     ball->rec = {10, 10, 10, 10};
     ball->engine = engine;
     ball->speed = {50, 50};
+    ball->state = GameState::MENU;
     engine->om.add_object(ball, *z++);
 }
 
@@ -57,15 +58,7 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size,
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
-    Text *title = new Text("Froullette", apply(24), WHITE,
-                           &engine->font);
-    title->draw_in_canvas = false;
-    title->rec.x = (wsize->x - title->calculate_len().x) / 2.f;
-    title->rec.y = apply(50);
-    engine->state = GameState::MENU;
-    engine->om.add_object(title, (*z)++);
-
-    auto make = [&](const char *label, float offsetY,
+    auto makeBtn = [&](const char *label, float offsetY,
                     std::function<void()> cb) {
         auto btn =
             createButton(engine, label, apply(12), apply(5), GameState::MENU,
@@ -79,17 +72,29 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->om.add_object(btn, (*z)++);
     };
 
-    make("Play", 0, [engine]() {
+    auto makeTxt = [&](const char *label, float offsetY) {
+        const int font_size = 24;
+        auto txt = new Text(label, apply(font_size), WHITE,
+                            &engine->font);
+        txt->draw_in_canvas = false;
+        txt->rec.x = (wsize->x - txt->calculate_len().x) / 2.f;
+        txt->rec.y = apply(offsetY);
+        engine->state = GameState::MENU;
+        engine->om.add_object(txt, (*z)++);
+    };
+
+    makeTxt("Fate", 30);
+    makeTxt("Roullete", 50);
+
+    makeBtn("Play", 0, [engine]() {
         TraceLog(LOG_INFO, "Changing the state to `gameplay`");
         engine->state = GameState::INGAME;
     });
-
-    make("Settings", apply(25), [engine]() {
+    makeBtn("Settings", apply(25), [engine]() {
         TraceLog(LOG_INFO, "Changing the state to `settings`");
         engine->state = GameState::SETTINGS;
     });
-
-    make("Exit", apply(50), [engine]() {
+    makeBtn("Exit", apply(50), [engine]() {
         TraceLog(LOG_INFO, "Exiting the game");
         engine->req_close = true;
     });
@@ -104,6 +109,7 @@ static void gameInit(ArsEng *engine) {
     Vector2 win_size = engine->window_size;
 
     // Load Object
+    initTestObject(engine, &z);
     initMenu(engine, &win_size, &z);
     initInGame(engine, &canvas_size, &z);
 }
