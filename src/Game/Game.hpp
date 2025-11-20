@@ -5,6 +5,7 @@
 #include "../Object/Text.hpp"
 #include "ArsEng.hpp"
 
+// NOTE: Later will be moved to the engine i guess...
 #define apply(value) (value * scale_factor[active_factor])
 
 static const int scale_factor[] = {
@@ -31,6 +32,8 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     engine->om.add_object(desk, *z++);
 
     auto p2 = new Object();
+    p2->rec = Rectangle();
+    p2->state = GameState::INGAME;
 }
 
 static Button *createButton(ArsEng *engine, std::string text, int text_size,
@@ -54,21 +57,15 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size,
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
-    // Text Title
-    static Text *title = new Text("Froullette",         // content
-                                  48,                   // size
-                                  WHITE,                // color
-                                  &engine->font         // font pointer
-    );
-    title->draw_in_canvas = true;
-    title->calculate_rec();
-    title->rec.x = (wsize->x - title->rec.width) / 2.f;
+    Text *title = new Text("Froullette", apply(24), WHITE,
+                           &engine->font);
+    title->draw_in_canvas = false;
+    title->rec.x = (wsize->x - title->calculate_len().x) / 2.f;
     title->rec.y = apply(50);
     engine->state = GameState::MENU;
     engine->om.add_object(title, (*z)++);
 
-    // Button
-    auto make = [&](const char *label, float offsetY, GameState state,
+    auto make = [&](const char *label, float offsetY,
                     std::function<void()> cb) {
         auto btn =
             createButton(engine, label, apply(12), apply(5), GameState::MENU,
@@ -82,19 +79,19 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->om.add_object(btn, (*z)++);
     };
 
-    make("Play", 0, GameState::INGAME, [engine]() {
+    make("Play", 0, [engine]() {
         TraceLog(LOG_INFO, "Changing the state to `gameplay`");
         engine->state = GameState::INGAME;
     });
 
-    make("Settings", apply(25), GameState::SETTINGS, [engine]() {
+    make("Settings", apply(25), [engine]() {
         TraceLog(LOG_INFO, "Changing the state to `settings`");
         engine->state = GameState::SETTINGS;
     });
 
-    make("Exit", apply(50), GameState::EXIT, [engine]() {
+    make("Exit", apply(50), [engine]() {
         TraceLog(LOG_INFO, "Exiting the game");
-        engine->state = GameState::EXIT;
+        engine->req_close = true;
     });
 }
 

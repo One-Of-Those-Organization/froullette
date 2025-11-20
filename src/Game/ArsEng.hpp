@@ -18,11 +18,13 @@ class ArsEng {
         Vector2 canvas_cursor = {};
         Font font;
         std::vector<Object *> render_later;
+        bool req_close;
 
         ArsEng(): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
             SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
             SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
+            this->req_close = false;
             this->canvas_size.x = this->canvas.texture.width;
             this->canvas_size.y = this->canvas.texture.height;
             this->font =

@@ -12,18 +12,17 @@ class Text : public Object {
 
     Text(const std::string& content, int size, Color color, Font *font)
         : text(content), text_size(size), text_color(color), font(font) {}
-    
+
+    Text(){}
+
     void render() override {
         if (!this->show || !this->font) return;
-        // TraceLog(LOG_INFO, "Rendering Text: %s", this->text.c_str());
-        DrawTextEx(*this->font, this->text.c_str(), {this->rec.x, this->rec.y}, static_cast<float>(this->text_size), 1.0f, this->text_color);
+        DrawTextEx(*this->font, this->text.c_str(), {this->rec.x, this->rec.y}, (float)this->text_size, 1.0f, this->text_color);
     }
 
-    void calculate_rec() {
-        if (!this->font) return;
-        Vector2 size = MeasureTextEx(*this->font, this->text.c_str(), static_cast<float>(this->text_size), 1.0f);
-        this->rec.width = size.x;
-        this->rec.height = size.y;
+    Vector2 calculate_len() {
+        if (!this->font) return Vector2();
+        return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
     }
 
     void logic(float dt) override {

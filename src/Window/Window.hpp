@@ -29,6 +29,7 @@ class Window {
 
         bool loop() {
             while (!WindowShouldClose()) {
+                if (engine->req_close) break;
                 float dt = GetFrameTime();
                 engine->check_and_recreate_canvas();
                 engine->update(dt);

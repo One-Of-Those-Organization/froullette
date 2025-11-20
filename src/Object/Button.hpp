@@ -47,9 +47,6 @@ class Button : public Object {
 
         void logic(float dt) override {
             (void)dt;
-            // NOTE: Collison chenck is owned by the window or engine!
-            // add new method something like "isCollidingWithCursor"
-            // or add new method to convert to global var
             if (!curpos) return;
             if (CheckCollisionPointRec(*curpos, this->rec)) {
                 this->_hovered = true;
