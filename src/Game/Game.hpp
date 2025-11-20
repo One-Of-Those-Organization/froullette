@@ -1,8 +1,9 @@
 #pragma once
-#include "ArsEng.hpp"
 #include "../Object/Balls.hpp"
-#include "../Object/Desk.hpp"
 #include "../Object/Button.hpp"
+#include "../Object/Desk.hpp"
+#include "../Object/Text.hpp"
+#include "ArsEng.hpp"
 
 #define apply(value) (value * scale_factor[active_factor])
 
@@ -32,9 +33,11 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     auto p2 = new Object();
 }
 
-static Button *createButton(ArsEng *engine, std::string text, int text_size, int padding, GameState state, Vector2 pos, std::function<void()> callback) {
+static Button *createButton(ArsEng *engine, std::string text, int text_size,
+                            int padding, GameState state, Vector2 pos,
+                            std::function<void()> callback) {
     auto btn = new Button();
-    btn->rec = {pos.x,pos.y,1,1};
+    btn->rec = {pos.x, pos.y, 1, 1};
     btn->state = state;
     btn->text = text;
     btn->text_size = text_size;
@@ -51,39 +54,48 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size, int
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
+    // Text Title
+    static Text *title = new Text("Froullette",         // content
+                                  48,                   // size
+                                  WHITE,                // color
+                                  &engine->font         // font pointer
+    );
+    title->draw_in_canvas = true;
+    title->calculate_rec();
+    title->rec.x = (wsize->x - title->rec.width) / 2.f;
+    title->rec.y = apply(50);
+    engine->state = GameState::MENU;
+    engine->om.add_object(title, (*z)++);
+
     // Button
-    auto make = [&](const char* label, float offsetY, GameState state, std::function<void()> cb){
-        auto btn = createButton(engine,
-                            label,
-                            apply(12),
-                            apply(5),
-                            GameState::MENU,
-                            {wsize->x / 2, wsize->y / 2 + offsetY},
-                            cb);
+    auto make = [&](const char *label, float offsetY, GameState state,
+                    std::function<void()> cb) {
+        auto btn =
+            createButton(engine, label, apply(12), apply(5), GameState::MENU,
+                         {wsize->x / 2, wsize->y / 2 + offsetY}, cb);
 
         btn->calculate_rec();
 
-        btn->rec.x = (wsize->x - btn->rec.width ) / 2.f;
+        btn->rec.x = (wsize->x - btn->rec.width) / 2.f;
         btn->rec.y = (wsize->y - btn->rec.height) / 2.f + offsetY;
 
         engine->om.add_object(btn, (*z)++);
     };
 
-    make("Play",      0,              GameState::INGAME,
-         [engine](){
-            TraceLog(LOG_INFO, "Changing the state to `gameplay`");
-            engine->state = GameState::INGAME; 
-         });
+    make("Play", 0, GameState::INGAME, [engine]() {
+        TraceLog(LOG_INFO, "Changing the state to `gameplay`");
+        engine->state = GameState::INGAME;
+    });
 
-    make("Settings",  apply(25),      GameState::SETTINGS,
-         [engine](){
-            TraceLog(LOG_INFO, "Changing the state to `settings`");
-            engine->state = GameState::SETTINGS; });
+    make("Settings", apply(25), GameState::SETTINGS, [engine]() {
+        TraceLog(LOG_INFO, "Changing the state to `settings`");
+        engine->state = GameState::SETTINGS;
+    });
 
-    make("Exit",      apply(50),      GameState::EXIT,
-         [engine](){
-            TraceLog(LOG_INFO, "Exiting the game");
-            engine->state = GameState::EXIT; });
+    make("Exit", apply(50), GameState::EXIT, [engine]() {
+        TraceLog(LOG_INFO, "Exiting the game");
+        engine->state = GameState::EXIT;
+    });
 }
 
 static void gameInit(ArsEng *engine) {

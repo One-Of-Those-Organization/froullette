@@ -1,0 +1,32 @@
+#pragma once
+#include "Object.hpp"
+#include <string>
+#include <raylib.h>
+
+class Text : public Object {
+    public:
+        std::string text;
+        int text_size;
+        Color text_color;
+        Font *font;
+
+    Text(const std::string& content, int size, Color color, Font *font)
+        : text(content), text_size(size), text_color(color), font(font) {}
+    
+    void render() override {
+        if (!this->show || !this->font) return;
+        // TraceLog(LOG_INFO, "Rendering Text: %s", this->text.c_str());
+        DrawTextEx(*this->font, this->text.c_str(), {this->rec.x, this->rec.y}, static_cast<float>(this->text_size), 1.0f, this->text_color);
+    }
+
+    void calculate_rec() {
+        if (!this->font) return;
+        Vector2 size = MeasureTextEx(*this->font, this->text.c_str(), static_cast<float>(this->text_size), 1.0f);
+        this->rec.width = size.x;
+        this->rec.height = size.y;
+    }
+
+    void logic(float dt) override {
+        (void)dt;
+    }
+};
