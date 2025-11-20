@@ -5,16 +5,6 @@
 #include "../Object/Text.hpp"
 #include "ArsEng.hpp"
 
-// NOTE: Later will be moved to the engine i guess...
-#define apply(value) (value * scale_factor[active_factor])
-
-static const int scale_factor[] = {
-    2, // 640x480
-    4, // 1280x720
-    6, // 1920x1080
-};
-static int active_factor = 1;
-
 static void initTestObject(ArsEng *engine, int *z) {
     auto ball = new Balls();
     ball->rec = {10, 10, 10, 10};
@@ -58,6 +48,10 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size,
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
+    auto apply = [&](int value) {
+        return engine->calcf(value);
+    };
+
     auto makeBtn = [&](const char *label, float offsetY,
                     std::function<void()> cb) {
         auto btn =
@@ -79,7 +73,7 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
         txt->draw_in_canvas = false;
         txt->rec.x = (wsize->x - txt->calculate_len().x) / 2.f;
         txt->rec.y = apply(offsetY);
-        engine->state = GameState::MENU;
+        txt->state = GameState::MENU;
         engine->om.add_object(txt, (*z)++);
     };
 

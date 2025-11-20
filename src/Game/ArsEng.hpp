@@ -19,11 +19,28 @@ class ArsEng {
         Font font;
         std::vector<Object *> render_later;
         bool req_close;
+        int active;
+        int scale_factor[4] = {
+            1, // smaller
+            2, // 854x480
+            3, // 1280x720
+            4, // 1920x1080
+        };
 
-        ArsEng(): om(), state(GameState::MENU) {
+        void _set_active() {
+            switch ((int)this->window_size.y) {
+                case 480:  { active = 1; } break;
+                case 720:  { active = 2; } break;
+                case 1080: { active = 3; } break;
+                default: { if (this->window_size.y < 480) active = 0; } break;
+            }
+        }
+
+        ArsEng(Vector2 wsize): om(), state(GameState::MENU) {
             canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
             SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
             SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
+            this->window_size = wsize;
             this->req_close = false;
             this->canvas_size.x = this->canvas.texture.width;
             this->canvas_size.y = this->canvas.texture.height;
@@ -36,6 +53,7 @@ class ArsEng {
                          TextFormat("%s\n",
                          "Try to launch the game from the correct path."
                          " The game expect the `assets` folder in cwd."));
+            this->_set_active();
 
 #ifdef MOBILE
             SetGesturesEnabled(GESTURE_TAP);
@@ -91,5 +109,9 @@ class ArsEng {
                 if (!has_flag(state, o->state)) continue;
                 if (o->show) o->logic(dt);
             }
+        }
+
+        int calcf(int value) {
+            return value * this->scale_factor[active];
         }
 };

@@ -17,8 +17,7 @@ class Window {
                 InitWindow(size.x, size.y, name);
                 SetTargetFPS(fps);
 
-                engine = new ArsEng();
-                engine->window_size = size;
+                engine = new ArsEng(size);
                 gameInit(engine);
             };
 
