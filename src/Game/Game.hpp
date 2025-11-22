@@ -3,6 +3,7 @@
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Text.hpp"
+#include "../Object/Needle.hpp"
 #include "ArsEng.hpp"
 
 static void initTestObject(ArsEng *engine, int *z) {
