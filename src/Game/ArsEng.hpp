@@ -13,11 +13,12 @@ class ArsEng {
         ObjectManager om;
         ShadersManager sm;
         GameState state;
+        Font font;
+
         Vector2 canvas_size = {};
         Vector2 cursor = {};
         Vector2 canvas_cursor = {};
-        Font font;
-        std::vector<Object *> render_later;
+
         bool req_close;
         int active;
         int scale_factor[4] = {
@@ -26,6 +27,8 @@ class ArsEng {
             3, // 1280x720
             4, // 1920x1080
         };
+
+        std::vector<Object *> render_later;
 
         void _set_active() {
             switch ((int)this->window_size.y) {
@@ -46,7 +49,7 @@ class ArsEng {
             this->canvas_size.y = this->canvas.texture.height;
             this->font =
                 LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
-                           96, NULL, 95);
+                           120, NULL, 95);
 
             if (this->font.texture.id == 0)
                 TraceLog(LOG_FATAL,

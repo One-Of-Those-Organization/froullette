@@ -15,16 +15,31 @@ static void initTestObject(ArsEng *engine, int *z) {
 }
 
 static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
+    auto apply = [&](int value) {
+        return engine->calcf(value);
+    };
+
+    auto p2 = new Object();
+    p2->rec = Rectangle{
+        .x = 0,
+        .y = 0,
+        .width = 20,
+        .height = 30,
+    };
+
+    p2->rec.x = (wsize->x - p2->rec.width) / 2;
+    p2->rec.y = (wsize->y - p2->rec.height) / 2;
+
+    p2->state = GameState::INGAME;
+    p2->color = RED;
+    engine->om.add_object(p2, *z++);
+
     auto desk = new Desk();
     desk->angle = {0.0f, 0.5f};
     float offset = 12;
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
     desk->state = GameState::INGAME;
     engine->om.add_object(desk, *z++);
-
-    auto p2 = new Object();
-    p2->rec = Rectangle();
-    p2->state = GameState::INGAME;
 }
 
 static Button *createButton(ArsEng *engine, std::string text, int text_size,
@@ -67,7 +82,7 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     };
 
     auto makeTxt = [&](const char *label, float offsetY) {
-        const int font_size = 24;
+        const int font_size = apply(8);
         auto txt = new Text(label, apply(font_size), WHITE,
                             &engine->font);
         txt->draw_in_canvas = false;
@@ -77,8 +92,8 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->om.add_object(txt, (*z)++);
     };
 
-    makeTxt("Fate", 30);
-    makeTxt("Roullete", 50);
+    makeTxt("Fate", apply(10));
+    makeTxt("Roullete", apply(17));
 
     makeBtn("Play", 0, [engine]() {
         TraceLog(LOG_INFO, "Changing the state to `gameplay`");

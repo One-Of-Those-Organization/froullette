@@ -12,6 +12,7 @@ class Object {
         GameState state;
         void *engine;
         bool draw_in_canvas = true;
+        Color color;
 
         Object() {
             this->engine = nullptr;
