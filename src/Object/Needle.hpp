@@ -13,5 +13,7 @@ class Needle : public Object {
         Needle(): Object() {};
         virtual ~Needle() = default;
         void render() override {};
-        void logic(float dt) override {};
+        void logic(float dt) override {
+            (void)dt;
+        };
 };
