@@ -3,7 +3,7 @@
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Text.hpp"
-#include "../Object/Needle.hpp"
+#include "../Object/NeedleContainer.hpp"
 #include "ArsEng.hpp"
 
 static void initTestObject(ArsEng *engine, int *z) {
@@ -21,15 +21,14 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     };
 
     auto p2 = new Object();
-    p2->rec = Rectangle{
-        .x = 0,
-        .y = 0,
-        .width = 20,
-        .height = 30,
-    };
-
+    p2->rec = Rectangle{ 0, 0, 20, 30 };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
     p2->rec.y = (wsize->y - p2->rec.height) / 2;
+
+    p2->is_resizable = true;
+    p2->position_info.use_relative = true;
+    p2->position_info.center_x = true;
+    p2->position_info.center_y = true;
 
     p2->state = GameState::INGAME;
     p2->color = RED;
@@ -39,13 +38,23 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     desk->angle = {0.0f, 0.5f};
     float offset = 12;
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
+
+    desk->is_resizable = true;
+    desk->position_info.use_relative = true;
+    desk->position_info.relative_x = offset / wsize->x;
+    desk->position_info.relative_y = 0.5f;
+    desk->position_info.offset.y = 5;
+
     desk->state = GameState::INGAME;
     engine->om.add_object(desk, *z++);
+
+    auto ns = new NeedleContainer();
+    engine->om.add_object(ns, *z++);
 }
 
 static Button *createButton(ArsEng *engine, std::string text, int text_size,
-                            int padding, GameState state, Vector2 pos,
-                            std::function<void()> callback) {
+        int padding, GameState state, Vector2 pos,
+        std::function<void()> callback) {
     auto btn = new Button();
     btn->rec = {pos.x, pos.y, 1, 1};
     btn->state = state;
@@ -63,33 +72,63 @@ static Button *createButton(ArsEng *engine, std::string text, int text_size,
     return btn;
 }
 
+static Button *create_resizable_button(ArsEng *engine, std::string text, int text_size,
+        int padding, GameState state, float relative_x, float relative_y, float offset_y,
+        std::function<void()> callback)
+{
+    Vector2 wsize = engine->window_size;
+    auto btn = createButton(engine, text, text_size, padding, state,
+            {wsize.x * relative_x, wsize.y * relative_y}, callback);
+
+    // Store positioning info for resize
+    btn->is_resizable = true;
+    btn->position_info.use_relative = true;
+    btn->position_info.relative_x = relative_x;
+    btn->position_info.relative_y = relative_y;
+    btn->position_info.center_x = true;
+    btn->position_info.offset.y = offset_y;
+
+    btn->calculate_rec();
+    btn->rec.x = (wsize.x - btn->rec.width) / 2.f;
+    btn->rec.y = (wsize.y - btn->rec.height) / 2.f + offset_y;
+
+    return btn;
+}
+
+static Text *create_resizable_text(ArsEng *engine, const char *label, int font_size,
+        Color color, GameState state, float offset_y) {
+    Vector2 wsize = engine->window_size;
+    auto txt = new Text(label, font_size, color, &engine->font);
+    txt->draw_in_canvas = false;
+    txt->rec.x = (wsize.x - txt->calculate_len().x) / 2.f;
+    txt->rec.y = offset_y;
+    txt->state = state;
+
+    // Make text resizable and centered
+    txt->is_resizable = true;
+    txt->position_info.use_relative = true;
+    txt->position_info.center_x = true;
+    txt->position_info.relative_y = offset_y / wsize.y;
+
+    return txt;
+}
+
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     auto apply = [&](int value) {
         return engine->calcf(value);
     };
 
     auto makeBtn = [&](const char *label, float offsetY,
-                    std::function<void()> cb) {
-        auto btn =
-            createButton(engine, label, apply(12), apply(5), GameState::MENU,
-                         {wsize->x / 2, wsize->y / 2 + offsetY}, cb);
-
-        btn->calculate_rec();
-
-        btn->rec.x = (wsize->x - btn->rec.width) / 2.f;
-        btn->rec.y = (wsize->y - btn->rec.height) / 2.f + offsetY;
-
+            std::function<void()> cb) {
+        auto btn = create_resizable_button(engine, label, apply(12), apply(5),
+                GameState::MENU, 0.5f, 0.5f, offsetY, cb);
         engine->om.add_object(btn, (*z)++);
     };
 
     auto makeTxt = [&](const char *label, float offsetY) {
-        const int font_size = apply(8);
-        auto txt = new Text(label, apply(font_size), WHITE,
-                            &engine->font);
-        txt->draw_in_canvas = false;
-        txt->rec.x = (wsize->x - txt->calculate_len().x) / 2.f;
-        txt->rec.y = apply(offsetY);
-        txt->state = GameState::MENU;
+        const int font_size = apply(24);
+        auto txt = create_resizable_text(engine, label, font_size, WHITE,
+                GameState::MENU, apply(offsetY));
         engine->om.add_object(txt, (*z)++);
     };
 
@@ -97,17 +136,17 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     makeTxt("Roullete", apply(17));
 
     makeBtn("Play", 0, [engine]() {
-        TraceLog(LOG_INFO, "Changing the state to `gameplay`");
-        engine->state = GameState::INGAME;
-    });
+            TraceLog(LOG_INFO, "Changing the state to `gameplay`");
+            engine->state = GameState::INGAME;
+            });
     makeBtn("Settings", apply(25), [engine]() {
-        TraceLog(LOG_INFO, "Changing the state to `settings`");
-        engine->state = GameState::SETTINGS;
-    });
+            TraceLog(LOG_INFO, "Changing the state to `settings`");
+            engine->state = GameState::SETTINGS;
+            });
     makeBtn("Exit", apply(50), [engine]() {
-        TraceLog(LOG_INFO, "Exiting the game");
-        engine->req_close = true;
-    });
+            TraceLog(LOG_INFO, "Exiting the game");
+            engine->req_close = true;
+            });
 }
 
 static void gameInit(ArsEng *engine) {

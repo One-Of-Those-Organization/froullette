@@ -49,13 +49,13 @@ class ArsEng {
             this->canvas_size.y = this->canvas.texture.height;
             this->font =
                 LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
-                           120, NULL, 95);
+                        120, NULL, 95);
 
             if (this->font.texture.id == 0)
                 TraceLog(LOG_FATAL,
-                         TextFormat("%s\n",
-                         "Try to launch the game from the correct path."
-                         " The game expect the `assets` folder in cwd."));
+                        TextFormat("%s\n",
+                            "Try to launch the game from the correct path."
+                            " The game expect the `assets` folder in cwd."));
             this->_set_active();
 
 #ifdef MOBILE
@@ -116,5 +116,18 @@ class ArsEng {
 
         int calcf(int value) {
             return value * this->scale_factor[active];
+        }
+
+        void handle_window_resize(Vector2 new_size) {
+            // TODO: Move to Window
+            // Vector2 old_size = this->window_size;
+            // this->window_size = new_size;
+            this->_set_active();
+
+            for (auto &obj: this->om.sorted) {
+                if (obj->is_resizable) {
+                    obj->update_position_from_relative(new_size);
+                }
+            }
         }
 };

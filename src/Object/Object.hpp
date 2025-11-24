@@ -1,7 +1,7 @@
-#ifndef OBJECT_H_
-#define OBJECT_H_
+#pragma once
 
 #include "../Game/GameState.hpp"
+#include "PositionInfo.hpp"
 #include <raylib.h>
 
 class Object {
@@ -13,6 +13,8 @@ class Object {
         void *engine;
         bool draw_in_canvas = true;
         Color color;
+        PositionInfo position_info;
+        bool is_resizable = false;
 
         Object() {
             this->engine = nullptr;
@@ -20,9 +22,10 @@ class Object {
             this->show   = true;
             this->state  = GameState::ALL;
         };
+
         virtual ~Object() = default;
         virtual void render();
         virtual void logic(float dt);
-};
 
-#endif // OBJECT_H_
+        void update_position_from_relative(Vector2 new_window_size);
+};
