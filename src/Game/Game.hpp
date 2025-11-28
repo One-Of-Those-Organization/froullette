@@ -3,8 +3,13 @@
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Text.hpp"
+#include "../Object/Needle.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "ArsEng.hpp"
+
+struct GameData {
+    size_t round_needle_count;
+};
 
 static void initTestObject(ArsEng *engine, int *z) {
     auto ball = new Balls();
@@ -16,10 +21,6 @@ static void initTestObject(ArsEng *engine, int *z) {
 }
 
 static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
-    auto apply = [&](int value) {
-        return engine->calcf(value);
-    };
-
     auto p2 = new Object();
     p2->rec = Rectangle{ 0, 0, 20, 30 };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
@@ -48,8 +49,14 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     desk->state = GameState::INGAME;
     engine->om.add_object(desk, *z++);
 
-    auto ns = new NeedleContainer();
+    auto ns = new NeedleContainer(&engine->om);
     engine->om.add_object(ns, *z++);
+
+    for (int i = 0; i < 10; i++) {
+        auto needle = new Needle();
+        int id = engine->om.add_object(needle, *z++);
+        ns->needles.push_back(id);
+    }
 }
 
 static Button *createButton(ArsEng *engine, std::string text, int text_size,
@@ -80,7 +87,6 @@ static Button *create_resizable_button(ArsEng *engine, std::string text, int tex
     auto btn = createButton(engine, text, text_size, padding, state,
             {wsize.x * relative_x, wsize.y * relative_y}, callback);
 
-    // Store positioning info for resize
     btn->is_resizable = true;
     btn->position_info.use_relative = true;
     btn->position_info.relative_x = relative_x;
@@ -104,7 +110,6 @@ static Text *create_resizable_text(ArsEng *engine, const char *label, int font_s
     txt->rec.y = offset_y;
     txt->state = state;
 
-    // Make text resizable and centered
     txt->is_resizable = true;
     txt->position_info.use_relative = true;
     txt->position_info.center_x = true;
@@ -135,18 +140,9 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     makeTxt("Fate", apply(10));
     makeTxt("Roullete", apply(17));
 
-    makeBtn("Play", 0, [engine]() {
-            TraceLog(LOG_INFO, "Changing the state to `gameplay`");
-            engine->state = GameState::INGAME;
-            });
-    makeBtn("Settings", apply(25), [engine]() {
-            TraceLog(LOG_INFO, "Changing the state to `settings`");
-            engine->state = GameState::SETTINGS;
-            });
-    makeBtn("Exit", apply(50), [engine]() {
-            TraceLog(LOG_INFO, "Exiting the game");
-            engine->req_close = true;
-            });
+    makeBtn("Play", 0, [engine]() { engine->state = GameState::INGAME; });
+    makeBtn("Settings", apply(25), [engine]() { engine->state = GameState::SETTINGS; });
+    makeBtn("Exit", apply(50), [engine]() { engine->req_close = true; });
 }
 
 static void gameInit(ArsEng *engine) {

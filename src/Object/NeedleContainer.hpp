@@ -1,5 +1,4 @@
 #pragma once
-#include "Needle.hpp"
 #include "ObjectManager.hpp"
 #include <vector>
 
@@ -10,6 +9,6 @@ class NeedleContainer: public Object {
         std::vector<int> needles;
         ObjectManager *om;
 
-        NeedleContainer();
+        NeedleContainer(ObjectManager *om): om(om) {}
         ~NeedleContainer() = default;
 };
