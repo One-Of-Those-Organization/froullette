@@ -22,6 +22,7 @@ class Window {
             };
 
         ~Window() {
+            gameDeinit(this->engine);
             CloseWindow();
             delete engine;
         };

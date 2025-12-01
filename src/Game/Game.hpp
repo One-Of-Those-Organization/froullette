@@ -6,6 +6,7 @@
 #include "../Object/Needle.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "ArsEng.hpp"
+#include "GameState.hpp"
 
 struct GameData {
     size_t round_needle_count;
@@ -52,8 +53,13 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     auto ns = new NeedleContainer(&engine->om);
     engine->om.add_object(ns, *z++);
 
-    for (int i = 0; i < 10; i++) {
+    GameData *gd = (GameData *)engine->additional_data;
+    for (size_t i = 0; i < gd->round_needle_count; i++) {
         auto needle = new Needle();
+        // TODO: Generate random int
+        needle->rec = Rectangle(0, 0, 5, 10);
+        needle->type = NeedleType::NT_LIVE;
+        needle->state = GameState::INGAME;
         int id = engine->om.add_object(needle, *z++);
         ns->needles.push_back(id);
     }
@@ -146,6 +152,9 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
 }
 
 static void gameInit(ArsEng *engine) {
+    GameData *gd = new GameData();
+    gd->round_needle_count = 5;
+    engine->additional_data = (void *)gd;
     int z = 1;
     Vector2 canvas_size = {
         engine->canvas_size.x,
@@ -157,4 +166,8 @@ static void gameInit(ArsEng *engine) {
     initTestObject(engine, &z);
     initMenu(engine, &win_size, &z);
     initInGame(engine, &canvas_size, &z);
+}
+
+static void gameDeinit(ArsEng *engine) {
+    delete (GameData *)engine->additional_data;
 }

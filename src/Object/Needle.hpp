@@ -12,7 +12,11 @@ class Needle : public Object {
         NeedleType type;
         Needle(): Object() {};
         virtual ~Needle() = default;
-        void render() override {};
+        void render() override {
+            if (!this->show) return;
+
+            DrawRectangleRec(this->rec, RED);
+        };
         void logic(float dt) override {
             (void)dt;
         };
