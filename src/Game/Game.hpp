@@ -8,9 +8,17 @@
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 
+#include <ctime>
+
 struct GameData {
     size_t round_needle_count;
 };
+
+/*
+static int rand_range(int min, int max) {
+    return min + rand() % (max - min + 1);
+}
+*/
 
 static void initTestObject(ArsEng *engine, int *z) {
     auto ball = new Balls();
@@ -18,7 +26,7 @@ static void initTestObject(ArsEng *engine, int *z) {
     ball->engine = engine;
     ball->speed = {50, 50};
     ball->state = GameState::MENU;
-    engine->om.add_object(ball, *z++);
+    engine->om.add_object(ball, (*z)++);
 }
 
 static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
@@ -34,7 +42,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
 
     p2->state = GameState::INGAME;
     p2->color = RED;
-    engine->om.add_object(p2, *z++);
+    engine->om.add_object(p2, (*z)++);
 
     auto desk = new Desk();
     desk->angle = {0.0f, 0.5f};
@@ -48,19 +56,34 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     desk->position_info.offset.y = 5;
 
     desk->state = GameState::INGAME;
-    engine->om.add_object(desk, *z++);
+    engine->om.add_object(desk, (*z)++);
 
     auto ns = new NeedleContainer(&engine->om);
-    engine->om.add_object(ns, *z++);
+    engine->om.add_object(ns, (*z)++);
 
+    const Rectangle needle_pos = {
+        .x = desk->rec.x,
+        .y = desk->rec.y,
+        .width = desk->rec.width,
+        .height = desk->rec.height,
+    };
+    srand(time(0));
     GameData *gd = (GameData *)engine->additional_data;
     for (size_t i = 0; i < gd->round_needle_count; i++) {
         auto needle = new Needle();
-        // TODO: Generate random int
-        needle->rec = Rectangle(0, 0, 5, 10);
+
+        Rectangle current_pos = {
+            .x      = needle_pos.x + (i * 6),
+            .y      = needle_pos.y,
+            .width  = 5,
+            .height = 10,
+        };
+
+        needle->rec = current_pos;
+        needle->curpos = &engine->canvas_cursor;
         needle->type = NeedleType::NT_LIVE;
         needle->state = GameState::INGAME;
-        int id = engine->om.add_object(needle, *z++);
+        int id = engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(id);
     }
 }
@@ -125,6 +148,7 @@ static Text *create_resizable_text(ArsEng *engine, const char *label, int font_s
 }
 
 static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
+    (void) wsize;
     auto apply = [&](int value) {
         return engine->calcf(value);
     };
