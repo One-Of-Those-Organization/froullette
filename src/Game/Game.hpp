@@ -79,6 +79,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
             .height = 10,
         };
 
+        needle->engine_dragging = &engine->dragging;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
         needle->type = NeedleType::NT_LIVE;

@@ -12,7 +12,9 @@ public:
     NeedleType type;
     bool _hovered = false;
     bool _dragging = false;
+    bool *engine_dragging = nullptr;
     Vector2 *curpos = nullptr;
+    Vector2 offset = {};
 
     Needle(): Object() {};
     virtual ~Needle() = default;
@@ -26,28 +28,26 @@ public:
         (void)dt;
         if (!curpos) return;
 
-        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && this->_dragging) this->_move_rec();
-        else this->_dragging = false;
-
-        if (CheckCollisionPointRec(*curpos, this->rec)) {
-            this->_hovered = true;
-            if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-                this->_dragging = true;
-                this->_move_rec();
-            }
+        if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+            this->_dragging = false;
+            *this->engine_dragging = false;
         }
-        else this->_hovered = false;
+        this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
+        if (this->_hovered && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !*this->engine_dragging) {
+            this->_dragging = true;
+            *this->engine_dragging = true;
+
+            this->offset.x = curpos->x - this->rec.x;
+            this->offset.y = curpos->y - this->rec.y;
+        }
+        if (this->_dragging && IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+            _move_rec();
+        }
+
     };
 
     void _move_rec() {
-        if (!this->_dragging) return;
-        // TODO: Get the value from the current offset of the vector2 mouse and the rec itself
-        // NOTE: Assume the cursor will be inside the rec already.
-        Vector2 offset = {
-            .x = (this->rec.x + this->rec.width) - this->curpos->x,
-            .y = (this->rec.y + this->rec.height) - this->curpos->y,
-        };
-        this->rec.x = this->curpos->x - this->rec.width / 2.0f;
-        this->rec.y = this->curpos->y - this->rec.height / 2.0f;
+        rec.x = this->curpos->x - this->offset.x;
+        rec.y = this->curpos->y - this->offset.y;
     }
 };
