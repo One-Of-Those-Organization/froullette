@@ -19,6 +19,7 @@ public:
     Vector2 cursor = {};
     Vector2 canvas_cursor = {};
 
+    // TODO: add dragging counter at here so we didnt drag more than 1 object
     bool req_close;
     int active;
     int scale_factor[4] = {
