@@ -14,11 +14,9 @@ struct GameData {
     size_t round_needle_count;
 };
 
-/*
 static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
-*/
 
 static void initTestObject(ArsEng *engine, int *z) {
     auto ball = new Balls();
@@ -82,7 +80,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
         needle->engine_dragging = &engine->dragging;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
-        needle->type = NeedleType::NT_LIVE;
+        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
         needle->state = GameState::INGAME;
         int id = engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(id);
