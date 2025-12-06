@@ -2,7 +2,6 @@
 
 #include "Object.hpp"
 
-// TODO: handle the mobile too
 enum class NeedleType: int32_t {
     NT_BLANK = 0,
     NT_LIVE = 1,
@@ -22,8 +21,6 @@ public:
     void render() override {
         if (!this->show) return;
 
-        // if (this->_hovered) DrawRectangleRec(this->rec, RED);
-        // else DrawRectangleRec(this->rec, PINK);
         if (this->text) {
             if (this->_hovered) {
                 DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height),
@@ -43,12 +40,20 @@ public:
         if (!curpos) return;
         if (!this->engine_dragging) return;
 
+#ifdef MOBILE
+        if (IsGestureDetected(GESTURE_NONE))  {
+#else
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+#endif
             this->_dragging = false;
             *this->engine_dragging = false;
         }
         this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
-        if (this->_hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !*this->engine_dragging) {
+#ifdef MOBILE
+        if (this->_hovered && !*this->engine_dragging && IsGestureDetected(GESTURE_DRAG))  {
+#else
+        if (this->_hovered && !*this->engine_dragging && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ) {
+#endif
             this->_dragging = true;
             *this->engine_dragging = true;
 

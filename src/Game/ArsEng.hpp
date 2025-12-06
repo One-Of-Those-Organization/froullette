@@ -64,6 +64,8 @@ public:
 
 #ifdef MOBILE
         SetGesturesEnabled(GESTURE_TAP);
+        SetGesturesEnabled(GESTURE_DRAG);
+        SetGesturesEnabled(GESTURE_NONE);
 #endif
     }
 
