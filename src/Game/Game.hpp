@@ -44,7 +44,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
 
     auto desk = new Desk();
     desk->angle = {0.0f, 0.5f};
-    float offset = 12;
+    float offset = 16;
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
 
     desk->is_resizable = true;
@@ -59,6 +59,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     auto ns = new NeedleContainer(&engine->om);
     engine->om.add_object(ns, (*z)++);
 
+    Texture2D *needle_text = engine->tm.load_texture("needle", "./assets/needle_normal.png");
     const Rectangle needle_pos = {
         .x = desk->rec.x,
         .y = desk->rec.y,
@@ -73,10 +74,11 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
         Rectangle current_pos = {
             .x      = needle_pos.x + (i * 6),
             .y      = needle_pos.y,
-            .width  = 5,
-            .height = 10,
+            .width  = 10,
+            .height = 20,
         };
 
+        needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;

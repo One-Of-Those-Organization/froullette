@@ -3,8 +3,9 @@
 #include <raylib.h>
 #include "../Object/ObjectManager.hpp"
 #include "../Shader/ShadersManager.hpp"
+#include "../Texture/TextureManager.hpp"
 
-static const Vector2 CANVAS_SIZE = Vector2{128, 72};
+static const Vector2 CANVAS_SIZE = Vector2{128 * 1.5, 72 * 1.5};
 
 class ArsEng {
 public:
@@ -12,6 +13,7 @@ public:
     RenderTexture2D canvas;
     ObjectManager om;
     ShadersManager sm;
+    TextureManager tm;
     GameState state;
     Font font;
 
@@ -41,7 +43,7 @@ public:
         }
     }
 
-    ArsEng(Vector2 wsize): om(), state(GameState::MENU) {
+    ArsEng(Vector2 wsize): om(), tm(), state(GameState::MENU) {
         canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
         SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
         SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);

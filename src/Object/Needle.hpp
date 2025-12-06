@@ -2,6 +2,7 @@
 
 #include "Object.hpp"
 
+// TODO: handle the mobile too
 enum class NeedleType: int32_t {
     NT_BLANK = 0,
     NT_LIVE = 1,
@@ -21,26 +22,40 @@ public:
     void render() override {
         if (!this->show) return;
 
-        if (this->_hovered) DrawRectangleRec(this->rec, RED);
-        else DrawRectangleRec(this->rec, PINK);
+        // if (this->_hovered) DrawRectangleRec(this->rec, RED);
+        // else DrawRectangleRec(this->rec, PINK);
+        if (this->text) {
+            if (this->_hovered) {
+                DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height),
+                               rec, Vector2(0, 0), 0.0f, GetColor(0xf0f0f0ff));
+            } else {
+                DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height),
+                               rec, Vector2(0, 0), 0.0f, WHITE);
+            }
+        } else {
+            if (this->_hovered) DrawRectangleRec(this->rec, PURPLE);
+            else DrawRectangleRec(this->rec, PINK);
+        }
     };
+
     void logic(float dt) override {
         (void)dt;
         if (!curpos) return;
+        if (!this->engine_dragging) return;
 
-        if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             this->_dragging = false;
             *this->engine_dragging = false;
         }
         this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
-        if (this->_hovered && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !*this->engine_dragging) {
+        if (this->_hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !*this->engine_dragging) {
             this->_dragging = true;
             *this->engine_dragging = true;
 
             this->offset.x = curpos->x - this->rec.x;
             this->offset.y = curpos->y - this->rec.y;
         }
-        if (this->_dragging && IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             _move_rec();
         }
 

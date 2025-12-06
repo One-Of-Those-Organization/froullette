@@ -31,6 +31,7 @@ set(FILE_IN
     src/main.cpp
     src/Object/Object.cpp
     src/Shader/ShadersManager.cpp
+    src/Texture/TextureManager.cpp
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
