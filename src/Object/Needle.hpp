@@ -73,7 +73,9 @@ public:
         newpos.y = this->curpos->y - this->offset.y;
 
         if (newpos.x <= this->max_rec.x ||
-            newpos.y <= this->max_rec.y
+            newpos.y <= this->max_rec.y ||
+            newpos.x >= this->max_rec.width ||
+            newpos.y >= this->max_rec.height
             ) {
             this->offset.x = curpos->x - this->rec.x;
             this->offset.y = curpos->y - this->rec.y;
