@@ -61,10 +61,10 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
 
     Texture2D *needle_text = engine->tm.load_texture("needle", "./assets/needle_normal.png");
     const Rectangle needle_pos = {
-        .x = desk->rec.x,
-        .y = desk->rec.y,
-        .width = desk->rec.width,
-        .height = desk->rec.height,
+        .x      = desk->rec.x,
+        .y      = desk->rec.y + (desk->rec.y / 6.0f),
+        .width  = desk->rec.width,
+        .height = desk->rec.height - (desk->rec.height / 6.0f),
     };
     srand(time(0));
     GameData *gd = (GameData *)engine->additional_data;
@@ -78,6 +78,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
             .height = 20,
         };
 
+        needle->max_rec = needle_pos;
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
         needle->rec = current_pos;

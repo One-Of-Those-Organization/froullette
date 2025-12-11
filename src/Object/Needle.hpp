@@ -15,6 +15,7 @@ public:
     bool *engine_dragging = nullptr;
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
+    Rectangle max_rec = {};
 
     Needle(): Object() {};
     virtual ~Needle() = default;
@@ -67,7 +68,18 @@ public:
     };
 
     void _move_rec() {
-        rec.x = this->curpos->x - this->offset.x;
-        rec.y = this->curpos->y - this->offset.y;
+        Vector2 newpos = {};
+        newpos.x = this->curpos->x - this->offset.x;
+        newpos.y = this->curpos->y - this->offset.y;
+
+        if (newpos.x <= this->max_rec.x ||
+            newpos.y <= this->max_rec.y
+            ) {
+            this->offset.x = curpos->x - this->rec.x;
+            this->offset.y = curpos->y - this->rec.y;
+            return;
+        }
+        rec.x = newpos.x;
+        rec.y = newpos.y;
     }
 };
