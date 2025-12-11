@@ -23,15 +23,15 @@ static void initTestObject(ArsEng *engine, int *z) {
     ball->rec = {10, 10, 10, 10};
     ball->engine = engine;
     ball->speed = {50, 50};
-    ball->state = GameState::MENU;
+    ball->state = GameState::MENU | GameState::SETTINGS;
     engine->om.add_object(ball, (*z)++);
 }
 
 static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     auto p2 = new Object();
-    p2->rec = Rectangle{ 0, 0, 20, 30 };
+    p2->rec = Rectangle{ 0, 0, 25, 35 };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
-    p2->rec.y = (wsize->y - p2->rec.height) / 2;
+    p2->rec.y = (wsize->y - p2->rec.height) / 2 - 10;
 
     p2->is_resizable = true;
     p2->position_info.use_relative = true;
@@ -70,9 +70,10 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     GameData *gd = (GameData *)engine->additional_data;
     for (size_t i = 0; i < gd->round_needle_count; i++) {
         auto needle = new Needle();
+        const int padding = 10;
 
         Rectangle current_pos = {
-            .x      = needle_pos.x + (i * 6),
+            .x      = padding + needle_pos.x + (i * 6),
             .y      = needle_pos.y,
             .width  = 10,
             .height = 20,
@@ -177,6 +178,36 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     makeBtn("Exit", apply(50), [engine]() { engine->req_close = true; });
 }
 
+static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
+    (void) wsize;
+    auto apply = [&](int value) {
+        return engine->calcf(value);
+    };
+
+    auto makeBtn = [&](const char *label, float offsetY,
+            std::function<void()> cb) {
+        auto btn = create_resizable_button(engine, label, apply(12), apply(5),
+                GameState::SETTINGS, 0.5f, 0.5f, offsetY, cb);
+        engine->om.add_object(btn, (*z)++);
+    };
+
+    auto makeTxt = [&](const char *label, float offsetY) {
+        const int font_size = apply(24);
+        auto txt = create_resizable_text(engine, label, font_size, WHITE,
+                GameState::SETTINGS, apply(offsetY));
+        engine->om.add_object(txt, (*z)++);
+    };
+
+    makeTxt("Settings", apply(10));
+
+    /*
+    makeBtn("Play", 0, [engine]() {  });
+    makeBtn("Settings", apply(25), [engine]() {  });
+    */
+    makeBtn("Exit", apply(50), [engine]() { engine->state = GameState::MENU; });
+}
+
+
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
@@ -191,6 +222,7 @@ static void gameInit(ArsEng *engine) {
     // Load Object
     initTestObject(engine, &z);
     initMenu(engine, &win_size, &z);
+    initSettings(engine, &win_size, &z);
     initInGame(engine, &canvas_size, &z);
 }
 
