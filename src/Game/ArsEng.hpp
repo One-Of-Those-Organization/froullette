@@ -33,6 +33,7 @@ public:
 
     std::vector<Object *> render_later;
     void *additional_data = nullptr;
+    void *window_ptr = nullptr;
 
     void _set_active() {
         switch ((int)this->window_size.y) {
@@ -125,9 +126,6 @@ public:
     }
 
     void handle_window_resize(Vector2 new_size) {
-        // TODO: Move to Window
-        // Vector2 old_size = this->window_size;
-        // this->window_size = new_size;
         this->_set_active();
 
         for (auto &obj: this->om.sorted) {
