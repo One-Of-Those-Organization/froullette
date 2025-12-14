@@ -1,6 +1,4 @@
-#ifndef POSITION_INFO_H_
-#define POSITION_INFO_H_
-
+#pragma once
 #include <raylib.h>
 
 struct PositionInfo {
@@ -11,5 +9,3 @@ struct PositionInfo {
     Vector2 offset = {0, 0};      // Additional offset after relative positioning
     bool use_relative = false;    // Whether to use relative positioning
 };
-
-#endif // POSITION_INFO_H_

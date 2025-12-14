@@ -28,10 +28,15 @@ static void initTestObject(ArsEng *engine, int *z) {
 }
 
 static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
+    auto apply = [&](int value) {
+        return engine->calcf(value);
+    };
+
+    Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
-    p2->rec = Rectangle{ 0, 0, 25, 35 };
+    p2->rec = Rectangle{ 0, 0, player2_text->width / 8, player2_text->height / 8 };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
-    p2->rec.y = (wsize->y - p2->rec.height) / 2 - 10;
+    p2->rec.y = (wsize->y - p2->rec.height) / 2;
 
     p2->is_resizable = true;
     p2->position_info.use_relative = true;
@@ -39,7 +44,8 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     p2->position_info.center_y = true;
 
     p2->state = GameState::INGAME;
-    p2->color = RED;
+    p2->color = WHITE;
+    p2->text = player2_text;
     engine->om.add_object(p2, (*z)++);
 
     auto desk = new Desk();
@@ -179,7 +185,6 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
 }
 
 static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
-    (void) wsize;
     auto apply = [&](int value) {
         return engine->calcf(value);
     };
@@ -200,11 +205,7 @@ static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
 
     makeTxt("Settings", apply(10));
 
-    /*
-    makeBtn("Play", 0, [engine]() {  });
-    makeBtn("Settings", apply(25), [engine]() {  });
-    */
-    makeBtn("Exit", apply(50), [engine]() { engine->state = GameState::MENU; });
+    makeBtn("Back to menu", apply(50), [engine]() { engine->state = GameState::MENU; });
 }
 
 
