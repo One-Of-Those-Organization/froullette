@@ -38,11 +38,6 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
     p2->rec.y = (wsize->y - p2->rec.height) / 2;
 
-    p2->is_resizable = true;
-    p2->position_info.use_relative = true;
-    p2->position_info.center_x = true;
-    p2->position_info.center_y = true;
-
     p2->state = GameState::INGAME;
     p2->color = WHITE;
     p2->text = player2_text;
@@ -52,12 +47,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     desk->angle = {0.0f, 0.5f};
     float offset = 16;
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
-
-    desk->is_resizable = true;
-    desk->position_info.use_relative = true;
-    desk->position_info.relative_x = offset / wsize->x;
-    desk->position_info.relative_y = 0.5f;
-    desk->position_info.offset.y = 5;
+    desk->color = PINK;
 
     desk->state = GameState::INGAME;
     engine->om.add_object(desk, (*z)++);
@@ -74,7 +64,7 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     };
 
     ns->rec = needle_pos;
-    ns->color = GetColor(0xf0f0f0ff);
+    ns->color = GetColor(0xf0f0f055);
     ns->state = GameState::INGAME;
 
     srand(time(0));

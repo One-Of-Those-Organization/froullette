@@ -27,5 +27,5 @@ class Object {
         virtual void render();
         virtual void logic(float dt);
 
-        void update_position_from_relative(Vector2 new_window_size);
+        virtual void update_position_from_relative(Vector2 new_window_size);
 };

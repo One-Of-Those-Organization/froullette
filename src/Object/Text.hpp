@@ -25,6 +25,13 @@ class Text : public Object {
         return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
     }
 
+    void update_position_from_relative(Vector2 win) override {
+        Vector2 size = calculate_len();
+        rec.width  = size.x;
+        rec.height = size.y;
+        Object::update_position_from_relative(win);
+    }
+
     void logic(float dt) override {
         (void)dt;
     }

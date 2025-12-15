@@ -41,7 +41,7 @@ private:
         Vector2 bottomLeft  = {x - shrink + skew, y + h};
         Vector2 bottomRight = {x + w + shrink + skew, y + h};
 
-        Color color = WHITE;
+        Color color = this->color;
 
         rlBegin(RL_TRIANGLES);
         rlColor4ub(color.r, color.g, color.b, color.a);
