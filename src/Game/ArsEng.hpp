@@ -146,7 +146,12 @@ public:
     }
 
     void request_change_state(GameState state) { this->_req_state = state; }
-    void _change_state() { if (this->_req_state != this->state) this->state = this->_req_state; }
+    void _change_state() {
+        if (this->_req_state != this->state) {
+            this->state = this->_req_state;
+            this->dragging = false;
+        }
+    }
 
     void _handle_window_resize(Vector2 new_size) {
         this->_set_active();

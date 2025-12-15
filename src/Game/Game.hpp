@@ -151,6 +151,8 @@ static Text *create_resizable_text(ArsEng *engine, const char *label, int font_s
     txt->draw_in_canvas = false;
     txt->rec.x = (wsize.x - txt->calculate_len().x) / 2.f;
     txt->rec.y = offset_y;
+    txt->rec.width = txt->calculate_len().x;
+    txt->rec.height = txt->calculate_len().y;
     txt->state = state;
 
     txt->is_resizable = true;
