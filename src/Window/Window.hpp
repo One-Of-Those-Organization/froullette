@@ -29,9 +29,15 @@ public:
     };
 
     bool loop() {
-        if (this->engine) this->engine->window_ptr = (void *)this;
         while (!WindowShouldClose()) {
             if (engine->req_close) break;
+            if (engine->_req.t != DONE) {
+                switch (engine->_req.t) {
+                case RESIZE: { this->resize_window(engine->_req.data.v); } break;
+                default:
+                    break;
+                }
+            }
             float dt = GetFrameTime();
             engine->check_and_recreate_canvas();
             engine->update(dt);
@@ -56,6 +62,6 @@ public:
         this->oldsize = this->size;
         SetWindowSize(newsize.x, newsize.y);
         this->size = newsize;
-        if (this->engine) this->engine->handle_window_resize(newsize);
+        if (this->engine) this->engine->_handle_window_resize(newsize);
     }
 };

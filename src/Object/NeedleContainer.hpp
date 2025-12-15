@@ -9,6 +9,10 @@ class NeedleContainer: public Object {
         std::vector<int> needles;
         ObjectManager *om;
 
+        void render() override {
+            DrawRectangleRec(this->rec, this->color);
+        };
+
         NeedleContainer(ObjectManager *om): om(om) {}
         ~NeedleContainer() = default;
 };

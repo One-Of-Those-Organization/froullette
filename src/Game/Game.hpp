@@ -72,6 +72,11 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
         .width  = desk->rec.width,
         .height = desk->rec.height - (desk->rec.height / 6.0f),
     };
+
+    ns->rec = needle_pos;
+    ns->color = GetColor(0xf0f0f0ff);
+    ns->state = GameState::INGAME;
+
     srand(time(0));
     GameData *gd = (GameData *)engine->additional_data;
     for (size_t i = 0; i < gd->round_needle_count; i++) {
@@ -203,7 +208,15 @@ static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->om.add_object(txt, (*z)++);
     };
 
+    auto btnhd = new Button();
+    btnhd->text = "720p";
+    btnhd->text_size = apply(12);
+    btnhd->font = &engine->font;
+
     makeTxt("Settings", apply(10));
+    makeBtn("1080p", apply(25), [engine]() {
+        engine->request_resize(Vector2{1920, 1080});
+    });
 
     makeBtn("Back to menu", apply(50), [engine]() { engine->state = GameState::MENU; });
 }

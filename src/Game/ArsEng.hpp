@@ -7,6 +7,18 @@
 
 static const Vector2 CANVAS_SIZE = Vector2{128 * 1.5, 72 * 1.5};
 
+enum RequestType {
+    DONE = 0,
+    RESIZE,
+};
+
+struct Request {
+    RequestType t;
+    union {
+        Vector2 v;
+    } data;
+};
+
 class ArsEng {
 public:
     Vector2 window_size;
@@ -33,7 +45,7 @@ public:
 
     std::vector<Object *> render_later;
     void *additional_data = nullptr;
-    void *window_ptr = nullptr;
+    Request _req;
 
     void _set_active() {
         switch ((int)this->window_size.y) {
@@ -116,8 +128,8 @@ public:
         this->canvas_cursor.y =
             (this->cursor.y / this->window_size.y) * this->canvas_size.y;
         for (const auto &o: this->om.sorted) {
-            if (!has_flag(state, o->state)) continue;
-            if (o->show) o->logic(dt);
+            if (!has_flag(state, o->state) || !o->show) continue;
+            o->logic(dt);
         }
     }
 
@@ -125,7 +137,13 @@ public:
         return value * this->scale_factor[active];
     }
 
-    void handle_window_resize(Vector2 new_size) {
+
+    void request_resize(Vector2 new_size) {
+        _req.t = RESIZE;
+        _req.data.v = new_size;
+    }
+
+    void _handle_window_resize(Vector2 new_size) {
         this->_set_active();
 
         for (auto &obj: this->om.sorted) {

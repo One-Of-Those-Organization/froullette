@@ -20,6 +20,8 @@ public:
     Needle(): Object() {};
     virtual ~Needle() = default;
     void render() override {
+        // TODO: add "use" dialog to use the needle,
+        // need to be big enought so it clickable on mobile.
         if (!this->show) return;
 
         if (this->text) {
