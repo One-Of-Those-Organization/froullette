@@ -1,3 +1,4 @@
+// TODO: Fix the weird scaling issue on the pos and size
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -200,15 +201,39 @@ static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->om.add_object(txt, (*z)++);
     };
 
-    auto btnhd = new Button();
-    btnhd->text = "720p";
-    btnhd->text_size = apply(12);
-    btnhd->font = &engine->font;
-
     makeTxt("Settings", apply(10));
-    makeBtn("1080p", apply(25), [engine]() {
-        engine->request_resize(Vector2{1920, 1080});
-    });
+
+    float offset_y = 25;
+    auto btnhd = createButton(engine, "720p", apply(12), apply(5),
+                            GameState::SETTINGS, {0, 0},
+                            [engine]() { engine->request_resize(Vector2{1280, 720}); });
+
+    btnhd->is_resizable = true;
+    btnhd->position_info.use_relative = true;
+    btnhd->position_info.center_x = true;
+    btnhd->position_info.center_y = true;
+    btnhd->position_info.offset.y = apply(offset_y);
+
+    btnhd->calculate_rec();
+
+    btnhd->update_position_from_relative(*wsize);
+    engine->om.add_object(btnhd, (*z)++);
+
+    auto btnfhd = createButton(engine, "1080p", apply(12), apply(5),
+                            GameState::SETTINGS, {0, 0},
+                            [engine]() { engine->request_resize(Vector2{1920, 1080}); });
+
+    btnfhd->is_resizable = true;
+    btnfhd->position_info.use_relative = true;
+    btnfhd->position_info.center_x = true;
+    btnfhd->position_info.center_y = true;
+    btnfhd->position_info.offset.y = apply(offset_y);
+
+    btnfhd->calculate_rec();
+    btnfhd->position_info.offset.x = btnfhd->rec.width + btnfhd->padding;
+
+    btnfhd->update_position_from_relative(*wsize);
+    engine->om.add_object(btnfhd, (*z)++);
 
     makeBtn("Back to menu", apply(50), [engine]() { engine->request_change_state(GameState::MENU); });
 }
