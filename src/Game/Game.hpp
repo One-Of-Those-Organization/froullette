@@ -184,8 +184,8 @@ static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
     makeTxt("Fate", apply(10));
     makeTxt("Roullete", apply(17));
 
-    makeBtn("Play", 0, [engine]() { engine->state = GameState::INGAME; });
-    makeBtn("Settings", apply(25), [engine]() { engine->state = GameState::SETTINGS; });
+    makeBtn("Play", 0, [engine]() { engine->request_change_state(GameState::INGAME); });
+    makeBtn("Settings", apply(25), [engine]() { engine->request_change_state(GameState::SETTINGS); });
     makeBtn("Exit", apply(50), [engine]() { engine->req_close = true; });
 }
 
@@ -218,7 +218,7 @@ static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
         engine->request_resize(Vector2{1920, 1080});
     });
 
-    makeBtn("Back to menu", apply(50), [engine]() { engine->state = GameState::MENU; });
+    makeBtn("Back to menu", apply(50), [engine]() { engine->request_change_state(GameState::MENU); });
 }
 
 

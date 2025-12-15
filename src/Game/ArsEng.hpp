@@ -46,6 +46,7 @@ public:
     std::vector<Object *> render_later;
     void *additional_data = nullptr;
     Request _req;
+    GameState _req_state;
 
     void _set_active() {
         switch ((int)this->window_size.y) {
@@ -56,7 +57,7 @@ public:
         }
     }
 
-    ArsEng(Vector2 wsize): om(), tm(), state(GameState::MENU) {
+    ArsEng(Vector2 wsize): om(), tm(), state(GameState::MENU), _req_state(GameState::MENU) {
         canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
         SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
         SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
@@ -131,6 +132,7 @@ public:
             if (!has_flag(state, o->state) || !o->show) continue;
             o->logic(dt);
         }
+        this->_change_state();
     }
 
     int calcf(int value) {
@@ -142,6 +144,9 @@ public:
         _req.t = RESIZE;
         _req.data.v = new_size;
     }
+
+    void request_change_state(GameState state) { this->_req_state = state; }
+    void _change_state() { if (this->_req_state != this->state) this->state = this->_req_state; }
 
     void _handle_window_resize(Vector2 new_size) {
         this->_set_active();
