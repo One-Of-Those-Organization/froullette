@@ -19,9 +19,6 @@ class Button : public Object {
 
         Button() {
             this->_spacing = 1;
-            // int defaultFontSize = 10;
-            // if (this->text_size < defaultFontSize) this->text_size = defaultFontSize;
-            // this->_spacing = this->text_size / defaultFontSize;
         }
         virtual ~Button() = default;
 

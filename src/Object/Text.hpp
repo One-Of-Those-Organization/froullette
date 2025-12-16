@@ -11,9 +11,13 @@ class Text : public Object {
         Font *font;
 
     Text(const std::string& content, int size, Color color, Font *font)
-        : text(content), text_size(size), text_color(color), font(font) {}
+    : text(content), text_size(size), text_color(color), font(font){
+        this->draw_in_canvas = false;
+    }
 
-    Text(){}
+    Text(){
+        this->draw_in_canvas = false;
+    }
 
     void render() override {
         if (!this->show || !this->font) return;
@@ -25,11 +29,12 @@ class Text : public Object {
         return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
     }
 
-    void update_position_from_relative(Vector2 win) override {
+    void update_using_scale(float scale, Vector2 win) override {
+        // NOTE: Maybe need to resize the font size too.
         Vector2 size = calculate_len();
         rec.width  = size.x;
         rec.height = size.y;
-        Object::update_position_from_relative(win);
+        Object::update_using_scale(scale, win);
     }
 
     void logic(float dt) override {

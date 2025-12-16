@@ -27,6 +27,7 @@ public:
     ShadersManager sm;
     TextureManager tm;
     GameState state;
+    GameState oldstate;
     Font font;
 
     Vector2 canvas_size = {};
@@ -135,6 +136,8 @@ public:
         this->_change_state();
     }
 
+    float get_scale_factor() { return this->scale_factor[active]; }
+
     int calcf(int value) {
         return value * this->scale_factor[active];
     }
@@ -145,9 +148,11 @@ public:
         _req.data.v = new_size;
     }
 
+    void revert_state() { this->_req_state = this->oldstate; }
     void request_change_state(GameState state) { this->_req_state = state; }
     void _change_state() {
         if (this->_req_state != this->state) {
+            this->oldstate = this->state;
             this->state = this->_req_state;
             this->dragging = false;
         }
@@ -155,10 +160,11 @@ public:
 
     void _handle_window_resize(Vector2 new_size) {
         this->_set_active();
+        float scale = this->scale_factor[this->active];
 
         for (auto &obj: this->om.sorted) {
             if (obj->is_resizable) {
-                obj->update_position_from_relative(new_size);
+                obj->update_using_scale(scale, new_size);
             }
         }
     }

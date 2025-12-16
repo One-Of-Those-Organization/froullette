@@ -1,10 +1,10 @@
-// TODO: Fix the weird scaling issue on the pos and size
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Text.hpp"
 #include "../Object/Needle.hpp"
+#include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
@@ -19,7 +19,51 @@ static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
-static void initTestObject(ArsEng *engine, int *z) {
+static Button *cButton(ArsEng *engine, std::string text, int text_size,
+        int padding, GameState state, Vector2 pos,
+        std::function<void()> callback)
+{
+    auto btn = new Button();
+    btn->rec = {pos.x, pos.y, 1, 1};
+    btn->state = state;
+    btn->text = text;
+    btn->text_size = text_size;
+    btn->curpos = &engine->cursor;
+    btn->padding = padding;
+    btn->callback = callback;
+    btn->font = &engine->font;
+    btn->draw_in_canvas = false;
+    btn->color[0] = {GetColor(0xffffffff)};
+    btn->color[1] = {GetColor(0x000000ff)};
+    btn->color[2] = {GetColor(0x999999ff)};
+    btn->color[3] = {GetColor(0xffffffff)};
+    btn->store_rec();
+    return btn;
+}
+
+static Text *cText(ArsEng *engine, GameState state,
+                  std::string text, size_t text_size, Color color, Vector2 pos,
+                  bool center_x = true, bool center_y = true, size_t offsetx = 0, size_t offsety = 0)
+{
+    Vector2 wsize = engine->window_size;
+    auto text1 = new Text();
+    text1->text = text;
+    text1->font = &engine->font;
+    text1->text_size = text_size;
+    text1->text_color = color;
+    text1->rec = {pos.x,pos.y,100,100};
+    text1->is_resizable = true;
+    text1->position_info.center_x = center_x;
+    text1->position_info.center_y = center_y;
+    text1->position_info.offset.x = offsetx;
+    text1->position_info.offset.y = offsety;
+    text1->update_using_scale(engine->get_scale_factor(), wsize);
+    text1->state = state;
+    text1->store_rec();
+    return text1;
+}
+
+static void initTestObject(ArsEng *engine, int kh_id, int *z) {
     auto ball = new Balls();
     ball->rec = {10, 10, 10, 10};
     ball->engine = engine;
@@ -28,14 +72,10 @@ static void initTestObject(ArsEng *engine, int *z) {
     engine->om.add_object(ball, (*z)++);
 }
 
-static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
-    auto apply = [&](int value) {
-        return engine->calcf(value);
-    };
-
+static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
-    p2->rec = Rectangle{ 0, 0, player2_text->width / 8, player2_text->height / 8 };
+    p2->rec = Rectangle{ 0, 0, player2_text->width / 8.0f, player2_text->height / 8.0f };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
     p2->rec.y = (wsize->y - p2->rec.height) / 2;
 
@@ -93,149 +133,74 @@ static void initInGame(ArsEng *engine, Vector2 *wsize, int *z) {
     }
 }
 
-static Button *createButton(ArsEng *engine, std::string text, int text_size,
-        int padding, GameState state, Vector2 pos,
-        std::function<void()> callback) {
-    auto btn = new Button();
-    btn->rec = {pos.x, pos.y, 1, 1};
-    btn->state = state;
-    btn->text = text;
-    btn->text_size = text_size;
-    btn->curpos = &engine->cursor;
-    btn->padding = padding;
-    btn->callback = callback;
-    btn->font = &engine->font;
-    btn->draw_in_canvas = false;
-    btn->color[0] = {GetColor(0xffffffff)};
-    btn->color[1] = {GetColor(0x000000ff)};
-    btn->color[2] = {GetColor(0x999999ff)};
-    btn->color[3] = {GetColor(0xffffffff)};
-    return btn;
+static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+    GameState state = GameState::MENU;
+    size_t title_size = 64;
+    Color title_color = WHITE;
+
+    Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0,0});
+    title1->position_info.offset.y = -title1->rec.height;
+    title1->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(title1, (*z)++);
+
+    Text *title2 = cText(engine, state, "Roullete", title_size, title_color, {0,0});
+    engine->om.add_object(title2, (*z)++);
+
+
+    size_t text_size = 36;
+    size_t padding = 20;
+
+    Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
+                           [engine]() { engine->request_change_state(GameState::INGAME); }
+    );
+    btn1->is_resizable = true;
+    btn1->position_info.center_x = true;
+    btn1->position_info.center_y = true;
+    btn1->calculate_rec();
+    btn1->position_info.offset.y = title_size * 3;
+    btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btn1, (*z)++);
+
+    Button *btn2 = cButton(engine, "Conf", text_size, padding - 5, state, {0,0},
+                           [engine]() { engine->request_change_state(GameState::SETTINGS); }
+    );
+    btn2->is_resizable = true;
+    btn2->position_info.center_x = true;
+    btn2->position_info.center_y = true;
+    btn2->calculate_rec();
+    btn2->position_info.offset.y = title_size * 3;
+    btn2->position_info.offset.x = ((btn1->rec.width + btn2->rec.width) * 0.5f) + padding;
+    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btn2, (*z)++);
+
+    Button *btn3 = cButton(engine, "Exit", text_size, padding - 5, state, {0,0},
+                           [engine]() { engine->req_close = true; }
+    );
+    btn3->is_resizable = true;
+    btn3->position_info.center_x = true;
+    btn3->position_info.center_y = true;
+    btn3->calculate_rec();
+    btn3->position_info.offset.y = title_size * 3;
+    btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
+    btn3->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btn3, (*z)++);
 }
 
-static Button *create_resizable_button(ArsEng *engine, std::string text, int text_size,
-        int padding, GameState state, float relative_x, float relative_y, float offset_y,
-        std::function<void()> callback)
-{
-    Vector2 wsize = engine->window_size;
-    auto btn = createButton(engine, text, text_size, padding, state,
-            {wsize.x * relative_x, wsize.y * relative_y}, callback);
+static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+    GameState state = GameState::SETTINGS;
+    size_t title_size = 64;
+    Color title_color = WHITE;
 
-    btn->is_resizable = true;
-    btn->position_info.use_relative = true;
-    btn->position_info.relative_x = relative_x;
-    btn->position_info.relative_y = relative_y;
-    btn->position_info.center_x = true;
-    btn->position_info.offset.y = offset_y;
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the settings state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
 
-    btn->calculate_rec();
-    btn->rec.x = (wsize.x - btn->rec.width) / 2.f;
-    btn->rec.y = (wsize.y - btn->rec.height) / 2.f + offset_y;
-
-    return btn;
-}
-
-static Text *create_resizable_text(ArsEng *engine, const char *label, int font_size,
-        Color color, GameState state, float offset_y) {
-    Vector2 wsize = engine->window_size;
-    auto txt = new Text(label, font_size, color, &engine->font);
-    txt->draw_in_canvas = false;
-    txt->rec.x = (wsize.x - txt->calculate_len().x) / 2.f;
-    txt->rec.y = offset_y;
-    txt->rec.width = txt->calculate_len().x;
-    txt->rec.height = txt->calculate_len().y;
-    txt->state = state;
-
-    txt->is_resizable = true;
-    txt->position_info.use_relative = true;
-    txt->position_info.center_x = true;
-    txt->position_info.relative_y = offset_y / wsize.y;
-
-    return txt;
-}
-
-static void initMenu(ArsEng *engine, Vector2 *wsize, int *z) {
-    (void) wsize;
-    auto apply = [&](int value) {
-        return engine->calcf(value);
-    };
-
-    auto makeBtn = [&](const char *label, float offsetY,
-            std::function<void()> cb) {
-        auto btn = create_resizable_button(engine, label, apply(12), apply(5),
-                GameState::MENU, 0.5f, 0.5f, offsetY, cb);
-        engine->om.add_object(btn, (*z)++);
-    };
-
-    auto makeTxt = [&](const char *label, float offsetY) {
-        const int font_size = apply(24);
-        auto txt = create_resizable_text(engine, label, font_size, WHITE,
-                GameState::MENU, apply(offsetY));
-        engine->om.add_object(txt, (*z)++);
-    };
-
-    makeTxt("Fate", apply(10));
-    makeTxt("Roullete", apply(17));
-
-    makeBtn("Play", 0, [engine]() { engine->request_change_state(GameState::INGAME); });
-    makeBtn("Settings", apply(25), [engine]() { engine->request_change_state(GameState::SETTINGS); });
-    makeBtn("Exit", apply(50), [engine]() { engine->req_close = true; });
-}
-
-static void initSettings(ArsEng *engine, Vector2 *wsize, int *z) {
-    auto apply = [&](int value) {
-        return engine->calcf(value);
-    };
-
-    auto makeBtn = [&](const char *label, float offsetY,
-            std::function<void()> cb) {
-        auto btn = create_resizable_button(engine, label, apply(12), apply(5),
-                GameState::SETTINGS, 0.5f, 0.5f, offsetY, cb);
-        engine->om.add_object(btn, (*z)++);
-    };
-
-    auto makeTxt = [&](const char *label, float offsetY) {
-        const int font_size = apply(24);
-        auto txt = create_resizable_text(engine, label, font_size, WHITE,
-                GameState::SETTINGS, apply(offsetY));
-        engine->om.add_object(txt, (*z)++);
-    };
-
-    makeTxt("Settings", apply(10));
-
-    float offset_y = 25;
-    auto btnhd = createButton(engine, "720p", apply(12), apply(5),
-                            GameState::SETTINGS, {0, 0},
-                            [engine]() { engine->request_resize(Vector2{1280, 720}); });
-
-    btnhd->is_resizable = true;
-    btnhd->position_info.use_relative = true;
-    btnhd->position_info.center_x = true;
-    btnhd->position_info.center_y = true;
-    btnhd->position_info.offset.y = apply(offset_y);
-
-    btnhd->calculate_rec();
-
-    btnhd->update_position_from_relative(*wsize);
-    engine->om.add_object(btnhd, (*z)++);
-
-    auto btnfhd = createButton(engine, "1080p", apply(12), apply(5),
-                            GameState::SETTINGS, {0, 0},
-                            [engine]() { engine->request_resize(Vector2{1920, 1080}); });
-
-    btnfhd->is_resizable = true;
-    btnfhd->position_info.use_relative = true;
-    btnfhd->position_info.center_x = true;
-    btnfhd->position_info.center_y = true;
-    btnfhd->position_info.offset.y = apply(offset_y);
-
-    btnfhd->calculate_rec();
-    btnfhd->position_info.offset.x = btnfhd->rec.width + btnfhd->padding;
-
-    btnfhd->update_position_from_relative(*wsize);
-    engine->om.add_object(btnfhd, (*z)++);
-
-    makeBtn("Back to menu", apply(50), [engine]() { engine->request_change_state(GameState::MENU); });
+    Text *title1 = cText(engine, state, "Game Settings", title_size, title_color, {0,0});
+    title1->position_info.offset.y = -(title1->rec.height * 3);
+    title1->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(title1, (*z)++);
 }
 
 
@@ -250,11 +215,15 @@ static void gameInit(ArsEng *engine) {
     };
     Vector2 win_size = engine->window_size;
 
+    auto kh = new KeyHandler();
+    kh->engine_state = &engine->state;
+    int kh_id = engine->om.add_object(kh, z++);
+
     // Load Object
-    initTestObject(engine, &z);
-    initMenu(engine, &win_size, &z);
-    initSettings(engine, &win_size, &z);
-    initInGame(engine, &canvas_size, &z);
+    initTestObject (engine, kh_id, &z);
+    initMenu       (engine, kh_id, &win_size, &z);
+    initSettings   (engine, kh_id, &win_size, &z);
+    initInGame     (engine, kh_id, &canvas_size, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {

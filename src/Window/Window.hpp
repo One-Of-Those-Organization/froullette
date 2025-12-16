@@ -20,6 +20,7 @@ public:
 
         engine = new ArsEng(size);
         gameInit(engine);
+        SetExitKey(KEY_NULL);
     };
 
     ~Window() {
