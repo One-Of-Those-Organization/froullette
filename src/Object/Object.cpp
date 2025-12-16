@@ -17,18 +17,15 @@ void Object::logic(float dt) {
 
 void Object::update_using_scale(float scale, Vector2 new_window_size) {
     if (!is_resizable) return;
-
     if (position_info.center_x) {
         rec.x = (new_window_size.x - rec.width) / 2.0f + position_info.offset.x;
     } else {
-        this->restore_rec();
-        rec.x += position_info.offset.x;
+        rec.x += position_info.offset.x * scale;
     }
 
     if (position_info.center_y) {
         rec.y = ((new_window_size.y - rec.height) / 2.0f) + position_info.offset.y;
     } else {
-        this->restore_rec();
-        rec.y += position_info.offset.y;
+        rec.y += position_info.offset.y *scale;
     }
 }
