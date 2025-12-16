@@ -1,3 +1,5 @@
+// NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
+//       and pleasant the current API is SO SAD... and didnt work fully.
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -52,6 +54,7 @@ static Text *cText(ArsEng *engine, GameState state,
     text1->text_size = text_size;
     text1->text_color = color;
     text1->rec = {pos.x,pos.y,100,100};
+    text1->store_rec();
     text1->is_resizable = true;
     text1->position_info.center_x = center_x;
     text1->position_info.center_y = center_y;
@@ -59,7 +62,6 @@ static Text *cText(ArsEng *engine, GameState state,
     text1->position_info.offset.y = offsety;
     text1->update_using_scale(engine->get_scale_factor(), wsize);
     text1->state = state;
-    text1->store_rec();
     return text1;
 }
 
@@ -197,26 +199,47 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
 
-    // TODO: Broken idk why
     Text *title1 = cText(engine, state, "Game Settings", title_size, title_color, {0,0}, false, false, 10, 10);
-    title1->update_using_scale(engine->get_scale_factor(), *wsize);
-    title1->store_rec();
     engine->om.add_object(title1, (*z)++);
 
 
     size_t text_size = 36;
     size_t padding = 20;
 
-    Button *btn1 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1280, 720}); }
+    // Button *btn1 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
+    //                        [engine]() { engine->request_resize({1280, 720}); }
+    // );
+    // btn1->is_resizable = true;
+    // btn1->position_info.center_x = true;
+    // btn1->position_info.center_y = true;
+    // btn1->calculate_rec();
+    // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    // engine->om.add_object(btn1, (*z)++);
+
+    Button *btn1 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
+                           [engine]() { engine->request_resize({1920, 1080}); }
     );
     btn1->is_resizable = true;
-    btn1->position_info.center_x = true;
-    btn1->position_info.center_y = true;
     btn1->calculate_rec();
+    btn1->position_info.center_y = true;
+    btn1->position_info.offset.y = -btn1->rec.height * 3;
+    btn1->position_info.offset.x = padding;
     btn1->update_using_scale(engine->get_scale_factor(), *wsize);
     engine->om.add_object(btn1, (*z)++);
 
+    Button *btn2 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
+                           [engine]() { engine->request_resize({1280, 720}); }
+    );
+    btn2->is_resizable = true;
+    btn2->calculate_rec();
+    btn2->position_info.center_y = true;
+    btn2->position_info.offset_times_scale[0] = false;
+    btn2->position_info.offset.y = -btn2->rec.height * 3;
+    btn2->position_info.offset.x = btn1->rec.width * 2 + padding;
+    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btn2, (*z)++);
+
+    /*
     Button *btn2 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
                            [engine]() { engine->request_resize({1920, 1080}); }
     );
@@ -238,6 +261,7 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     btn3->position_info.offset.x = ((btn1->rec.width + btn3->rec.width) * 0.5f) + padding;
     btn3->update_using_scale(engine->get_scale_factor(), *wsize);
     engine->om.add_object(btn3, (*z)++);
+    */
 }
 
 

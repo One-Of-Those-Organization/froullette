@@ -20,12 +20,18 @@ void Object::update_using_scale(float scale, Vector2 new_window_size) {
     if (position_info.center_x) {
         rec.x = (new_window_size.x - rec.width) / 2.0f + position_info.offset.x;
     } else {
-        rec.x += position_info.offset.x * scale;
+        if (position_info.offset_times_scale[0])
+            rec.x = _saved_rec.x + position_info.offset.x * scale;
+        else
+            rec.x = _saved_rec.x + position_info.offset.x;
     }
 
     if (position_info.center_y) {
         rec.y = ((new_window_size.y - rec.height) / 2.0f) + position_info.offset.y;
     } else {
-        rec.y += position_info.offset.y *scale;
+        if (position_info.offset_times_scale[1])
+            rec.y = _saved_rec.y + position_info.offset.y * scale;
+        else
+            rec.y = _saved_rec.y + position_info.offset.y;
     }
 }

@@ -7,4 +7,5 @@ struct PositionInfo {
     bool use_range = false;
     Vector2 range  = {0, 0}; // NOTE: Not used for now but the value should be: 0..1
     Vector2 offset = {0, 0};
+    bool offset_times_scale[2] = {true, true};
 };
