@@ -13,6 +13,7 @@ public:
     bool _hovered = false;
     bool _dragging = false;
     bool *engine_dragging = nullptr;
+    bool disable_update = false; // call this on the client that is not the playerstate
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
     Rectangle max_rec = {};

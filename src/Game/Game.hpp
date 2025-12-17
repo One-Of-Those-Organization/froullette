@@ -1,5 +1,7 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
 //       and pleasant the current API is SO SAD... and didnt work fully.
+// WORK: Will be straigt up working for the gameplay right now
+//       The server too
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -10,11 +12,13 @@
 #include "../Object/NeedleContainer.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
+#include "PlayerState.hpp"
 
 #include <ctime>
 
 struct GameData {
     size_t round_needle_count;
+    PlayerState pstate;
 };
 
 static int rand_range(int min, int max) {
@@ -66,6 +70,7 @@ static Text *cText(ArsEng *engine, GameState state,
 }
 
 static void initTestObject(ArsEng *engine, int kh_id, int *z) {
+    (void)kh_id;
     auto ball = new Balls();
     ball->rec = {10, 10, 10, 10};
     ball->engine = engine;
@@ -75,13 +80,20 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+    GameState state = GameState::INGAME;
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
+
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
     p2->rec = Rectangle{ 0, 0, player2_text->width / 8.0f, player2_text->height / 8.0f };
     p2->rec.x = (wsize->x - p2->rec.width) / 2;
     p2->rec.y = (wsize->y - p2->rec.height) / 2;
 
-    p2->state = GameState::INGAME;
+    p2->state = state;
     p2->color = WHITE;
     p2->text = player2_text;
     engine->om.add_object(p2, (*z)++);
@@ -92,7 +104,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
     desk->color = PINK;
 
-    desk->state = GameState::INGAME;
+    desk->state = state;
     engine->om.add_object(desk, (*z)++);
 
     auto ns = new NeedleContainer(&engine->om);
@@ -108,7 +120,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
     ns->rec = needle_pos;
     ns->color = GetColor(0xf0f0f055);
-    ns->state = GameState::INGAME;
+    ns->state = state;
 
     srand(time(0));
     GameData *gd = (GameData *)engine->additional_data;
@@ -129,13 +141,14 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
-        needle->state = GameState::INGAME;
-        int id = engine->om.add_object(needle, (*z)++);
-        ns->needles.push_back(id);
+        needle->state = state;
+        engine->om.add_object(needle, (*z)++);
+        ns->needles.push_back(needle);
     }
 }
 
 static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+    (void)kh_id;
     GameState state = GameState::MENU;
     size_t title_size = 64;
     Color title_color = WHITE;
@@ -268,6 +281,8 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
+    gd->pstate = PlayerState::PLAYER1;
+
     engine->additional_data = (void *)gd;
     int z = 1;
     Vector2 canvas_size = {

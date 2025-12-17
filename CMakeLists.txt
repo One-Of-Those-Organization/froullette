@@ -66,3 +66,5 @@ if(EMSCRIPTEN)
     "../assets@/assets"
 )
 endif()
+
+add_subdirectory("src/Server")
