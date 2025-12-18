@@ -166,7 +166,7 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
-                           [engine]() { engine->request_change_state(GameState::INGAME); }
+                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
     );
     btn1->is_resizable = true;
     btn1->position_info.center_x = true;
@@ -199,6 +199,16 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
     btn3->update_using_scale(engine->get_scale_factor(), *wsize);
     engine->om.add_object(btn3, (*z)++);
+}
+
+static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+    (void)wsize;
+    (void)kh_id;
+
+    GameState state = GameState::SETTINGS;
+    size_t title_size = 64;
+    Color title_color = WHITE;
+    // NOTE: will be the place where player input the room id
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
@@ -299,6 +309,7 @@ static void gameInit(ArsEng *engine) {
     initTestObject (engine, kh_id, &z);
     initMenu       (engine, kh_id, &win_size, &z);
     initSettings   (engine, kh_id, &win_size, &z);
+    initPlayMenu   (engine, kh_id, &canvas_size, &z);
     initInGame     (engine, kh_id, &canvas_size, &z);
 }
 
