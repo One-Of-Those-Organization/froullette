@@ -24,6 +24,10 @@ class Server {
             mg_http_listen(&this->mgr, buffer, callback, NULL);
         };
 
+        void add_timer(size_t timeout_ms, int flag, void(*callback)(void *data), void *data){
+            mg_timer_add(&this->mgr, timeout_ms, flag, callback, data);
+        }
+
         void loop(size_t timeout_ms) {
             for (;;) {
                 mg_mgr_poll(&mgr, timeout_ms);

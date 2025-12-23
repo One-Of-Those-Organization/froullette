@@ -1,4 +1,3 @@
-#include <iostream>
 #include "mongoose.h"
 #include "Server.hpp"
 
@@ -55,6 +54,7 @@ int main(int argc, char **argv)
 {
     static const char *ipflag = "-ip";
     static const char *portflag = "-port";
+    static const int resolution = 100;
 
     bool error = false;
     std::string ip = "0.0.0.0";
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
             char *_now = argv[i++];
             int convert = atoi(_now);
             if (convert <= 0) {
-                std::cerr << "ERROR: Invalid port `" << _now << "`." << std::endl;
+                fprintf(stderr, "ERROR: Invalid port `%s`.\n", _now);
                 error = true;
                 break;
             }
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     if (error) return 1;
 
     Server s(ip.c_str(), port, ws_handler);
-    mg_timer_add(&s.mgr, 1000, MG_TIMER_REPEAT, timer_fn, &s.mgr);
-    s.loop(500);
+    s.add_timer(resolution, MG_TIMER_REPEAT, timer_fn, &s.mgr);
+    s.loop(resolution);
     return 0;
 }
