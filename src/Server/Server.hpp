@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-#include "mongoose.h"
+#include "../mongoose.h"
 
 #define STR_BUFFER_SIZE 64
 
