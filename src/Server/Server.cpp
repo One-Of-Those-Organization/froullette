@@ -12,17 +12,41 @@
 //       server start game and change some state when all ready
 //       the game comms
 
+static void timer_fn(void *arg)
+{
+    struct mg_mgr *mgr = (struct mg_mgr *) arg;
+    for (struct mg_connection *wc = mgr->conns; wc != NULL; wc = wc->next) {
+      if (wc->data[0] == 'W') {}
+        // mg_ws_send(wc, data->buf, data->len, WEBSOCKET_OP_TEXT);
+    }
+}
+
 static void ws_handler(mg_connection *c, int ev, void *ev_data)
 {
     switch (ev) {
+    case MG_EV_HTTP_MSG: {
+        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+        if (mg_match(hm->uri, mg_str("/websocket"), NULL)) {
+            mg_ws_upgrade(c, hm, NULL);
+            // NOTE: https://mongoose.ws/documentation/tutorials/websocket/websocket-server/
+            c->data[0] = 'W';
+        }
+        break;
+    }
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
-        printf("GET: %.*s\n", (int)wm->data.len, wm->data.buf);
-        mg_ws_send(c, wm->data.buf, wm->data.len, WEBSOCKET_OP_TEXT);
+        struct mg_str payload = wm->data;
+        char *msgtype = mg_json_get_str(payload, "$.type");
+        printf("get the msgtype: %s\n", msgtype);
+        if (!msgtype) {
+            mg_ws_send(c, payload.buf, payload.len, WEBSOCKET_OP_TEXT);
+            break;
+        }
+        free(msgtype);
         break;
     }
     default:
-        // Dont care about other msg
+        // NOTE: Dont care about other msg
         break;
     }
 }
@@ -52,6 +76,7 @@ int main(int argc, char **argv)
     if (error) return 1;
 
     Server s(ip.c_str(), port, ws_handler);
+    mg_timer_add(&s.mgr, 1000, MG_TIMER_REPEAT, timer_fn, &s.mgr);
     s.loop(500);
     return 0;
 }
