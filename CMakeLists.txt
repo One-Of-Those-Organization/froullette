@@ -29,6 +29,7 @@ FetchContent_MakeAvailable(raylib)
 
 set(FILE_IN
     src/main.cpp
+    src/mongoose.c
     src/Object/Object.cpp
     src/Shader/ShadersManager.cpp
     src/Texture/TextureManager.cpp

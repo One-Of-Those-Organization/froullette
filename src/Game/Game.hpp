@@ -15,6 +15,11 @@
 
 #include <ctime>
 
+
+static void client_handler(mg_connection *c, int ev, void *ev_data)
+{
+}
+
 struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
@@ -294,9 +299,20 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
 
 static void gameInit(ArsEng *engine) {
+    std::string ip = "0.0.0.0";
+    uint16_t port = 8000;
+
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
     gd->pstate = PlayerState::PLAYER1;
+
+    gd->client = new Client();
+    // TODO: Call when the ip and port is inserted
+    gd->client->ip = ip;
+    gd->client->port = port;
+    gd->client->callback = client_handler;
+    gd->client->connect();
+    // TODO: spawn thread and do `gd->client->loop()`
 
     engine->additional_data = (void *)gd;
     int z = 1;
@@ -319,5 +335,6 @@ static void gameInit(ArsEng *engine) {
 }
 
 static void gameDeinit(ArsEng *engine) {
+    delete ((GameData *)engine->additional_data)->client;
     delete (GameData *)engine->additional_data;
 }
