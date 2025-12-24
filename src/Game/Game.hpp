@@ -1,7 +1,5 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
 //       and pleasant the current API is SO SAD... and didnt work fully.
-// WORK: Will be straigt up working for the gameplay right now
-//       The server too
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -13,12 +11,14 @@
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
+#include "Client.hpp"
 
 #include <ctime>
 
 struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
+    Client *client;
 };
 
 static int rand_range(int min, int max) {
@@ -166,7 +166,8 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
-                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->is_resizable = true;
     btn1->position_info.center_x = true;
@@ -204,11 +205,15 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     (void)wsize;
     (void)kh_id;
+    (void)z;
+    (void)engine;
 
+    /*
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
     Color title_color = WHITE;
     // NOTE: will be the place where player input the room id
+    */
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
