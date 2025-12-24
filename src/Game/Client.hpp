@@ -1,5 +1,6 @@
 #pragma once
 #include "../mongoose.h"
+#include <atomic>
 #include <iostream>
 
 #define DEFAULT_BUFFER_SIZE 1024
@@ -10,12 +11,12 @@ class Client {
         uint16_t port;
         void (*callback)(struct mg_connection *, int ev, void *ev_data);
         char _buffer[DEFAULT_BUFFER_SIZE];
-        struct mg_mgr mgr;        // Event manager
-        bool done = false;        // Event handler flips it to true
-        struct mg_connection *c;  // Client connection
+        struct mg_mgr mgr;
+        std::atomic<bool> done{false};
+        struct mg_connection *c = nullptr;
 
         Client() {};
-        ~Client() = default;
+        ~Client() { this->cleanup(); };
 
         bool connect() {
             mg_mgr_init(&this->mgr);
@@ -30,6 +31,11 @@ class Client {
         }
 
         void loop(size_t timeout_ms) {
-            while (c) mg_mgr_poll(&mgr, timeout_ms);
+            while (c && !this->done) mg_mgr_poll(&mgr, timeout_ms);
+        }
+
+        void cleanup() {
+            done = true;
+            mg_mgr_free(&mgr);
         }
 };

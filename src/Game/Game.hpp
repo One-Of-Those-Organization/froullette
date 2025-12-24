@@ -14,7 +14,7 @@
 #include "Client.hpp"
 
 #include <ctime>
-
+#include <thread>
 
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
@@ -24,6 +24,7 @@ struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
+    std::thread _net;
 };
 
 static int rand_range(int min, int max) {
@@ -307,12 +308,17 @@ static void gameInit(ArsEng *engine) {
     gd->pstate = PlayerState::PLAYER1;
 
     gd->client = new Client();
+
     // TODO: Call when the ip and port is inserted
     gd->client->ip = ip;
     gd->client->port = port;
     gd->client->callback = client_handler;
+
+    // TODO: Move it to other func so it can be called when ip and port inserted
     gd->client->connect();
-    // TODO: spawn thread and do `gd->client->loop()`
+    gd->_net = std::thread([gd]() {
+        if (gd && gd->client) { gd->client->loop(100); }
+    });
 
     engine->additional_data = (void *)gd;
     int z = 1;
@@ -335,6 +341,11 @@ static void gameInit(ArsEng *engine) {
 }
 
 static void gameDeinit(ArsEng *engine) {
-    delete ((GameData *)engine->additional_data)->client;
-    delete (GameData *)engine->additional_data;
+    GameData *gd = (GameData *)engine->additional_data;
+    if (gd) {
+        if (gd->client) { gd->client->done = true; }
+        if (gd->_net.joinable()) { gd->_net.join(); }
+        delete gd->client;
+        delete gd;
+    }
 }
