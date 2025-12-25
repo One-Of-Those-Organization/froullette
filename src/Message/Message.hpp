@@ -23,7 +23,7 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     if (m == NULL) return 0;
     size_t n = 0;
 
-    n += mg_xprintf(out, ptr, "{%s:%d, %s:%d, %s:",
+    n += mg_xprintf(out, ptr, "{\"%s\":%d, \"%s\":%d, \"%s\":",
                     "type", (int)m->type,
                     "res", (int)m->response,
                     "data");
