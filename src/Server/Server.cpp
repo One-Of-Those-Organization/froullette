@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "../Message/Message.hpp"
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -21,6 +22,8 @@ static void timer_fn(void *arg)
 
 static void ws_handler(mg_connection *c, int ev, void *ev_data)
 {
+    Server *server = (Server *)c->fn_data;
+    UNUSED(server);
     switch (ev) {
     case MG_EV_HTTP_MSG: {
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
@@ -37,10 +40,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         double msgtype;
         bool success = mg_json_get_num(payload, "$.type", &msgtype);
         if (success) {
-            // TODO: use the docs for snprintf and return the json
-            // { type: "ok", response_from: "gibid", data: void* }
-            // std::string ret = "ok";
-            // mg_ws_send(c, ret.c_str(), ret.size(), WEBSOCKET_OP_TEXT);
+            Message msg = {};
+            msg.type = MessageType::HERE_ID;
+            msg.response = MessageType::GIVE_ID;
+            msg.data.Int = 10; // TODO: Generate this somehow!
+            mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
         } else {}
         if (!msgtype) {
             mg_ws_send(c, payload.buf, payload.len, WEBSOCKET_OP_TEXT);

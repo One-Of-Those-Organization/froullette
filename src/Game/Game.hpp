@@ -8,11 +8,11 @@
 #include "../Object/Needle.hpp"
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
+#include "../Message/Message.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
 #include "Client.hpp"
-#include "../Message/Message.hpp"
 #include <ctime>
 #include <thread>
 
@@ -23,7 +23,6 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     // to know how to make the json string.
 
     Client *client = (Client *)c->fn_data;
-    (void)client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
         if (!client) return;
@@ -31,14 +30,12 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             .type = MessageType::GIVE_ID,
             .response = MessageType::NONE,
         };
-        // NOTE: If on the mongoose thread itself just use mg_ws_printf
-        // but if on main thread use client.send();
         mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
     } break;
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
         struct mg_str payload = wm->data;
-        // NOTE: handle many type response from the server.
+        printf("got string: %s\n", payload.buf);
     } break;
     default:
         break;

@@ -4,6 +4,8 @@
 
 #define STR_BUFFER_SIZE 64
 
+#define UNUSED(x) (void)x
+
 class Server {
     public:
         size_t buffer_size = STR_BUFFER_SIZE;
@@ -21,7 +23,7 @@ class Server {
                 std::cerr << "ERROR: Failed to built the address string." << std::endl;
             }
             mg_mgr_init(&this->mgr);
-            mg_http_listen(&this->mgr, buffer, callback, NULL);
+            mg_http_listen(&this->mgr, buffer, callback, this);
         };
 
         void add_timer(size_t timeout_ms, int flag, void(*callback)(void *data), void *data){
