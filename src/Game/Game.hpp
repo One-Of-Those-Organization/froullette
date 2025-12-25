@@ -12,21 +12,29 @@
 #include "GameState.hpp"
 #include "PlayerState.hpp"
 #include "Client.hpp"
+#include "../Message/Message.hpp"
 #include <ctime>
 #include <thread>
 
 // TODO: Finish this
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
+    (void)ev_data;
     // NOTE: See Docs: https://mongoose.ws/documentation/#mg_snprintf-mg_vsnprintf
     // to know how to make the json string.
 
     Client *client = (Client *)c->fn_data;
+    (void)client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
-        // NOTE: Just need todo: client.send("give me id!");
+        Message msg = {
+            .type = MessageType::GIVE_ID,
+            .response = MessageType::NONE,
+        };
+        mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
     } break;
     case MG_EV_WS_MSG: {
+        // TODO
         // NOTE: handle many type response from the server.
     } break;
     default:

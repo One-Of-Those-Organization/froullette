@@ -1,4 +1,6 @@
 #pragma once
+#include <stdint.h>
+#include "../mongoose.h"
 
 enum MessageType {
     NONE = 0,
@@ -10,8 +12,8 @@ struct Message {
     MessageType type;
     MessageType response;
     union {
-        int Int,
-        char String[1024],
+        int Int;
+        char String[1024];
         // add more
     } data;
 };
@@ -30,6 +32,9 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     case HERE_ID:
         n += mg_xprintf(out, ptr, "%d", m->data.Int);
         break;
+    // case SOME_TEXT_TYPE:
+    //        n += mg_xprintf(out, ptr, "%m", m->data.String);
+    //        break;
     default:
         n += mg_xprintf(out, ptr, "null");
         break;

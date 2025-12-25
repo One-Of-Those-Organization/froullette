@@ -35,12 +35,18 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         mg_ws_message *wm = (mg_ws_message *)ev_data;
         struct mg_str payload = wm->data;
         char *msgtype = mg_json_get_str(payload, "$.type");
-        printf("get the msgtype: %s\n", msgtype);
+        if (strncmp(msgtype, "1", strlen(msgtype)) == 0) {
+            // TODO: use the docs for snprintf and return the json
+            // { type: "ok", response_from: "gibid", data: void* }
+            std::string ret = "ok";
+            mg_ws_send(c, ret.c_str(), ret.size(), WEBSOCKET_OP_TEXT);
+        } else {
+        }
         if (!msgtype) {
             mg_ws_send(c, payload.buf, payload.len, WEBSOCKET_OP_TEXT);
             break;
         }
-        free(msgtype);
+        mg_free(msgtype);
         break;
     }
     default:
