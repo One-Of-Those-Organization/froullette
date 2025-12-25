@@ -24,7 +24,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
     switch (ev) {
     case MG_EV_HTTP_MSG: {
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
-        if (mg_match(hm->uri, mg_str("/websocket"), NULL)) {
+        if (mg_match(hm->uri, mg_str("/"), NULL)) {
             mg_ws_upgrade(c, hm, NULL);
             // NOTE: https://mongoose.ws/documentation/tutorials/websocket/websocket-server/
             c->data[0] = 'W';
@@ -34,19 +34,19 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
         struct mg_str payload = wm->data;
-        char *msgtype = mg_json_get_str(payload, "$.type");
-        if (strncmp(msgtype, "1", strlen(msgtype)) == 0) {
+        double msgtype;
+        bool success = mg_json_get_num(payload, "$.type", &msgtype);
+        if (success) {
             // TODO: use the docs for snprintf and return the json
             // { type: "ok", response_from: "gibid", data: void* }
-            std::string ret = "ok";
-            mg_ws_send(c, ret.c_str(), ret.size(), WEBSOCKET_OP_TEXT);
-        } else {
-        }
+            // std::string ret = "ok";
+            // mg_ws_send(c, ret.c_str(), ret.size(), WEBSOCKET_OP_TEXT);
+        } else {}
         if (!msgtype) {
             mg_ws_send(c, payload.buf, payload.len, WEBSOCKET_OP_TEXT);
             break;
         }
-        mg_free(msgtype);
+        printf("got string: %s\n", payload.buf);
         break;
     }
     default:

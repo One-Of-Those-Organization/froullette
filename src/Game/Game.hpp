@@ -19,7 +19,6 @@
 // TODO: Finish this
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
-    (void)ev_data;
     // NOTE: See Docs: https://mongoose.ws/documentation/#mg_snprintf-mg_vsnprintf
     // to know how to make the json string.
 
@@ -27,14 +26,18 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     (void)client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
+        if (!client) return;
         Message msg = {
             .type = MessageType::GIVE_ID,
             .response = MessageType::NONE,
         };
+        // NOTE: If on the mongoose thread itself just use mg_ws_printf
+        // but if on main thread use client.send();
         mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
     } break;
     case MG_EV_WS_MSG: {
-        // TODO
+        mg_ws_message *wm = (mg_ws_message *)ev_data;
+        struct mg_str payload = wm->data;
         // NOTE: handle many type response from the server.
     } break;
     default:
@@ -322,7 +325,7 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
 
 static void gameInit(ArsEng *engine) {
-    std::string ip = "0.0.0.0";
+    std::string ip = "127.0.0.1";
     uint16_t port = 8000;
 
     GameData *gd = new GameData();

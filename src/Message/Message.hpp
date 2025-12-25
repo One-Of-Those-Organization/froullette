@@ -19,11 +19,14 @@ struct Message {
 };
 
 static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
-    struct Message *m = va_arg(*ap, struct Message *);
+    Message *m = va_arg(*ap, Message *);
+    if (m == NULL) return 0;
     size_t n = 0;
 
-    n += mg_xprintf(out, ptr, "{%m:%d, %m:%d, %m:",
-    "type", m->type, "res", m->response, "data");
+    n += mg_xprintf(out, ptr, "{%s:%d, %s:%d, %s:",
+                    "type", (int)m->type,
+                    "res", (int)m->response,
+                    "data");
 
     switch (m->type) {
     case GIVE_ID:
@@ -32,9 +35,10 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     case HERE_ID:
         n += mg_xprintf(out, ptr, "%d", m->data.Int);
         break;
+    // If you decide to use the String member:
     // case SOME_TEXT_TYPE:
-    //        n += mg_xprintf(out, ptr, "%m", m->data.String);
-    //        break;
+        //    n += mg_xprintf(out, ptr, "%Q", m->data.String);
+        //    break;
     default:
         n += mg_xprintf(out, ptr, "null");
         break;
