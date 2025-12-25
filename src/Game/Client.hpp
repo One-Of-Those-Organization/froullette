@@ -1,5 +1,6 @@
 #pragma once
 #include "../mongoose.h"
+#include "../Message/Message.hpp"
 #include <atomic>
 #include <iostream>
 #include <string>
@@ -56,8 +57,10 @@ class Client {
             mg_mgr_free(&this->mgr);
         }
 
-        void send(std::string json) {
+        void send(const struct Message &m) {
+            char buf[DEFAULT_BUFFER_SIZE];
+            int len = mg_snprintf(buf, sizeof(buf), "%M", print_msg, &m);
             std::lock_guard<std::mutex> lock(_outbox_mtx);
-            _outbox.push_back(json);
+            _outbox.push_back(std::string(buf, len));
         }
 };
