@@ -11,6 +11,15 @@
 //       server start game and change some state when all ready
 //       the game comms
 
+Room *find_free_room(Server* server) {
+    for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
+        if (server->rooms[i].state == ROOM_FREE) {
+            return &server->rooms[i];
+        }
+    }
+    return nullptr;
+}
+
 static void timer_fn(void *arg)
 {
     struct mg_mgr *mgr = (struct mg_mgr *) arg;
@@ -38,19 +47,31 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         struct mg_str payload = wm->data;
         double msgtype;
         bool success = mg_json_get_num(payload, "$.type", &msgtype);
-        if (!success) {
-            break;
-        }
+        if (!success) break;
 
         Message msg = {};
-        switch (msgtype) {
+        switch ((int)msgtype) {
         case GIVE_ID: {
             msg.type = MessageType::HERE_ID;
             msg.response = MessageType::GIVE_ID;
             msg.data.Int = server->ccount++;
         } break;
         case CREATE_ROOM: {
-            // TODO
+            Room *r = find_free_room(server);
+            if (!r) {
+                msg.type = MessageType::ERROR;
+                msg.response = MessageType::CREATE_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Max rooms count reached");
+            } else {
+                *r = Room{};
+                // TODO: fill out the room
+                r->state = ROOM_ACTIVE;
+
+                msg.type = MessageType::HERE_ROOM;
+                msg.response = MessageType::CREATE_ROOM;
+                msg.data.Room_obj = r;
+            }
         } break;
         default:
             break;

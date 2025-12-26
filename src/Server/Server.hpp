@@ -16,7 +16,7 @@ class Server {
         char *buffer = nullptr;
         void (*callback)(mg_connection *c, int ev, void *ev_data);
         std::atomic<int> ccount = {0}; // to assign id
-        std::vector<Room> rooms;
+        Room rooms[MAX_ROOM_COUNT];
 
         Server(const char *ip, uint16_t port, void (*callback)(mg_connection *c, int ev, void *ev_data)) {
             this->callback = callback;

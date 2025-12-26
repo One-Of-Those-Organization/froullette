@@ -1,17 +1,20 @@
 #pragma once
 #include <stdint.h>
 #include "../mongoose.h"
+#include "../Shared/Room.hpp"
 
 #define MAX_MESSAGE_STRING_SIZE 512
 
 enum MessageType {
     NONE = 0,
+    ERROR,
 
     GIVE_ID,
     HERE_ID,
 
     CREATE_ROOM,
-    ID_ROOM,
+    CONNECT_ROOM,
+    HERE_ROOM,
 };
 
 struct Message {
@@ -20,6 +23,7 @@ struct Message {
     union {
         int Int;
         char String[MAX_MESSAGE_STRING_SIZE];
+        Room *Room_obj;
         // add more
     } data;
 };
@@ -35,16 +39,19 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
                     "data");
 
     switch (m->type) {
+    case CREATE_ROOM:
     case GIVE_ID:
         n += mg_xprintf(out, ptr, "null");
         break;
     case HERE_ID:
         n += mg_xprintf(out, ptr, "%d", m->data.Int);
         break;
-    // If you decide to use the String member:
-    // case SOME_TEXT_TYPE:
-        //    n += mg_xprintf(out, ptr, "%Q", m->data.String);
-        //    break;
+    case CONNECT_ROOM:
+    case ERROR:
+           n += mg_xprintf(out, ptr, "%Q", m->data.String);
+           break;
+    case HERE_ROOM:
+        break;
     default:
         n += mg_xprintf(out, ptr, "null");
         break;
