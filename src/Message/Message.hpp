@@ -48,7 +48,7 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
         break;
     case CONNECT_ROOM:
     case ERROR:
-           n += mg_xprintf(out, ptr, "%Q", m->data.String);
+           n += mg_xprintf(out, ptr, "\"%s\"", m->data.String);
            break;
     case HERE_ROOM:
         break;
