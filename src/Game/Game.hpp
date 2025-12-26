@@ -26,10 +26,9 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     switch (ev) {
     case MG_EV_WS_OPEN: {
         if (!client) return;
-        Message msg = {
-            .type = MessageType::GIVE_ID,
-            .response = MessageType::NONE,
-        };
+        Message msg = {};
+        msg.type = MessageType::GIVE_ID;
+        msg.response = MessageType::NONE;
         mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
     } break;
     case MG_EV_WS_MSG: {

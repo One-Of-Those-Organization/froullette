@@ -1,6 +1,9 @@
 #pragma once
 #include <iostream>
+#include <atomic>
+#include <vector>
 #include "../mongoose.h"
+#include "../Shared/Room.hpp"
 
 #define STR_BUFFER_SIZE 64
 
@@ -12,6 +15,8 @@ class Server {
         mg_mgr mgr;
         char *buffer = nullptr;
         void (*callback)(mg_connection *c, int ev, void *ev_data);
+        std::atomic<int> ccount = {0}; // to assign id
+        std::vector<Room> rooms;
 
         Server(const char *ip, uint16_t port, void (*callback)(mg_connection *c, int ev, void *ev_data)) {
             this->callback = callback;

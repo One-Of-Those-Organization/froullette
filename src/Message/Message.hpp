@@ -2,10 +2,16 @@
 #include <stdint.h>
 #include "../mongoose.h"
 
+#define MAX_MESSAGE_STRING_SIZE 512
+
 enum MessageType {
     NONE = 0,
+
     GIVE_ID,
     HERE_ID,
+
+    CREATE_ROOM,
+    ID_ROOM,
 };
 
 struct Message {
@@ -13,7 +19,7 @@ struct Message {
     MessageType response;
     union {
         int Int;
-        char String[1024];
+        char String[MAX_MESSAGE_STRING_SIZE];
         // add more
     } data;
 };

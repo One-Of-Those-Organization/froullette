@@ -23,7 +23,6 @@ static void timer_fn(void *arg)
 static void ws_handler(mg_connection *c, int ev, void *ev_data)
 {
     Server *server = (Server *)c->fn_data;
-    UNUSED(server);
     switch (ev) {
     case MG_EV_HTTP_MSG: {
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
@@ -39,18 +38,24 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         struct mg_str payload = wm->data;
         double msgtype;
         bool success = mg_json_get_num(payload, "$.type", &msgtype);
-        if (success) {
-            Message msg = {};
-            msg.type = MessageType::HERE_ID;
-            msg.response = MessageType::GIVE_ID;
-            msg.data.Int = 10; // TODO: Generate this somehow!
-            mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
-        } else {}
-        if (!msgtype) {
-            mg_ws_send(c, payload.buf, payload.len, WEBSOCKET_OP_TEXT);
+        if (!success) {
             break;
         }
-        printf("got string: %s\n", payload.buf);
+
+        Message msg = {};
+        switch (msgtype) {
+        case GIVE_ID: {
+            msg.type = MessageType::HERE_ID;
+            msg.response = MessageType::GIVE_ID;
+            msg.data.Int = server->ccount++;
+        } break;
+        case CREATE_ROOM: {
+            // TODO
+        } break;
+        default:
+            break;
+        }
+        mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
         break;
     }
     default:
