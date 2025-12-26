@@ -25,7 +25,7 @@ class Client {
         Client() = default;
         ~Client() { this->cleanup(); };
 
-        bool connect() {
+        bool connect(void *data) {
             mg_mgr_init(&this->mgr);
             if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s:%u",
                         this->ip.c_str(), this->port) < 0)
@@ -33,7 +33,7 @@ class Client {
                 std::cerr << "ERROR: Failed to built the address string." << std::endl;
                 return false;
             }
-            this->c = mg_ws_connect(&this->mgr, this->_buffer, this->callback, this, NULL);
+            this->c = mg_ws_connect(&this->mgr, this->_buffer, this->callback, data, NULL);
             return true;
         }
 

@@ -9,6 +9,7 @@
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "../Message/Message.hpp"
+#include "../Shared/Room.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
@@ -16,13 +17,23 @@
 #include <ctime>
 #include <thread>
 
+struct GameData {
+    size_t round_needle_count;
+    PlayerState pstate;
+    Client *client;
+    std::thread _net;
+    Room *room;
+};
+
 // TODO: Finish this
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
-    // NOTE: See Docs: https://mongoose.ws/documentation/#mg_snprintf-mg_vsnprintf
-    // to know how to make the json string.
-
-    Client *client = (Client *)c->fn_data;
+    GameData *gd = (GameData *)c->fn_data;
+    if (!gd) {
+        TraceLog(LOG_INFO, "Failed to get the gamedata on the network thread");
+        return;
+    }
+    Client *client = gd->client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
         if (!client) return;
@@ -34,19 +45,25 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
         struct mg_str payload = wm->data;
-        printf("got string: %s\n", payload.buf);
+        double msgtype;
+        bool success = mg_json_get_num(payload, "$.type", &msgtype);
+        if (!success) break;
+
+        switch ((int)msgtype) {
+        case HERE_ID: {
+            success = mg_json_get_num(payload, "$.data", &msgtype);
+            if (!success) {}
+        } break;
+        case HERE_ROOM: {
+        } break;
+        default:
+            break;
+        }
     } break;
     default:
         break;
     }
 }
-
-struct GameData {
-    size_t round_needle_count;
-    PlayerState pstate;
-    Client *client;
-    std::thread _net;
-};
 
 static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
@@ -336,7 +353,7 @@ static void gameInit(ArsEng *engine) {
     gd->client->callback = client_handler;
 
     // TODO: Move it to other func so it can be called when ip and port inserted
-    gd->client->connect();
+    gd->client->connect((void *)gd);
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
