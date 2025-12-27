@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "../mongoose.h"
 #include "../Shared/Room.hpp"
+#include "../Shared/Player.hpp"
 
 // protocol: le
 // [MSG]
@@ -31,7 +32,7 @@ enum RoomField : uint8_t {
 };
 
 enum PlayerField : uint8_t {
-    PF_ID      = 1,
+    PF_ID = 1,
 };
 
 enum MessageType {
@@ -53,6 +54,7 @@ struct Message {
         int Int;
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
+        Player *Player_obj;
         // add more
     } data;
 };
@@ -115,4 +117,43 @@ static size_t generate_network_field(Message *m, uint8_t *buffer) {
         break;
     }
     return 0;
+}
+
+void parse_network_packet(uint8_t *buf, size_t len) {
+    uint8_t *p = buf;
+    uint8_t *end = buf + len;
+    uint8_t msg_type = *p++;
+    switch (msg_type) {
+    case HERE_ROOM: {
+        Room room = {};
+
+        while (p < end) {
+            uint8_t field = *p++;
+            uint16_t flen = *(uint16_t*)p; p += 2;
+
+            switch (field) {
+            case RF_ID:
+                memcpy(room.id, p, flen);
+                room.id[flen] = 0;
+                break;
+
+            // case RF_PLAYERS:
+                //     room.player_len = *(uint32_t*)p;
+                //     break;
+
+            case RF_STATE:
+                room.state = (RoomState)*p;
+                break;
+            default:
+                // skip
+                break;
+            }
+
+            p += flen;
+        }
+
+    } break;
+    default:
+        break;
+    }
 }

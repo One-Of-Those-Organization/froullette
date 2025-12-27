@@ -21,11 +21,14 @@ struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
+#ifndef __EMSCRIPTEN__
     std::thread _net;
+#endif
     Room *room;
 };
 
 // TODO: Finish this
+// NOTE: This is handler for the native version the web version wont be using this function
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
     GameData *gd = (GameData *)c->fn_data;
@@ -360,9 +363,15 @@ static void gameInit(ArsEng *engine) {
 
     // TODO: Move it to other func so it can be called when ip and port inserted
     gd->client->connect((void *)gd);
+#ifndef __EMSCRIPTEN__
+    // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
+#else
+    // Web: no network thread; WebSocket is event-driven via Emscripten callbacks
+    // If you need periodic work, do it in your render/update tick.
+#endif
 
     engine->additional_data = (void *)gd;
     int z = 1;
@@ -388,7 +397,9 @@ static void gameDeinit(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
     if (gd) {
         if (gd->client) { gd->client->done = true; }
+#ifndef __EMSCRIPTEN__
         if (gd->_net.joinable()) { gd->_net.join(); }
+#endif
         delete gd->client;
         delete gd;
     }
