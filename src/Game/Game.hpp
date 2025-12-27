@@ -1,7 +1,5 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
 //       and pleasant the current API is SO SAD... and didnt work fully.
-// WORK: Will be straigt up working for the gameplay right now
-//       The server too
 #pragma once
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -10,16 +8,68 @@
 #include "../Object/Needle.hpp"
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
+#include "../Message/Message.hpp"
+#include "../Shared/Room.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
-
+#include "Client.hpp"
 #include <ctime>
+#include <thread>
 
 struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
+    Client *client;
+    std::thread _net;
+    Room *room;
 };
+
+// TODO: Finish this
+static void client_handler(mg_connection *c, int ev, void *ev_data)
+{
+    GameData *gd = (GameData *)c->fn_data;
+    if (!gd) {
+        TraceLog(LOG_INFO, "Failed to get the gamedata on the network thread");
+        return;
+    }
+    Client *client = gd->client;
+    switch (ev) {
+    case MG_EV_WS_OPEN: {
+        if (!client) return;
+        Message msg = {};
+        msg.type = MessageType::GIVE_ID;
+        msg.response = MessageType::NONE;
+        mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
+    } break;
+    case MG_EV_WS_MSG: {
+        mg_ws_message *wm = (mg_ws_message *)ev_data;
+        struct mg_str payload = wm->data;
+        double msgtype;
+        bool success = mg_json_get_num(payload, "$.type", &msgtype);
+        if (!success) break;
+
+        switch ((int)msgtype) {
+        case HERE_ID: {
+            double player_id;
+            success = mg_json_get_num(payload, "$.data", &player_id);
+            if (!success) {
+                TraceLog(LOG_INFO, "Failed to get the player id from the server!");
+                break; // TODO: Handle error better
+            }
+            client->p.id = (int)player_id;
+        } break;
+        case HERE_ROOM: {
+            // TODO: Finish this
+        } break;
+        default:
+            break;
+        }
+    } break;
+    default:
+        break;
+    }
+}
 
 static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
@@ -166,7 +216,8 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
-                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->is_resizable = true;
     btn1->position_info.center_x = true;
@@ -204,11 +255,15 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     (void)wsize;
     (void)kh_id;
+    (void)z;
+    (void)engine;
 
+    /*
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
     Color title_color = WHITE;
     // NOTE: will be the place where player input the room id
+    */
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
@@ -289,9 +344,25 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
 
 static void gameInit(ArsEng *engine) {
+    std::string ip = "127.0.0.1";
+    uint16_t port = 8000;
+
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
     gd->pstate = PlayerState::PLAYER1;
+
+    gd->client = new Client();
+
+    // TODO: Call when the ip and port is inserted
+    gd->client->ip = ip;
+    gd->client->port = port;
+    gd->client->callback = client_handler;
+
+    // TODO: Move it to other func so it can be called when ip and port inserted
+    gd->client->connect((void *)gd);
+    gd->_net = std::thread([gd]() {
+        if (gd && gd->client) { gd->client->loop(100); }
+    });
 
     engine->additional_data = (void *)gd;
     int z = 1;
@@ -314,5 +385,11 @@ static void gameInit(ArsEng *engine) {
 }
 
 static void gameDeinit(ArsEng *engine) {
-    delete (GameData *)engine->additional_data;
+    GameData *gd = (GameData *)engine->additional_data;
+    if (gd) {
+        if (gd->client) { gd->client->done = true; }
+        if (gd->_net.joinable()) { gd->_net.join(); }
+        delete gd->client;
+        delete gd;
+    }
 }

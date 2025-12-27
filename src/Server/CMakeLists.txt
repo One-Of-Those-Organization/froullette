@@ -14,7 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 
 set(SERVER_SOURCES
     Server.cpp
-    mongoose.c
+    ../mongoose.c
 )
 
 add_executable(${PROJ_NAME} ${SERVER_SOURCES})
