@@ -59,6 +59,17 @@ struct Message {
     } data;
 };
 
+struct ParsedData {
+    MessageType type;
+    union {
+        int Int;
+        char String[MAX_MESSAGE_STRING_SIZE];
+        Room Room_obj;
+        Player Player_obj;
+        // add more
+    } data;
+};
+
 static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     Message *m = va_arg(*ap, Message *);
     if (m == NULL) return 0;
@@ -89,6 +100,7 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     return n;
 }
 
+// TODO
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
 static size_t generate_network_field(Message *m, uint8_t *buffer) {
     uint8_t *p = buffer;
@@ -119,13 +131,17 @@ static size_t generate_network_field(Message *m, uint8_t *buffer) {
     return 0;
 }
 
-void parse_network_packet(uint8_t *buf, size_t len) {
+// TODO: Finish this
+ParsedData parse_network_packet(uint8_t *buf, size_t len) {
+    ParsedData pd = {};
     uint8_t *p = buf;
     uint8_t *end = buf + len;
     uint8_t msg_type = *p++;
     switch (msg_type) {
     case HERE_ROOM: {
-        Room room = {};
+        pd.type = HERE_ROOM;
+        pd.data.Room_obj = Room{};
+        Room *room = &pd.data.Room_obj;
 
         while (p < end) {
             uint8_t field = *p++;
@@ -133,8 +149,8 @@ void parse_network_packet(uint8_t *buf, size_t len) {
 
             switch (field) {
             case RF_ID:
-                memcpy(room.id, p, flen);
-                room.id[flen] = 0;
+                memcpy(room->id, p, flen);
+                room->id[flen] = 0;
                 break;
 
             // case RF_PLAYERS:
@@ -142,7 +158,7 @@ void parse_network_packet(uint8_t *buf, size_t len) {
                 //     break;
 
             case RF_STATE:
-                room.state = (RoomState)*p;
+                room->state = (RoomState)*p;
                 break;
             default:
                 // skip
@@ -156,4 +172,5 @@ void parse_network_packet(uint8_t *buf, size_t len) {
     default:
         break;
     }
+    return pd;
 }

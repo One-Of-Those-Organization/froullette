@@ -58,12 +58,18 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             success = mg_json_get_num(payload, "$.data", &player_id);
             if (!success) {
                 TraceLog(LOG_INFO, "Failed to get the player id from the server!");
-                break; // TODO: Handle error better
+                break; // TODO(0): Handle error better
             }
             client->p.id = (int)player_id;
         } break;
         case HERE_ROOM: {
-            // TODO: Finish this
+            mg_ws_message *wm = (mg_ws_message *)ev_data;
+            if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
+                ParsedData data = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
+                if (data.type == HERE_ROOM) {
+
+                }
+            }
         } break;
         default:
             break;
