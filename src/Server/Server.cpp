@@ -70,26 +70,12 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 strncpy(r->id, "hello", ID_MAX_COUNT); // TODO: This need to be generated!
                 r->id[ID_MAX_COUNT - 1] = 0;
 
+                msg.type = MessageType::HERE_ROOM;
+                msg.response = MessageType::CREATE_ROOM;
+                msg.data.Room_obj = r;
+
                 uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
-                uint8_t *p = buffer;
-
-                *p++ = HERE_ROOM;
-
-                uint16_t id_len = strnlen(r->id, ID_MAX_COUNT);
-                *p++ = RF_ID;
-                WRITE_U16(p, id_len);
-                memcpy(p, r->id, id_len);
-                p += id_len;
-
-                // *p++ = RF_PLAYER_LEN;
-                // WRITE_U16(p, 1);
-                // *p++ = r->player_len;
-
-                *p++ = RF_STATE;
-                WRITE_U16(p, 1);
-                *p++ = (uint8_t)r->state;
-
-                size_t packet_len = (size_t)(p - buffer);
+                size_t packet_len = generate_network_field(&msg, buffer);
                 mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
             }
         } break;

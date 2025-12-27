@@ -3,10 +3,9 @@
 #include "../mongoose.h"
 #include "../Shared/Room.hpp"
 
-// protocol:
+// protocol: le
 // [MSG]
 // [TYPE][len][bytes]
-
 
 #define MAX_MESSAGE_BIN_SIZE 512
 #define MAX_MESSAGE_STRING_SIZE 512
@@ -24,6 +23,16 @@ uint16_t read_u16(const uint8_t *p) {
 uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
+
+enum RoomField : uint8_t {
+    RF_ID      = 1,
+    RF_PLAYERS = 2,
+    RF_STATE   = 3
+};
+
+enum PlayerField : uint8_t {
+    PF_ID      = 1,
+};
 
 enum MessageType {
     NONE = 0,
@@ -78,8 +87,32 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     return n;
 }
 
-enum RoomField : uint8_t {
-    RF_ID      = 1,
-    RF_PLAYERS = 2,
-    RF_STATE   = 3
-};
+// NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
+static size_t generate_network_field(Message *m, uint8_t *buffer) {
+    uint8_t *p = buffer;
+    *p++ = m->type;
+
+    switch(m->type) {
+    case HERE_ROOM: {
+        Room *r = m->data.Room_obj;
+
+        uint16_t id_len = strnlen(r->id, ID_MAX_COUNT);
+        *p++ = RF_ID;
+        WRITE_U16(p, id_len);
+        memcpy(p, r->id, id_len);
+        p += id_len;
+
+        // *p++ = RF_PLAYER_LEN;
+        // WRITE_U16(p, 1);
+        // *p++ = r->player_len;
+
+        *p++ = RF_STATE;
+        WRITE_U16(p, 1);
+        *p++ = (uint8_t)r->state;
+        return (size_t)(p - buffer);
+    } break;
+    default:
+        break;
+    }
+    return 0;
+}
