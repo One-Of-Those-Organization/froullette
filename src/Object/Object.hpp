@@ -30,6 +30,7 @@ class Object {
         virtual ~Object() = default;
         virtual void render();
         virtual void logic(float dt);
+        virtual void calculate_rec() {}
 
         virtual void update_using_scale(float scale, Vector2 new_window_size);
 };

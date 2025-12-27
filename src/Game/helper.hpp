@@ -4,7 +4,7 @@
 #include "GameState.hpp"
 #include "../Object/Button.hpp"
 #include "../Object/Text.hpp"
-
+#include "../Object/TextInput.hpp"
 
 static Button *cButton(ArsEng *engine, std::string text, int text_size,
         int padding, GameState state, Vector2 pos,
@@ -48,4 +48,28 @@ static Text *cText(ArsEng *engine, GameState state,
     text1->update_using_scale(engine->get_scale_factor(), wsize);
     text1->state = state;
     return text1;
+}
+
+static TextInput *cTextInput(
+    ArsEng *engine, 
+    std::string placeholder, 
+    int text_size, 
+    int padding, 
+    GameState state, 
+    Vector2 pos
+) {
+    auto ti = new TextInput();
+    ti->rec = { pos.x, pos.y, 1, 1};
+    ti->state = state;
+    ti->show = true;
+    
+    ti->value = "";
+    ti->placeholder = placeholder;
+    
+    ti->text_size = text_size;
+    ti->padding = padding;
+    ti->font = &engine->font;
+    
+    ti->calculate_rec();
+    return ti;
 }

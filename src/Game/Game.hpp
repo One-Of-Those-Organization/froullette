@@ -10,6 +10,7 @@
 #include "../Object/Needle.hpp"
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
+#include "../Object/TextInput.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
@@ -172,9 +173,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         [engine]() { engine->request_change_state(GameState::MENU); }
     );
     btnBack->is_resizable = true;
-    btnBack->position_info.anchor_left = true;
-    btnBack->position_info.anchor_top = true;
-    btnBack->position_info.offset_= { 30, 30 };
+    btnBack->position_info.center_x = false;
+    btnBack->position_info.center_y = false;
+    btnBack->rec.x = 30;
+    btnBack->rec.y = 30;
     btnBack->calculate_rec();
     btnBack->update_using_scale(engine->get_scale_factor(), *wsize);
     engine->om.add_object(btnBack, (*z)++);
@@ -183,13 +185,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     TextInput *ipInput = cTextInput(
         engine, "input ip port", text_size, padding + 10, state, {0,0}
     );
-    inInput->position_info.center_x = true;
-    inInput->position_info.center_y = true;
-    inInput->calculate_rec();
+    ipInput->position_info.center_x = true;
+    ipInput->position_info.center_y = true;
+    ipInput->calculate_rec();
     ipInput->position_info.offset.y = -120;
     ipInput->update_using_scale(engine->get_scale_factor(), *wsize);
     // filter number
-    ipInput->set_char_filter([](char c) {
+    ipInput->set_filter([](char c) {
         return (c >= '0' && c <= '9') || c == '.' || c == ':';
     });
     engine->om.add_object(ipInput, (*z)++);
@@ -201,10 +203,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     roomInput->position_info.center_x = true;
     roomInput->position_info.center_y = true;
     roomInput->calculate_rec();
-    roomInput->position_info.offset.y = ipInput->position_info.offset.y + inInput->rec.height + spacing;
+    roomInput->position_info.offset.y = ipInput->position_info.offset.y + ipInput->rec.height + spacing;
     roomInput->update_using_scale(engine->get_scale_factor(), *wsize);
     // filter alphanumeric
-    roomInput->set_char_filter([](char c) {
+    roomInput->set_filter([](char c) {
         return isalnum(static_cast<unsigned char>(c));
     });
     engine->om.add_object(roomInput, (*z)++);
@@ -218,7 +220,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
             // Logic to join the room using ip and room code
         }
     );
-    btnJoin->is_resizeable = true;
+    btnJoin->is_resizable = true;
     btnJoin->position_info.center_x = true;
     btnJoin->position_info.center_y = true;
     btnJoin->calculate_rec();
