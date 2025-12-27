@@ -13,6 +13,8 @@
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
+// #include "PlayMenu.hpp"
+#include "helper.hpp"
 
 #include <ctime>
 
@@ -23,50 +25,6 @@ struct GameData {
 
 static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
-}
-
-static Button *cButton(ArsEng *engine, std::string text, int text_size,
-        int padding, GameState state, Vector2 pos,
-        std::function<void()> callback)
-{
-    auto btn = new Button();
-    btn->rec = {pos.x, pos.y, 1, 1};
-    btn->state = state;
-    btn->text = text;
-    btn->text_size = text_size;
-    btn->curpos = &engine->cursor;
-    btn->padding = padding;
-    btn->callback = callback;
-    btn->font = &engine->font;
-    btn->draw_in_canvas = false;
-    btn->color[0] = {GetColor(0xffffffff)};
-    btn->color[1] = {GetColor(0x000000ff)};
-    btn->color[2] = {GetColor(0x999999ff)};
-    btn->color[3] = {GetColor(0xffffffff)};
-    btn->store_rec();
-    return btn;
-}
-
-static Text *cText(ArsEng *engine, GameState state,
-                  std::string text, size_t text_size, Color color, Vector2 pos,
-                  bool center_x = true, bool center_y = true, size_t offsetx = 0, size_t offsety = 0)
-{
-    Vector2 wsize = engine->window_size;
-    auto text1 = new Text();
-    text1->text = text;
-    text1->font = &engine->font;
-    text1->text_size = text_size;
-    text1->text_color = color;
-    text1->rec = {pos.x,pos.y,100,100};
-    text1->store_rec();
-    text1->is_resizable = true;
-    text1->position_info.center_x = center_x;
-    text1->position_info.center_y = center_y;
-    text1->position_info.offset.x = offsetx;
-    text1->position_info.offset.y = offsety;
-    text1->update_using_scale(engine->get_scale_factor(), wsize);
-    text1->state = state;
-    return text1;
 }
 
 static void initTestObject(ArsEng *engine, int kh_id, int *z) {
@@ -202,13 +160,138 @@ static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
-    (void)wsize;
     (void)kh_id;
+    GameState state = GameState::PLAYMENU;
+    size_t text_size = 32;
+    size_t padding = 20;
+    float spacing = 25.0f;
 
-    GameState state = GameState::SETTINGS;
-    size_t title_size = 64;
-    Color title_color = WHITE;
-    // NOTE: will be the place where player input the room id
+    // Button Back
+    Button *btnBack = cButton(
+        engine, "Back", text_size - 8, padding - 10, state, {0, 0},
+        [engine]() { engine->request_change_state(GameState::MENU); }
+    );
+    btnBack->is_resizable = true;
+    btnBack->position_info.anchor_left = true;
+    btnBack->position_info.anchor_top = true;
+    btnBack->position_info.offset_= { 30, 30 };
+    btnBack->calculate_rec();
+    btnBack->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btnBack, (*z)++);
+
+    // Input IP port
+    TextInput *ipInput = cTextInput(
+        engine, "input ip port", text_size, padding + 10, state, {0,0}
+    );
+    inInput->position_info.center_x = true;
+    inInput->position_info.center_y = true;
+    inInput->calculate_rec();
+    ipInput->position_info.offset.y = -120;
+    ipInput->update_using_scale(engine->get_scale_factor(), *wsize);
+    // filter number
+    ipInput->set_char_filter([](char c) {
+        return (c >= '0' && c <= '9') || c == '.' || c == ':';
+    });
+    engine->om.add_object(ipInput, (*z)++);
+
+    // input room code
+    TextInput *roomInput = cTextInput(
+        engine, "Input Room Code", text_size, padding + 10, state, {0,0}
+    );
+    roomInput->position_info.center_x = true;
+    roomInput->position_info.center_y = true;
+    roomInput->calculate_rec();
+    roomInput->position_info.offset.y = ipInput->position_info.offset.y + inInput->rec.height + spacing;
+    roomInput->update_using_scale(engine->get_scale_factor(), *wsize);
+    // filter alphanumeric
+    roomInput->set_char_filter([](char c) {
+        return isalnum(static_cast<unsigned char>(c));
+    });
+    engine->om.add_object(roomInput, (*z)++);
+
+    // Join Button
+    Button *btnJoin = cButton(
+        engine, "join room", text_size, padding, state, {0,0},
+        [engine, ipInput, roomInput]() {
+            const std::string &ip = ipInput->get_text();
+            const std::string &room = roomInput->get_text();
+            // Logic to join the room using ip and room code
+        }
+    );
+    btnJoin->is_resizeable = true;
+    btnJoin->position_info.center_x = true;
+    btnJoin->position_info.center_y = true;
+    btnJoin->calculate_rec();
+    btnJoin->position_info.offset.y = roomInput->position_info.offset.y + roomInput->rec.height + spacing;
+    btnJoin->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btnJoin, (*z)++);
+
+    // Create Room Button
+    Button *btnCreateRoom = cButton(
+        engine, "create room", text_size, padding, state, {0,0},
+        []() {
+            // Logic to create a new room
+        }
+    );
+    btnCreateRoom->is_resizable = true;
+    btnCreateRoom->position_info.center_x = true;
+    btnCreateRoom->position_info.center_y = true;
+    btnCreateRoom->calculate_rec();
+    btnCreateRoom->position_info.offset.y = btnJoin->position_info.offset.y + btnJoin->rec.height + spacing;
+    btnCreateRoom->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btnCreateRoom, (*z)++);
+
+    // (void)kh_id;
+    // GameState state = GameState::PLAYMENU;
+    // size_t title_size = 64;
+    // Color title_color = WHITE;
+
+    // Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0,0});
+    // title1->position_info.offset.y = -title1->rec.height;
+    // title1->update_using_scale(engine->get_scale_factor(), *wsize);
+    // engine->om.add_object(title1, (*z)++);
+
+    // Text *title2 = cText(engine, state, "Roullete", title_size, title_color, {0,0});
+    // engine->om.add_object(title2, (*z)++);
+
+
+    // size_t text_size = 36;
+    // size_t padding = 20;
+
+    // Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
+    //                        [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+    // );
+    // btn1->is_resizable = true;
+    // btn1->position_info.center_x = true;
+    // btn1->position_info.center_y = true;
+    // btn1->calculate_rec();
+    // btn1->position_info.offset.y = title_size * 3;
+    // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    // engine->om.add_object(btn1, (*z)++);
+
+    // Button *btn2 = cButton(engine, "Conf", text_size, padding - 5, state, {0,0},
+    //                        [engine]() { engine->request_change_state(GameState::SETTINGS); }
+    // );
+    // btn2->is_resizable = true;
+    // btn2->position_info.center_x = true;
+    // btn2->position_info.center_y = true;
+    // btn2->calculate_rec();
+    // btn2->position_info.offset.y = title_size * 3;
+    // btn2->position_info.offset.x = ((btn1->rec.width + btn2->rec.width) * 0.5f) + padding;
+    // btn2->update_using_scale(engine->get_scale_factor(), *wsize);
+    // engine->om.add_object(btn2, (*z)++);
+
+    // Button *btn3 = cButton(engine, "Exit", text_size, padding - 5, state, {0,0},
+    //                        [engine]() { engine->req_close = true; }
+    // );
+    // btn3->is_resizable = true;
+    // btn3->position_info.center_x = true;
+    // btn3->position_info.center_y = true;
+    // btn3->calculate_rec();
+    // btn3->position_info.offset.y = title_size * 3;
+    // btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
+    // btn3->update_using_scale(engine->get_scale_factor(), *wsize);
+    // engine->om.add_object(btn3, (*z)++);
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
