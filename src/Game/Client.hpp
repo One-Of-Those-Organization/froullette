@@ -1,6 +1,7 @@
 #pragma once
 #include "../mongoose.h"
 #include "../Message/Message.hpp"
+#include "../Shared/Player.hpp"
 #include <atomic>
 #include <iostream>
 #include <string>
@@ -22,10 +23,13 @@ class Client {
         std::vector<std::string> _outbox;
         std::mutex _outbox_mtx;
 
+        Player p;
+
         Client() = default;
         ~Client() { this->cleanup(); };
 
         bool connect(void *data) {
+            this->p = {};
             mg_mgr_init(&this->mgr);
             if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s:%u",
                         this->ip.c_str(), this->port) < 0)

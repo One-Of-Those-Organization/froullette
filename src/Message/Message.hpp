@@ -3,7 +3,27 @@
 #include "../mongoose.h"
 #include "../Shared/Room.hpp"
 
+// protocol:
+// [MSG]
+// [TYPE][len][bytes]
+
+
+#define MAX_MESSAGE_BIN_SIZE 512
 #define MAX_MESSAGE_STRING_SIZE 512
+
+#define WRITE_U16(p, v) do { \
+    (p)[0] = (uint8_t)((v) & 0xff); \
+    (p)[1] = (uint8_t)(((v) >> 8) & 0xff); \
+    (p) += 2; \
+} while (0)
+
+uint16_t read_u16(const uint8_t *p) {
+    return p[0] | (p[1] << 8);
+}
+
+uint32_t read_u32(const uint8_t *p) {
+    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
 
 enum MessageType {
     NONE = 0,
@@ -50,15 +70,16 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     case ERROR:
            n += mg_xprintf(out, ptr, "\"%s\"", m->data.String);
            break;
-    case HERE_ROOM:
-        break;
     default:
         n += mg_xprintf(out, ptr, "null");
         break;
     }
-
     n += mg_xprintf(out, ptr, "}");
     return n;
 }
 
-// EXAMPLE USAGE: mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &m);
+enum RoomField : uint8_t {
+    RF_ID      = 1,
+    RF_PLAYERS = 2,
+    RF_STATE   = 3
+};

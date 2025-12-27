@@ -51,10 +51,16 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 
         switch ((int)msgtype) {
         case HERE_ID: {
-            success = mg_json_get_num(payload, "$.data", &msgtype);
-            if (!success) {}
+            double player_id;
+            success = mg_json_get_num(payload, "$.data", &player_id);
+            if (!success) {
+                TraceLog(LOG_INFO, "Failed to get the player id from the server!");
+                break; // TODO: Handle error better
+            }
+            client->p.id = (int)player_id;
         } break;
         case HERE_ROOM: {
+            // TODO: Finish this
         } break;
         default:
             break;
