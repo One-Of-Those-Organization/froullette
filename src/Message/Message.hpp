@@ -64,8 +64,8 @@ struct ParsedData {
     union {
         int Int;
         char String[MAX_MESSAGE_STRING_SIZE];
-        Room Room_obj;
-        Player Player_obj;
+        Room *Room_obj;
+        Player *Player_obj;
         // add more
     } data;
 };
@@ -100,6 +100,25 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     return n;
 }
 
+static size_t gen_room_net_obj(uint8_t *buffer, Room *r) {
+    uint8_t *p = buffer;
+    uint16_t id_len = strnlen(r->id, ID_MAX_COUNT);
+    *p++ = RF_ID;
+    WRITE_U16(p, id_len);
+    memcpy(p, r->id, id_len);
+    p += id_len;
+
+    // *p++ = RF_PLAYER_LEN;
+    // WRITE_U16(p, 1);
+    // *p++ = r->player_len;
+
+    *p++ = RF_STATE;
+    WRITE_U16(p, 1);
+    *p++ = (uint8_t)r->state;
+
+    return (size_t)(p - buffer);
+}
+
 // TODO
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
 static size_t generate_network_field(Message *m, uint8_t *buffer) {
@@ -109,21 +128,7 @@ static size_t generate_network_field(Message *m, uint8_t *buffer) {
     switch(m->type) {
     case HERE_ROOM: {
         Room *r = m->data.Room_obj;
-
-        uint16_t id_len = strnlen(r->id, ID_MAX_COUNT);
-        *p++ = RF_ID;
-        WRITE_U16(p, id_len);
-        memcpy(p, r->id, id_len);
-        p += id_len;
-
-        // *p++ = RF_PLAYER_LEN;
-        // WRITE_U16(p, 1);
-        // *p++ = r->player_len;
-
-        *p++ = RF_STATE;
-        WRITE_U16(p, 1);
-        *p++ = (uint8_t)r->state;
-        return (size_t)(p - buffer);
+        return gen_room_net_obj(buffer, r);
     } break;
     default:
         break;
@@ -132,6 +137,7 @@ static size_t generate_network_field(Message *m, uint8_t *buffer) {
 }
 
 // TODO: Finish this
+// NOTE: dont forget to free!
 ParsedData parse_network_packet(uint8_t *buf, size_t len) {
     ParsedData pd = {};
     uint8_t *p = buf;
@@ -140,8 +146,8 @@ ParsedData parse_network_packet(uint8_t *buf, size_t len) {
     switch (msg_type) {
     case HERE_ROOM: {
         pd.type = HERE_ROOM;
-        pd.data.Room_obj = Room{};
-        Room *room = &pd.data.Room_obj;
+        pd.data.Room_obj = new Room{};
+        Room *room = pd.data.Room_obj;
 
         while (p < end) {
             uint8_t field = *p++;

@@ -66,9 +66,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             mg_ws_message *wm = (mg_ws_message *)ev_data;
             if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
                 ParsedData data = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
-                if (data.type == HERE_ROOM) {
-
-                }
+                if (data.type == HERE_ROOM) gd->room = data.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
+                else TraceLog(LOG_INFO, "Wrong data on HERE_ROOM message!");
             }
         } break;
         default:
