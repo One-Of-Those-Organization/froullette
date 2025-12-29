@@ -58,7 +58,23 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             msg.data.Int = server->ccount++;
         } break;
         case CONNECT_ROOM: {
-            // TODO: Finish this
+            char *msgdata = mg_json_get_str(payload, "$.data");
+            if (!msgdata) break;
+            Room *selroom = nullptr;
+            for (auto &r: server->rooms) {
+                if (strncmp(r.id, msgdata, ID_MAX_COUNT) == 0) {
+                    if (r.player_len < 2 && r.state != ROOM_RUNNING) {
+                        selroom = &r;
+                        break;
+                    }
+                }
+            }
+            if (!selroom) {
+                msg.type = MessageType::ERROR;
+                msg.response = MessageType::CREATE_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Max rooms count reached");
+            } else  { /* TODO: Send the room binary! */ }
         } break;
         case CREATE_ROOM: {
             Room *r = find_free_room(server);
@@ -72,7 +88,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 *r = Room{};
                 ++r->player_len;
                 r->state = ROOM_ACTIVE;
-                char *stuff = generate_random_id(ID_MAX_COUNT);
+                char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
                 strncpy(r->id, stuff, ID_MAX_COUNT);
                 r->id[ID_MAX_COUNT - 1] = 0;
 

@@ -12,7 +12,7 @@ static const int used_char_len = strlen(used_char);
 // NOTE: Assume the buffer len is the len.
 bool _generate_random_id(size_t len, char *buffer) {
     if (len <= 0 || !buffer) return false;
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         buffer[i] = used_char[rand() % used_char_len];
     }
     return true;
