@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "../Message/Message.hpp"
+#include "../Shared/Helper.hpp"
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -56,6 +57,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             msg.response = MessageType::GIVE_ID;
             msg.data.Int = server->ccount++;
         } break;
+        case CONNECT_ROOM: {
+            // TODO: Finish this
+        } break;
         case CREATE_ROOM: {
             Room *r = find_free_room(server);
             if (!r) {
@@ -66,8 +70,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             } else {
                 use_bin = true;
                 *r = Room{};
+                ++r->player_len;
                 r->state = ROOM_ACTIVE;
-                strncpy(r->id, "hello", ID_MAX_COUNT); // TODO: This need to be generated!
+                char *stuff = generate_random_id(ID_MAX_COUNT);
+                strncpy(r->id, stuff, ID_MAX_COUNT);
                 r->id[ID_MAX_COUNT - 1] = 0;
 
                 msg.type = MessageType::HERE_ROOM;
