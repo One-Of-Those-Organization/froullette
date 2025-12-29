@@ -158,11 +158,12 @@ class Client {
 #endif
         }
 
+        // NOTE: Use this to send msg to server
         void send(const struct Message &m) {
             char buf[DEFAULT_BUFFER_SIZE];
             // Mongoose's mg_snprintf is useful, or use std::snprintf
             int len = mg_snprintf(buf, sizeof(buf), "%M", print_msg, &m);
-            
+
 #ifndef __EMSCRIPTEN__
             std::lock_guard<std::mutex> lock(_outbox_mtx);
             _outbox.push_back(std::string(buf, len));

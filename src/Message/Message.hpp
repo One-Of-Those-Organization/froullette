@@ -55,6 +55,10 @@ enum MessageType {
     CREATE_ROOM,
     CONNECT_ROOM,
     HERE_ROOM,
+    EXIT_ROOM, // WIP
+
+    GAME_START,// WIP
+    GAME_INFO, // WIP
 };
 
 struct Message {
@@ -196,7 +200,6 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
                 // skip
                 break;
             }
-
             p += flen;
         }
 

@@ -351,6 +351,8 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 }
 
 
+// TODO: Connect the connect_room, create_room, give_id
+//       use something like this: client->send(Message{});
 static void gameInit(ArsEng *engine) {
     std::string ip = "127.0.0.1";
     uint16_t port = 8000;

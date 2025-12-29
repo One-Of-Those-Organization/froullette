@@ -2,6 +2,8 @@
 #include "../Message/Message.hpp"
 #include "../Shared/Helper.hpp"
 
+static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
+
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
 //       client save the creds
@@ -55,7 +57,15 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         case GIVE_ID: {
             msg.type = MessageType::HERE_ID;
             msg.response = MessageType::GIVE_ID;
-            msg.data.Int = server->ccount++;
+            msg.data.Int = server->ccount;
+            // save the player
+            server->players[server->ccount] = Player{
+                .id = server->ccount,
+                .health = MAX_PLAYER_HEALTH,
+                .con = c,
+            };
+            player_conmap[c] = server->ccount;
+            ++server->ccount;
         } break;
         case CONNECT_ROOM: {
             char *msgdata = mg_json_get_str(payload, "$.data");
@@ -71,10 +81,29 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             }
             if (!selroom) {
                 msg.type = MessageType::ERROR;
-                msg.response = MessageType::CREATE_ROOM;
+                msg.response = MessageType::CONNECT_ROOM;
                 snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-                        "Max rooms count reached");
-            } else  { /* TODO: Send the room binary! */ }
+                        "Please send GIVE_ID first to get id.");
+                } else {
+                    if (!player_conmap.count(c)) {
+                        msg.type = MessageType::ERROR;
+                        msg.response = MessageType::CREATE_ROOM;
+                        snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                                "Max rooms count reached");
+                        break;
+                    }
+                    use_bin = true;
+                    int id = player_conmap[c];
+                    selroom->players[selroom->player_len++] = server->players[id];
+
+                    msg.type = MessageType::HERE_ROOM;
+                    msg.response = MessageType::CONNECT_ROOM;
+                    msg.data.Room_obj = selroom;
+
+                    uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
+                    size_t packet_len = generate_network_field(&msg, buffer);
+                    mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
+                }
         } break;
         case CREATE_ROOM: {
             Room *r = find_free_room(server);
@@ -85,8 +114,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                         "Max rooms count reached");
             } else {
                 use_bin = true;
-                *r = Room{};
-                ++r->player_len;
+                *r = Room{}; // this is the free selected room
+                int id = player_conmap[c];
+                r->players[r->player_len++] = server->players[id];
                 r->state = ROOM_ACTIVE;
                 char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
                 strncpy(r->id, stuff, ID_MAX_COUNT);
