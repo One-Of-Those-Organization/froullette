@@ -83,27 +83,28 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 msg.type = MessageType::ERROR;
                 msg.response = MessageType::CONNECT_ROOM;
                 snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-                        "Please send GIVE_ID first to get id.");
-                } else {
-                    if (!player_conmap.count(c)) {
-                        msg.type = MessageType::ERROR;
-                        msg.response = MessageType::CREATE_ROOM;
-                        snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-                                "Max rooms count reached");
-                        break;
-                    }
-                    use_bin = true;
-                    int id = player_conmap[c];
-                    selroom->players[selroom->player_len++] = server->players[id];
-
-                    msg.type = MessageType::HERE_ROOM;
+                    "The associated user cannot assigned to that room."); // TODO(0): make it more nice in the future by telling what is the reason.
+            } else {
+                if (!player_conmap.count(c)) {
+                    msg.type = MessageType::ERROR;
                     msg.response = MessageType::CONNECT_ROOM;
-                    msg.data.Room_obj = selroom;
-
-                    uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
-                    size_t packet_len = generate_network_field(&msg, buffer);
-                    mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
+                    snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Please do GIVE_ID first to register/login.");
+                    break;
                 }
+                use_bin = true;
+                int id = player_conmap[c];
+                selroom->players[get_room_player_empty(selroom)] = &server->players[id];
+                selroom->player_len++;
+
+                msg.type = MessageType::HERE_ROOM;
+                msg.response = MessageType::CONNECT_ROOM;
+                msg.data.Room_obj = selroom;
+
+                uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
+                size_t packet_len = generate_network_field(&msg, buffer);
+                mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
+            }
         } break;
         case CREATE_ROOM: {
             Room *r = find_free_room(server);
@@ -116,7 +117,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 use_bin = true;
                 *r = Room{}; // this is the free selected room
                 int id = player_conmap[c];
-                r->players[r->player_len++] = server->players[id];
+                r->player_len = 0;
+                r->players[r->player_len++] = &server->players[id];
                 r->state = ROOM_ACTIVE;
                 char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
                 strncpy(r->id, stuff, ID_MAX_COUNT);
@@ -130,6 +132,49 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 size_t packet_len = generate_network_field(&msg, buffer);
                 mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
             }
+        } break;
+        case EXIT_ROOM: {
+            if (!player_conmap.count(c)) {
+                msg.type = MessageType::ERROR;
+                msg.response = MessageType::EXIT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Please do GIVE_ID first to register/login.");
+                break;
+            }
+            uint32_t id = player_conmap[c];
+            Room *r = nullptr;
+            for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
+                Room *ri = &server->rooms[i];
+                if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
+                {
+                    continue;
+                } else {
+                    r = ri;
+                    break;
+                }
+            }
+            if (r) {
+                int index = get_room_player_empty(r);
+                if (index < 0) {
+                    msg.type = MessageType::ERROR;
+                    msg.response = MessageType::EXIT_ROOM;
+                    snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "UNREACHABLE");
+                    break;
+                }
+                r->players[index] = nullptr;
+                r->player_len--;
+
+                msg.type = MessageType::NONE;
+                msg.response = MessageType::EXIT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Done removed!");
+                break;
+            }
+            msg.type = MessageType::ERROR;
+            msg.response = MessageType::EXIT_ROOM;
+            snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "Cannot find the room!");
         } break;
         default:
             break;
