@@ -3,7 +3,7 @@
 #include "../Shared/Helper.hpp"
 
 static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
-// NOTE: Maybe store the started room here so we dont need to do big for loops for all the room?
+static std::vector<Room *> created_room = {};
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -117,9 +117,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             } else {
                 use_bin = true;
                 *r = Room{}; // this is the free selected room
+                created_room.push_back(r); // NOTE: Store the room globally to have easy access later
                 int id = player_conmap[c];
-                r->player_len = 0;
-                r->players[r->player_len++] = &server->players[id];
+                r->player_len = 1;
+                r->players[0] = &server->players[id];
                 r->state = ROOM_ACTIVE;
                 char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
                 strncpy(r->id, stuff, ID_MAX_COUNT);
@@ -165,6 +166,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 }
                 r->players[index] = nullptr;
                 r->player_len--;
+                if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
 
                 msg.type = MessageType::NONE;
                 msg.response = MessageType::EXIT_ROOM;
@@ -180,8 +182,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         case GAME_START: {
             Room *r = nullptr;
             uint32_t id = player_conmap[c];
-            for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
-                Room *ri = &server->rooms[i];
+            for (size_t i = 0; i < created_room.size(); i++) {
+                Room *ri = created_room[i];
                 if (ri->players[0]->id == id || ri->players[1]->id == id) {
                     r = ri;
                     break;
