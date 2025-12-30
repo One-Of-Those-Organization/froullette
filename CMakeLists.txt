@@ -69,4 +69,4 @@ if(EMSCRIPTEN)
 )
 endif()
 
-add_subdirectory("src/Server")
+add_subdirectory("src/Server" EXCLUDE_FROM_ALL)
