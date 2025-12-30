@@ -179,6 +179,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         } break;
         case GAME_START: {
             Room *r = nullptr;
+            uint32_t id = player_conmap[c];
             for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
                 Room *ri = &server->rooms[i];
                 if (ri->players[0]->id == id || ri->players[1]->id == id) {
@@ -189,7 +190,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             if (r) {
                 r->state = ROOM_RUNNING;
                 msg.type = MessageType::NONE;
-                msg.response = MessageType::EXIT_ROOM;
+                msg.response = MessageType::GAME_START;
                 snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
                         "Started the game!");
                 break;
