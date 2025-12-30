@@ -324,6 +324,19 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
     // engine->om.add_object(btn1, (*z)++);
 
+    Button *btnBack = cButton(
+        engine, "Back", text_size - 8, padding - 10, state, {0, 0},
+        [engine]() { engine->request_change_state(GameState::MENU); }
+    );
+    btnBack->is_resizable = true;
+    btnBack->position_info.center_x = false;
+    btnBack->position_info.center_y = false;
+    btnBack->rec.x = 30;
+    btnBack->rec.y = 30;
+    btnBack->calculate_rec();
+    btnBack->update_using_scale(engine->get_scale_factor(), *wsize);
+    engine->om.add_object(btnBack, (*z)++);
+
     Button *btn1 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
                            [engine]() { engine->request_resize({1920, 1080}); }
     );

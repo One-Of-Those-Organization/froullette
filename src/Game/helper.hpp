@@ -59,17 +59,24 @@ static TextInput *cTextInput(
     Vector2 pos
 ) {
     auto ti = new TextInput();
-    ti->rec = { pos.x, pos.y, 1, 1};
+    // ti->rec = { pos.x, pos.y, 1, 1};
     ti->state = state;
     ti->show = true;
-    
+    ti->font = &engine->font;
+
     ti->value = "";
     ti->placeholder = placeholder;
-    
     ti->text_size = text_size;
     ti->padding = padding;
-    ti->font = &engine->font;
-    
+    // ti->font = &engine->font;
+    ti->rec = { pos.x, pos.y, 1, 1};
+
+    ti->is_resizable = true;
+    ti->position_info.center_x = true;
+    ti->position_info.center_y = true;
+
     ti->calculate_rec();
+    ti->store_rec();
+    ti->update_using_scale(engine->get_scale_factor(), engine->window_size);
     return ti;
 }
