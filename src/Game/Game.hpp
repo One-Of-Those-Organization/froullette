@@ -388,7 +388,7 @@ static void gameInit(ArsEng *engine) {
     };
     Vector2 win_size = engine->window_size;
 
-    auto kh = new KeyHandler();
+    KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
     int kh_id = engine->om.add_object(kh, z++);
 

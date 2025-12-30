@@ -3,6 +3,7 @@
 #include "../Shared/Helper.hpp"
 
 static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
+// NOTE: Maybe store the started room here so we dont need to do big for loops for all the room?
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -176,6 +177,30 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
                     "Cannot find the room!");
         } break;
+        case GAME_START: {
+            Room *r = nullptr;
+            for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
+                Room *ri = &server->rooms[i];
+                if (ri->players[0]->id == id || ri->players[1]->id == id) {
+                    r = ri;
+                    break;
+                }
+            }
+            if (r) {
+                r->state = ROOM_RUNNING;
+                msg.type = MessageType::NONE;
+                msg.response = MessageType::EXIT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Started the game!");
+                break;
+            }
+            msg.type = MessageType::ERROR;
+            msg.response = MessageType::GAME_START;
+            snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "Cannot find the room!");
+        } break;
+        case GAME_INFO : { /* TODO */ } break;
+        case GAME_END  : { /* NOTE: The sender of this msg is just server so ignore any message with this. */ } break;
         default:
             break;
         }

@@ -55,10 +55,11 @@ enum MessageType {
     CREATE_ROOM,
     CONNECT_ROOM,
     HERE_ROOM,
-    EXIT_ROOM, // WIP
+    EXIT_ROOM,
 
-    GAME_START,// WIP
-    GAME_INFO, // WIP
+    GAME_START,
+    GAME_INFO,
+    GAME_END,
 };
 
 struct Message {
@@ -102,6 +103,7 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     case HERE_ID:
         n += mg_xprintf(out, ptr, "%d", m->data.Int);
         break;
+    case NONE:
     case CONNECT_ROOM:
     case ERROR:
            n += mg_xprintf(out, ptr, "\"%s\"", m->data.String);
