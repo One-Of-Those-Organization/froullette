@@ -12,7 +12,9 @@ public:
     std::string value;
     std::string placeholder;
     Font *font = nullptr;
+    int base_text_size = 18;
     int text_size = 18;
+    int base_width = 220;
     int padding = 5;
     int spacing = 1;
 
@@ -25,10 +27,11 @@ public:
 
     std::function<bool(char)> filter;
 
-    TextInput() {
-        rec.width = 220;
-        rec.height = text_size + padding * 2;
-    }
+    TextInput() = default;
+    // {
+    //     rec.width = 220;
+    //     rec.height = text_size + padding * 2;
+    // }
     
     virtual ~TextInput() = default;
 
@@ -40,10 +43,18 @@ public:
         return value;
     }
 
-    // void calculate_rec() override {
-    //     rec.width = 220;
-    //     rec.height = text_size + padding * 2;
-    // }
+    void calculate_rec() override {
+        rec.width = base_width;
+        rec.height = base_text_size + padding * 2;
+    }
+    
+    void update_using_scale(float scale, Vector2 win) override {
+        Object::update_using_scale(scale, win);
+
+        text_size = (int)(base_text_size * scale);
+        rec.width = base_width * scale;
+        rec.height = text_size + padding * 2;
+    }
 
     void logic(float dt) override {
         (void)dt;
@@ -94,13 +105,14 @@ public:
         // }
         DrawRectangleRec(rec, focused ? bg_focus_color : bg_color);
         DrawRectangleLinesEx(rec, 2, border_color);
-        const bool empty = value.empty();
+
+        bool empty = value.empty();
         const std::string &txt = empty ? placeholder : value;
         Color tc = empty ? placeholder_color : text_color;
 
         Vector2 text_pos = {
             rec.x + padding,
-            rec.y + padding
+            rec.y + (rec.height - text_size) * 0.5f
         };
 
         DrawTextPro(

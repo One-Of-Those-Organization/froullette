@@ -64,9 +64,9 @@ static TextInput *cTextInput(
     ti->show = true;
     ti->font = &engine->font;
 
-    ti->value = "";
+    // ti->value = "";
     ti->placeholder = placeholder;
-    ti->text_size = text_size;
+    ti->base_text_size = text_size;
     ti->padding = padding;
     // ti->font = &engine->font;
     ti->rec = { pos.x, pos.y, 1, 1};
