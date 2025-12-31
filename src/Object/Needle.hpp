@@ -17,6 +17,7 @@ public:
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
     Rectangle max_rec = {};
+    Rectangle _tooltip_rec = {};
 
     Needle(): Object() {};
     virtual ~Needle() = default;
@@ -66,6 +67,10 @@ public:
         }
         if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             _move_rec();
+        }
+        // NOTE: To use the needle use the right click
+        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+            TraceLog(LOG_INFO, "YES");
         }
 
     };
