@@ -13,6 +13,7 @@ public:
     bool _hovered = false;
     bool _dragging = false;
     bool *engine_dragging = nullptr;
+    int *engine_dragged_id = nullptr;
     bool disable_update = false; // call this on the client that is not the playerstate
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
@@ -22,8 +23,6 @@ public:
     Needle(): Object() {};
     virtual ~Needle() = default;
     void render() override {
-        // TODO: add "use" dialog to use the needle,
-        // need to be big enought so it clickable on mobile.
         if (!this->show) return;
 
         if (this->text) {
@@ -43,7 +42,7 @@ public:
     void logic(float dt) override {
         (void)dt;
         if (!curpos) return;
-        if (!this->engine_dragging) return;
+        if (!this->engine_dragging && ! this->engine_dragged_id) return;
 
 #ifdef MOBILE
         if (IsGestureDetected(GESTURE_NONE))  {
@@ -61,6 +60,7 @@ public:
 #endif
             this->_dragging = true;
             *this->engine_dragging = true;
+            *this->engine_dragged_id = this->id;
 
             this->offset.x = curpos->x - this->rec.x;
             this->offset.y = curpos->y - this->rec.y;

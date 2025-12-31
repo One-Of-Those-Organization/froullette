@@ -6,6 +6,7 @@
 
 class Object {
     public:
+        int id = -1;
         Rectangle rec;
         Rectangle _saved_rec;
         Texture2D *text;

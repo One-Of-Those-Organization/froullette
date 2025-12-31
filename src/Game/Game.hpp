@@ -196,6 +196,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         needle->max_rec = needle_pos;
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
+        needle->engine_dragged_id = &engine->dragged_obj;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;

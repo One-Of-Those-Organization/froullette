@@ -36,6 +36,8 @@ public:
 
     bool req_close;
     bool dragging = false;
+    int dragged_obj = -1;
+    int _last_dragged_obj = -1;
     int active;
     int scale_factor[4] = {
         1, // smaller
@@ -133,6 +135,18 @@ public:
             if (!has_flag(state, o->state) || !o->show) continue;
             o->logic(dt);
         }
+        if (this->dragged_obj != this->_last_dragged_obj) {
+            if (this->_last_dragged_obj != -1) {
+                this->om.revert_zindex(this->_last_dragged_obj);
+            }
+
+            if (this->dragged_obj != -1) {
+                this->om.update_zindex(this->dragged_obj, 1000);
+            }
+
+            this->_last_dragged_obj = this->dragged_obj;
+        }
+
         this->_change_state();
     }
 
