@@ -1,3 +1,5 @@
+#define _SERVER
+
 #include "Server.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Helper.hpp"

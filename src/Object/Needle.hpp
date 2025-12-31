@@ -42,7 +42,7 @@ public:
     void logic(float dt) override {
         (void)dt;
         if (!curpos) return;
-        if (!this->engine_dragging && ! this->engine_dragged_id) return;
+        if (!this->engine_dragging && !this->engine_dragged_id) return;
 
 #ifdef MOBILE
         if (IsGestureDetected(GESTURE_NONE))  {

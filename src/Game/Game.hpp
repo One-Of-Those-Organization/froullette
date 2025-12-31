@@ -10,6 +10,7 @@
 #include "../Object/NeedleContainer.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
+#include "../Shared/Player.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
@@ -25,6 +26,7 @@ struct GameData {
     std::thread _net;
 #endif
     Room *room;
+    Player player;
 };
 
 // TODO: Finish this
@@ -69,6 +71,12 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 if (pd.type == HERE_ROOM) gd->room = pd.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
                 else TraceLog(LOG_INFO, "Wrong data on HERE_ROOM message!");
             }
+        } break;
+        case ERROR:
+        case NONE: {
+            if ((int)msgtype == ERROR) std::cout << "[NET-ERROR] "; // NOTE: This is annoying but needed to make the compiler shutup.
+            char *buffer = mg_json_get_str(payload, "$.data");
+            TraceLog(LOG_INFO, "%s", buffer);
         } break;
         default:
             break;
