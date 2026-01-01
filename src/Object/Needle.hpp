@@ -14,16 +14,16 @@ public:
     bool _dragging = false;
     bool *engine_dragging = nullptr;
     int *engine_dragged_id = nullptr;
-    bool disable_update = false; // call this on the client that is not the playerstate
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
     Rectangle max_rec = {};
     Rectangle _tooltip_rec = {};
+    bool used = false;
 
     Needle(): Object() {};
     virtual ~Needle() = default;
     void render() override {
-        if (!this->show) return;
+        if (!this->show || this->used) return;
 
         if (this->text) {
             if (this->_hovered) {
@@ -43,6 +43,7 @@ public:
         (void)dt;
         if (!curpos) return;
         if (!this->engine_dragging && !this->engine_dragged_id) return;
+        if (this->used || !this->show) return;
 
 #ifdef MOBILE
         if (IsGestureDetected(GESTURE_NONE))  {
@@ -70,7 +71,8 @@ public:
         }
         // NOTE: To use the needle use the right click
         if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-            TraceLog(LOG_INFO, "YES");
+            this->used = true;
+            TraceLog(LOG_INFO, "TODO: Finish this");
         }
 
     };
