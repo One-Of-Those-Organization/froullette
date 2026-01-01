@@ -1,11 +1,8 @@
 #pragma once
 
 #include "Object.hpp"
-#include "../Shared/Player.hpp"
-#include <functional>
 
 class Items : public Object {
-    std::function<void(Player * /* player */, void * /* additional_data */)> callback;
     const char *name;
     public:
         Items(const char *item_name): Object(), name(item_name) {};
@@ -16,4 +13,5 @@ class Items : public Object {
         void logic(float dt) override {
             (void)dt;
         };
+        virtual void callback() {};
 };
