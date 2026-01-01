@@ -58,7 +58,9 @@ enum MessageType {
     EXIT_ROOM,
 
     GAME_START,
-    GAME_INFO,
+    GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
+    GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
+    GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
     GAME_END,
 };
 
@@ -70,6 +72,7 @@ struct Message {
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
         Player *Player_obj;
+        void *None;
         // add more
     } data;
 };
@@ -100,6 +103,7 @@ static size_t print_msg(void (*out)(char, void *), void *ptr, va_list *ap) {
     case GIVE_ID:
         n += mg_xprintf(out, ptr, "null");
         break;
+    case GAME_TURN_UPDATE:
     case HERE_ID:
         n += mg_xprintf(out, ptr, "%d", m->data.Int);
         break;

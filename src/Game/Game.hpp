@@ -148,10 +148,21 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
 static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     GameState state = GameState::INGAME;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    GameData *gd = (GameData *)engine->additional_data;
+
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
     else {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
+
+    // FOR DEBUG
+    #define DEBUG_
+    #ifdef DEBUG_
+    gd->client->send(Message{
+        .type = CREATE_ROOM,
+        .response = NONE,
+    });
+    #endif // DEBUG_
 
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
@@ -189,7 +200,6 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     ns->state = state;
 
     srand(time(0));
-    GameData *gd = (GameData *)engine->additional_data;
     for (size_t i = 0; i < gd->round_needle_count; i++) {
         auto needle = new Needle();
         const int padding = 10;

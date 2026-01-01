@@ -3,9 +3,11 @@
 #include "Server.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Helper.hpp"
+#include "../Game/PlayerState.hpp"
 
 static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
+static PlayerState turn = PlayerState::PLAYER1;
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -204,7 +206,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
                     "Cannot find the room!");
         } break;
-        case GAME_INFO : { /* TODO */ } break;
+        case GAME_PLAYER_UPDATE: { /* NOTE: change the `turn` here and check first so the one that send this is valid and actually their turn. */ } break;
         case GAME_END  : { /* NOTE: The sender of this msg is just server so ignore any message with this. */ } break;
         default:
             break;
