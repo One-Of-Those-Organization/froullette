@@ -2,6 +2,7 @@
 #include <iostream>
 #include <atomic>
 #include <vector>
+#include <unordered_map>
 #include "../mongoose.h"
 #include "../Shared/Room.hpp"
 
@@ -15,8 +16,9 @@ class Server {
         mg_mgr mgr;
         char *buffer = nullptr;
         void (*callback)(mg_connection *c, int ev, void *ev_data);
-        std::atomic<int> ccount = {0}; // to assign id
+        std::atomic<uint32_t> ccount = {0}; // to assign id
         Room rooms[MAX_ROOM_COUNT];
+        std::unordered_map<int, Player> players;
 
         Server(const char *ip, uint16_t port, void (*callback)(mg_connection *c, int ev, void *ev_data)) {
             this->callback = callback;

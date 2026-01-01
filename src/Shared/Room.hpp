@@ -15,8 +15,18 @@ enum RoomState {
 
 struct Room {
     char id[ID_MAX_COUNT]; // 16
-    Player players[2];     // 8
+    Player *players[2];     // 8
     uint8_t player_len;    // 1
     RoomState state;       // 1
     // NOTE: Maybe store the game data here?
 };
+
+int get_room_player_empty(Room *room)
+{
+    for (size_t i = 0; i < 2; i++) {
+        if (room->players[i] == nullptr) {
+            return i;
+        }
+    }
+    return -1;
+}

@@ -1,13 +1,15 @@
 JOBS := $(shell nproc)
 
-all:
-	make -C build -j$(JOBS)
+all: client server
 
-run: all
+client:
+	cmake --build build -j$(JOBS)
+
+client-run: client
 	./build/froullete
 
-server: src/Server/Server.cpp
-	cmake --build build --target froullete-server
+server:
+	cmake --build build --target froullete-server -j$(JOBS)
 
 server-run: server
 	./build/src/Server/froullete-server

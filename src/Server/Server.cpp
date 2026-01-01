@@ -1,5 +1,11 @@
+#define _SERVER
+
 #include "Server.hpp"
 #include "../Message/Message.hpp"
+#include "../Shared/Helper.hpp"
+
+static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
+static std::vector<Room *> created_room = {};
 
 // Flow: hit the server with the port and ip (its http)
 //       server send ok with id and pass
@@ -54,7 +60,54 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         case GIVE_ID: {
             msg.type = MessageType::HERE_ID;
             msg.response = MessageType::GIVE_ID;
-            msg.data.Int = server->ccount++;
+            msg.data.Int = server->ccount;
+            // save the player
+            server->players[server->ccount] = Player{
+                .id = server->ccount,
+                .health = MAX_PLAYER_HEALTH,
+                .con = c,
+            };
+            player_conmap[c] = server->ccount;
+            ++server->ccount;
+        } break;
+        case CONNECT_ROOM: {
+            char *msgdata = mg_json_get_str(payload, "$.data");
+            if (!msgdata) break;
+            Room *selroom = nullptr;
+            for (auto &r: server->rooms) {
+                if (strncmp(r.id, msgdata, ID_MAX_COUNT) == 0) {
+                    if (r.player_len < 2 && r.state != ROOM_RUNNING) {
+                        selroom = &r;
+                        break;
+                    }
+                }
+            }
+            if (!selroom) {
+                msg.type = MessageType::ERROR;
+                msg.response = MessageType::CONNECT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "The associated user cannot assigned to that room."); // TODO(0): make it more nice in the future by telling what is the reason.
+            } else {
+                if (!player_conmap.count(c)) {
+                    msg.type = MessageType::ERROR;
+                    msg.response = MessageType::CONNECT_ROOM;
+                    snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Please do GIVE_ID first to register/login.");
+                    break;
+                }
+                use_bin = true;
+                int id = player_conmap[c];
+                selroom->players[get_room_player_empty(selroom)] = &server->players[id];
+                selroom->player_len++;
+
+                msg.type = MessageType::HERE_ROOM;
+                msg.response = MessageType::CONNECT_ROOM;
+                msg.data.Room_obj = selroom;
+
+                uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
+                size_t packet_len = generate_network_field(&msg, buffer);
+                mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
+            }
         } break;
         case CREATE_ROOM: {
             Room *r = find_free_room(server);
@@ -65,9 +118,14 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                         "Max rooms count reached");
             } else {
                 use_bin = true;
-                *r = Room{};
+                *r = Room{}; // this is the free selected room
+                created_room.push_back(r); // NOTE: Store the room globally to have easy access later
+                int id = player_conmap[c];
+                r->player_len = 1;
+                r->players[0] = &server->players[id];
                 r->state = ROOM_ACTIVE;
-                strncpy(r->id, "hello", ID_MAX_COUNT); // TODO: This need to be generated!
+                char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
+                strncpy(r->id, stuff, ID_MAX_COUNT);
                 r->id[ID_MAX_COUNT - 1] = 0;
 
                 msg.type = MessageType::HERE_ROOM;
@@ -79,6 +137,75 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
             }
         } break;
+        case EXIT_ROOM: {
+            if (!player_conmap.count(c)) {
+                msg.type = MessageType::ERROR;
+                msg.response = MessageType::EXIT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Please do GIVE_ID first to register/login.");
+                break;
+            }
+            uint32_t id = player_conmap[c];
+            Room *r = nullptr;
+            for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
+                Room *ri = &server->rooms[i];
+                if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
+                {
+                    continue;
+                } else {
+                    r = ri;
+                    break;
+                }
+            }
+            if (r) {
+                int index = get_room_player_empty(r);
+                if (index < 0) {
+                    msg.type = MessageType::ERROR;
+                    msg.response = MessageType::EXIT_ROOM;
+                    snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "UNREACHABLE");
+                    break;
+                }
+                r->players[index] = nullptr;
+                r->player_len--;
+                if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
+
+                msg.type = MessageType::NONE;
+                msg.response = MessageType::EXIT_ROOM;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Done removed!");
+                break;
+            }
+            msg.type = MessageType::ERROR;
+            msg.response = MessageType::EXIT_ROOM;
+            snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "Cannot find the room!");
+        } break;
+        case GAME_START: {
+            Room *r = nullptr;
+            uint32_t id = player_conmap[c];
+            for (size_t i = 0; i < created_room.size(); i++) {
+                Room *ri = created_room[i];
+                if (ri->players[0]->id == id || ri->players[1]->id == id) {
+                    r = ri;
+                    break;
+                }
+            }
+            if (r) {
+                r->state = ROOM_RUNNING;
+                msg.type = MessageType::NONE;
+                msg.response = MessageType::GAME_START;
+                snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Started the game!");
+                break;
+            }
+            msg.type = MessageType::ERROR;
+            msg.response = MessageType::GAME_START;
+            snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "Cannot find the room!");
+        } break;
+        case GAME_INFO : { /* TODO */ } break;
+        case GAME_END  : { /* NOTE: The sender of this msg is just server so ignore any message with this. */ } break;
         default:
             break;
         }

@@ -63,9 +63,10 @@ if(EMSCRIPTEN)
     "-sALLOW_MEMORY_GROWTH=1"
     "-sUSE_WEBGL2=1"
     "-sGL_ENABLE_GET_PROC_ADDRESS=1"
+    "-lwebsocket.js"
     "--preload-file"
     "../assets@/assets"
 )
 endif()
 
-add_subdirectory("src/Server")
+add_subdirectory("src/Server" EXCLUDE_FROM_ALL)

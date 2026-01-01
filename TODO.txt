@@ -1,0 +1,3 @@
+- [ ] Player struct init inside of the client
+- [ ] The item and stuff
+- [ ] effect of the item and needle

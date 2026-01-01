@@ -10,6 +10,7 @@
 #include "../Object/NeedleContainer.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
+#include "../Shared/Player.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
 #include "PlayerState.hpp"
@@ -21,11 +22,15 @@ struct GameData {
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
+#ifndef __EMSCRIPTEN__
     std::thread _net;
+#endif
     Room *room;
+    Player player;
 };
 
 // TODO: Finish this
+// NOTE: This is handler for the native version the web version wont be using this function
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
     GameData *gd = (GameData *)c->fn_data;
@@ -55,12 +60,23 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             success = mg_json_get_num(payload, "$.data", &player_id);
             if (!success) {
                 TraceLog(LOG_INFO, "Failed to get the player id from the server!");
-                break; // TODO: Handle error better
+                break; // TODO(0): Handle error better
             }
             client->p.id = (int)player_id;
         } break;
         case HERE_ROOM: {
-            // TODO: Finish this
+            mg_ws_message *wm = (mg_ws_message *)ev_data;
+            if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
+                ParsedData pd = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
+                if (pd.type == HERE_ROOM) gd->room = pd.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
+                else TraceLog(LOG_INFO, "Wrong data on HERE_ROOM message!");
+            }
+        } break;
+        case ERROR:
+        case NONE: {
+            if ((int)msgtype == ERROR) std::cout << "[NET-ERROR] "; // NOTE: This is annoying but needed to make the compiler shutup.
+            char *buffer = mg_json_get_str(payload, "$.data");
+            std::cout << TextFormat("%s", buffer) << std::endl;
         } break;
         default:
             break;
@@ -188,6 +204,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         needle->max_rec = needle_pos;
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
+        needle->engine_dragged_id = &engine->dragged_obj;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
@@ -343,6 +360,8 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 }
 
 
+// TODO: Connect the connect_room, create_room, give_id
+//       use something like this: client->send(Message{});
 static void gameInit(ArsEng *engine) {
     std::string ip = "127.0.0.1";
     uint16_t port = 8000;
@@ -360,9 +379,15 @@ static void gameInit(ArsEng *engine) {
 
     // TODO: Move it to other func so it can be called when ip and port inserted
     gd->client->connect((void *)gd);
+#ifndef __EMSCRIPTEN__
+    // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
+#else
+    // Web: no network thread; WebSocket is event-driven via Emscripten callbacks
+    // If you need periodic work, do it in your render/update tick.
+#endif
 
     engine->additional_data = (void *)gd;
     int z = 1;
@@ -372,7 +397,7 @@ static void gameInit(ArsEng *engine) {
     };
     Vector2 win_size = engine->window_size;
 
-    auto kh = new KeyHandler();
+    KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
     int kh_id = engine->om.add_object(kh, z++);
 
@@ -388,7 +413,9 @@ static void gameDeinit(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
     if (gd) {
         if (gd->client) { gd->client->done = true; }
+#ifndef __EMSCRIPTEN__
         if (gd->_net.joinable()) { gd->_net.join(); }
+#endif
         delete gd->client;
         delete gd;
     }
