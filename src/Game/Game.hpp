@@ -76,7 +76,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         case NONE: {
             if ((int)msgtype == ERROR) std::cout << "[NET-ERROR] "; // NOTE: This is annoying but needed to make the compiler shutup.
             char *buffer = mg_json_get_str(payload, "$.data");
-            TraceLog(LOG_INFO, "%s", buffer);
+            std::cout << TextFormat("%s", buffer) << std::endl;
         } break;
         default:
             break;
