@@ -6,8 +6,9 @@
 
 class Items : public Object {
     std::function<void(Player * /* player */, void * /* additional_data */)> callback;
+    const char *name;
     public:
-        Items(): Object() {};
+        Items(const char *item_name): Object(), name(item_name) {};
         virtual ~Items() = default;
         void render() override {
             if (!this->show) return;
