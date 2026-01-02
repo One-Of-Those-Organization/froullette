@@ -310,7 +310,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     HBox *hbox = new HBox();
     hbox->state = state;
     hbox->rec.x = padding * 10;
-    hbox->rec.y = restext->rec.y + restext->rec.height + padding;
+    hbox->rec.y = restext->rec.y + restext_len.y + (padding * 2);
     hbox->rec.width = wsize.x - (hbox->rec.x * 2);
     hbox->rec.height = 64 + padding;
     hbox->padding = padding;
