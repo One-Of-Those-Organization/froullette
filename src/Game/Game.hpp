@@ -98,9 +98,9 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
     auto btn = new Button();
     btn->rec = {pos.x, pos.y, 1, 1};
     btn->state = state;
-    btn->text = text;
-    btn->text_size = text_size;
-    btn->curpos = &engine->cursor;
+    btn->str = text;
+    btn->str_size = text_size;
+    btn->curpos = &engine->bigcanvas_cursor;
     btn->padding = padding;
     btn->callback = callback;
     btn->font = &engine->font;
@@ -109,28 +109,18 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
     btn->color[1] = {GetColor(0x000000ff)};
     btn->color[2] = {GetColor(0x999999ff)};
     btn->color[3] = {GetColor(0xffffffff)};
-    btn->store_rec();
     return btn;
 }
 
 static Text *cText(ArsEng *engine, GameState state,
-                  std::string text, size_t text_size, Color color, Vector2 pos,
-                  bool center_x = true, bool center_y = true, size_t offsetx = 0, size_t offsety = 0)
+                  std::string text, size_t text_size, Color color, Vector2 pos)
 {
-    Vector2 wsize = engine->window_size;
     auto text1 = new Text();
     text1->text = text;
     text1->font = &engine->font;
     text1->text_size = text_size;
     text1->text_color = color;
     text1->rec = {pos.x,pos.y,100,100};
-    text1->store_rec();
-    text1->is_resizable = true;
-    text1->position_info.center_x = center_x;
-    text1->position_info.center_y = center_y;
-    text1->position_info.offset.x = offsetx;
-    text1->position_info.offset.y = offsety;
-    text1->update_using_scale(engine->get_scale_factor(), wsize);
     text1->state = state;
     return text1;
 }
@@ -158,10 +148,12 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     // FOR DEBUG
     #define DEBUG_
     #ifdef DEBUG_
-    gd->client->send(Message{
-        .type = CREATE_ROOM,
-        .response = NONE,
-    });
+
+    Message msg = Message{};
+    msg.type = CREATE_ROOM,
+    msg.response = NONE,
+    gd->client->send(msg);
+
     #endif // DEBUG_
 
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
@@ -224,149 +216,67 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     }
 }
 
-static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { engine->bigcanvas.texture.width, engine->bigcanvas.texture.height };
     (void)kh_id;
     GameState state = GameState::MENU;
     size_t title_size = 64;
     Color title_color = WHITE;
 
     Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0,0});
-    title1->position_info.offset.y = -title1->rec.height;
-    title1->update_using_scale(engine->get_scale_factor(), *wsize);
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
     engine->om.add_object(title1, (*z)++);
 
     Text *title2 = cText(engine, state, "Roullete", title_size, title_color, {0,0});
+    Vector2 title2_len = title2->calculate_len();
+    title2->rec.x = (wsize.x - title2_len.x) / 2.0f;
+    title2->rec.y = (wsize.y / 2.0f);
     engine->om.add_object(title2, (*z)++);
-
 
     size_t text_size = 36;
     size_t padding = 20;
 
-    Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
+    Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
                            // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
                            [engine]() { engine->request_change_state(GameState::INGAME); }
     );
-    btn1->is_resizable = true;
-    btn1->position_info.center_x = true;
-    btn1->position_info.center_y = true;
     btn1->calculate_rec();
-    btn1->position_info.offset.y = title_size * 3;
-    btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
+    btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
     engine->om.add_object(btn1, (*z)++);
 
-    Button *btn2 = cButton(engine, "Conf", text_size, padding - 5, state, {0,0},
+
+    Texture2D *settings_cog = engine->tm.load_texture("cogs", "./assets/settings.png");
+    Button *btn2 = cButton(engine, "", text_size, padding, state, {0,0},
                            [engine]() { engine->request_change_state(GameState::SETTINGS); }
     );
-    btn2->is_resizable = true;
-    btn2->position_info.center_x = true;
-    btn2->position_info.center_y = true;
+    btn2->text = settings_cog;
     btn2->calculate_rec();
-    btn2->position_info.offset.y = title_size * 3;
-    btn2->position_info.offset.x = ((btn1->rec.width + btn2->rec.width) * 0.5f) + padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn2->rec.x = btn1->rec.x + btn1->rec.width + padding;
+    btn2->rec.y = btn1->rec.y;
+    btn2->rec.width = btn1->rec.height;
+    btn2->rec.height = btn1->rec.height;
     engine->om.add_object(btn2, (*z)++);
 
-    Button *btn3 = cButton(engine, "Exit", text_size, padding - 5, state, {0,0},
+    Texture2D *exit_icon = engine->tm.load_texture("exit", "./assets/exit.png");
+    Button *btn3 = cButton(engine, "", text_size, padding, state, {0,0},
                            [engine]() { engine->req_close = true; }
     );
-    btn3->is_resizable = true;
-    btn3->position_info.center_x = true;
-    btn3->position_info.center_y = true;
+    btn3->text = exit_icon;
     btn3->calculate_rec();
-    btn3->position_info.offset.y = title_size * 3;
-    btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
-    btn3->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn3->rec.x = btn1->rec.x - (btn1->rec.height + padding);
+    btn3->rec.y = btn1->rec.y;
+    btn3->rec.width = btn1->rec.height;
+    btn3->rec.height = btn1->rec.height;
     engine->om.add_object(btn3, (*z)++);
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
-    (void)wsize;
-    (void)kh_id;
-    (void)z;
-    (void)engine;
-
-    /*
-    GameState state = GameState::SETTINGS;
-    size_t title_size = 64;
-    Color title_color = WHITE;
-    // NOTE: will be the place where player input the room id
-    */
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
-    GameState state = GameState::SETTINGS;
-    size_t title_size = 64;
-    Color title_color = WHITE;
-
-    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
-    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the settings state");
-    else {
-        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
-    }
-
-    Text *title1 = cText(engine, state, "Game Settings", title_size, title_color, {0,0}, false, false, 10, 10);
-    engine->om.add_object(title1, (*z)++);
-
-
-    size_t text_size = 36;
-    size_t padding = 20;
-
-    // Button *btn1 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
-    //                        [engine]() { engine->request_resize({1280, 720}); }
-    // );
-    // btn1->is_resizable = true;
-    // btn1->position_info.center_x = true;
-    // btn1->position_info.center_y = true;
-    // btn1->calculate_rec();
-    // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(btn1, (*z)++);
-
-    Button *btn1 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1920, 1080}); }
-    );
-    btn1->is_resizable = true;
-    btn1->calculate_rec();
-    btn1->position_info.center_y = true;
-    btn1->position_info.offset.y = -btn1->rec.height * 3;
-    btn1->position_info.offset.x = padding;
-    btn1->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn1, (*z)++);
-
-    Button *btn2 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1280, 720}); }
-    );
-    btn2->is_resizable = true;
-    btn2->calculate_rec();
-    btn2->position_info.center_y = true;
-    btn2->position_info.offset_times_scale[0] = false;
-    btn2->position_info.offset.y = -btn2->rec.height * 3;
-    btn2->position_info.offset.x = btn1->rec.width * 2 + padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn2, (*z)++);
-
-    /*
-    Button *btn2 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1920, 1080}); }
-    );
-    btn2->is_resizable = true;
-    btn2->position_info.center_x = true;
-    btn2->position_info.center_y = true;
-    btn2->calculate_rec();
-    btn2->position_info.offset.x = -((btn1->rec.width + btn2->rec.width) * 0.5f) - padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn2, (*z)++);
-
-    Button *btn3 = cButton(engine, "Fullscreen", text_size, padding - 5, state, {0,0},
-                           []() { TraceLog(LOG_INFO, "Not implemented for now"); }
-    );
-    btn3->is_resizable = true;
-    btn3->position_info.center_x = true;
-    btn3->position_info.center_y = true;
-    btn3->calculate_rec();
-    btn3->position_info.offset.x = ((btn1->rec.width + btn3->rec.width) * 0.5f) + padding;
-    btn3->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn3, (*z)++);
-    */
 }
 
 
@@ -405,7 +315,6 @@ static void gameInit(ArsEng *engine) {
         engine->canvas_size.x,
         engine->canvas_size.y,
     };
-    Vector2 win_size = engine->window_size;
 
     KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
@@ -413,10 +322,10 @@ static void gameInit(ArsEng *engine) {
 
     // Load Object
     initTestObject (engine, kh_id, &z);
-    initMenu       (engine, kh_id, &win_size, &z);
-    initSettings   (engine, kh_id, &win_size, &z);
-    initPlayMenu   (engine, kh_id, &canvas_size, &z);
-    initInGame     (engine, kh_id, &canvas_size, &z);
+    initMenu       (engine, kh_id, &z);
+    // initSettings   (engine, kh_id, &win_size, &z);
+    // initPlayMenu   (engine, kh_id, &canvas_size, &z);
+    // initInGame     (engine, kh_id, &canvas_size, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {

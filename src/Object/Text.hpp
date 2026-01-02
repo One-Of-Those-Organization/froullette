@@ -29,14 +29,6 @@ class Text : public Object {
         return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
     }
 
-    void update_using_scale(float scale, Vector2 win) override {
-        // NOTE: Maybe need to resize the font size too.
-        Vector2 size = calculate_len();
-        rec.width  = size.x;
-        rec.height = size.y;
-        Object::update_using_scale(scale, win);
-    }
-
     void logic(float dt) override {
         (void)dt;
     }

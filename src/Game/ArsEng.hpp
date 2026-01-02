@@ -6,6 +6,7 @@
 #include "../Texture/TextureManager.hpp"
 
 static const Vector2 CANVAS_SIZE = Vector2{128 * 1.5, 72 * 1.5};
+static const Vector2 BIGCANVAS_SIZE = Vector2{128 * 10, 72 * 10};
 
 enum RequestType {
     DONE = 0,
@@ -23,6 +24,7 @@ class ArsEng {
 public:
     Vector2 window_size;
     RenderTexture2D canvas;
+    RenderTexture2D bigcanvas;
     ObjectManager om;
     ShadersManager sm;
     TextureManager tm;
@@ -33,37 +35,27 @@ public:
     Vector2 canvas_size = {};
     Vector2 cursor = {};
     Vector2 canvas_cursor = {};
+    Vector2 bigcanvas_cursor = {};
 
     bool req_close;
     bool dragging = false;
     int dragged_obj = -1;
     int _last_dragged_obj = -1;
     int active;
-    int scale_factor[4] = {
-        1, // smaller
-        2, // 854x480
-        3, // 1280x720
-        4, // 1920x1080
-    };
 
     std::vector<Object *> render_later;
     void *additional_data = nullptr;
     Request _req;
     GameState _req_state;
 
-    void _set_active() {
-        switch ((int)this->window_size.y) {
-        case 480:  { active = 1; } break;
-        case 720:  { active = 2; } break;
-        case 1080: { active = 3; } break;
-        default: { if (this->window_size.y < 480) active = 0; } break;
-        }
-    }
-
     ArsEng(Vector2 wsize): om(), tm(), state(GameState::MENU), _req_state(GameState::MENU) {
         canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
+        bigcanvas = LoadRenderTexture(BIGCANVAS_SIZE.x, BIGCANVAS_SIZE.y);
         SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
+        SetTextureFilter(bigcanvas.texture, TEXTURE_FILTER_POINT);
         SetTextureWrap(canvas.texture, TEXTURE_WRAP_CLAMP);
+        SetTextureWrap(bigcanvas.texture, TEXTURE_WRAP_CLAMP);
+
         this->window_size = wsize;
         this->req_close = false;
         this->canvas_size.x = this->canvas.texture.width;
@@ -77,7 +69,6 @@ public:
                      TextFormat("%s\n",
                                 "Try to launch the game from the correct path."
                                 " The game expect the `assets` folder in cwd."));
-        this->_set_active();
 
 #ifdef MOBILE
         SetGesturesEnabled(GESTURE_TAP);
@@ -99,14 +90,24 @@ public:
             this->canvas_size.x = this->canvas.texture.width;
             this->canvas_size.y = this->canvas.texture.height;
         }
+
+        if (bigcanvas.texture.id == 0) {
+            UnloadRenderTexture(bigcanvas);
+            bigcanvas = LoadRenderTexture(BIGCANVAS_SIZE.x, BIGCANVAS_SIZE.y);
+            SetTextureFilter(bigcanvas.texture, TEXTURE_FILTER_POINT);
+            SetTextureWrap(bigcanvas.texture, TEXTURE_WRAP_CLAMP);
+        }
     }
 
     void render() {
+        BeginTextureMode(bigcanvas);
+        ClearBackground(BLANK);
         for (auto &obj: this->render_later) {
             if (!has_flag(state, obj->state)) continue;
             obj->render();
         }
         render_later.clear();
+        EndTextureMode();
     }
 
     void render_to_canvas() {
@@ -131,6 +132,10 @@ public:
             (this->cursor.x / this->window_size.x) * this->canvas_size.x;
         this->canvas_cursor.y =
             (this->cursor.y / this->window_size.y) * this->canvas_size.y;
+
+        this->bigcanvas_cursor.x = (this->cursor.x / this->window_size.x) * this->bigcanvas.texture.width;
+        this->bigcanvas_cursor.y = (this->cursor.y / this->window_size.y) * this->bigcanvas.texture.height;
+
         for (const auto &o: this->om.sorted) {
             if (!has_flag(state, o->state) || !o->show) continue;
             o->logic(dt);
@@ -150,13 +155,6 @@ public:
         this->_change_state();
     }
 
-    float get_scale_factor() { return this->scale_factor[active]; }
-
-    int calcf(int value) {
-        return value * this->scale_factor[active];
-    }
-
-
     void request_resize(Vector2 new_size) {
         _req.t = RESIZE;
         _req.data.v = new_size;
@@ -169,17 +167,6 @@ public:
             this->oldstate = this->state;
             this->state = this->_req_state;
             this->dragging = false;
-        }
-    }
-
-    void _handle_window_resize(Vector2 new_size) {
-        this->_set_active();
-        float scale = this->scale_factor[this->active];
-
-        for (auto &obj: this->om.sorted) {
-            if (obj->is_resizable) {
-                obj->update_using_scale(scale, new_size);
-            }
         }
     }
 };

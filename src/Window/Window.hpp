@@ -52,8 +52,14 @@ public:
                            Rectangle{0, 0, size.x, size.y},
                            Vector2{0, 0}, 0.0f, WHITE);
 
-            // Render later object (for ui and stuff)
+            // Render later object (for ui and stuff) to the big canvas
             engine->render();
+
+            // Render the big canvas
+            Texture2D *bigtxt = &engine->bigcanvas.texture;
+            DrawTexturePro(*bigtxt, Rectangle{0, 0, (float)bigtxt->width, -(float)bigtxt->height},
+                           Rectangle{0, 0, size.x, size.y},
+            Vector2{0, 0}, 0.0f, WHITE);
 
             EndDrawing();
         }
@@ -63,6 +69,5 @@ public:
         this->oldsize = this->size;
         SetWindowSize(newsize.x, newsize.y);
         this->size = newsize;
-        if (this->engine) this->engine->_handle_window_resize(newsize);
     }
 };
