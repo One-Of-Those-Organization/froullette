@@ -183,12 +183,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
     // Input IP port
     TextInput *ipInput = cTextInput(
-        engine, "input ip port", text_size, padding + 10, state, {0,0}
+        engine, "input ip port", 18, 8, state, {0,0}
     );
     ipInput->position_info.center_x = true;
     ipInput->position_info.center_y = true;
     ipInput->calculate_rec();
-    ipInput->position_info.offset.y = -120;
+    ipInput->position_info.offset.x = 0;
+    ipInput->position_info.offset.y = -60;
     ipInput->update_using_scale(engine->get_scale_factor(), *wsize);
     // filter number
     ipInput->set_filter([](char c) {
@@ -198,12 +199,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 
     // input room code
     TextInput *roomInput = cTextInput(
-        engine, "Input Room Code", text_size, padding + 10, state, {0,0}
+        engine, "Input Room Code", 18, 8, state, {0,0}
     );
     roomInput->position_info.center_x = true;
     roomInput->position_info.center_y = true;
     roomInput->calculate_rec();
-    roomInput->position_info.offset.y = ipInput->position_info.offset.y + ipInput->rec.height + spacing;
+    roomInput->position_info.offset.x = 0;
+    roomInput->position_info.offset.y = 10;
     roomInput->update_using_scale(engine->get_scale_factor(), *wsize);
     // filter alphanumeric
     roomInput->set_filter([](char c) {
@@ -215,8 +217,8 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     Button *btnJoin = cButton(
         engine, "join room", text_size, padding, state, {0,0},
         [engine, ipInput, roomInput]() {
-            const std::string &ip = ipInput->get_text();
-            const std::string &room = roomInput->get_text();
+            // const std::string &ip = ipInput->get_text();
+            // const std::string &room = roomInput->get_text();
             // Logic to join the room using ip and room code
         }
     );
@@ -242,58 +244,6 @@ static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     btnCreateRoom->position_info.offset.y = btnJoin->position_info.offset.y + btnJoin->rec.height + spacing;
     btnCreateRoom->update_using_scale(engine->get_scale_factor(), *wsize);
     engine->om.add_object(btnCreateRoom, (*z)++);
-
-    // (void)kh_id;
-    // GameState state = GameState::PLAYMENU;
-    // size_t title_size = 64;
-    // Color title_color = WHITE;
-
-    // Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0,0});
-    // title1->position_info.offset.y = -title1->rec.height;
-    // title1->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(title1, (*z)++);
-
-    // Text *title2 = cText(engine, state, "Roullete", title_size, title_color, {0,0});
-    // engine->om.add_object(title2, (*z)++);
-
-
-    // size_t text_size = 36;
-    // size_t padding = 20;
-
-    // Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
-    //                        [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-    // );
-    // btn1->is_resizable = true;
-    // btn1->position_info.center_x = true;
-    // btn1->position_info.center_y = true;
-    // btn1->calculate_rec();
-    // btn1->position_info.offset.y = title_size * 3;
-    // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(btn1, (*z)++);
-
-    // Button *btn2 = cButton(engine, "Conf", text_size, padding - 5, state, {0,0},
-    //                        [engine]() { engine->request_change_state(GameState::SETTINGS); }
-    // );
-    // btn2->is_resizable = true;
-    // btn2->position_info.center_x = true;
-    // btn2->position_info.center_y = true;
-    // btn2->calculate_rec();
-    // btn2->position_info.offset.y = title_size * 3;
-    // btn2->position_info.offset.x = ((btn1->rec.width + btn2->rec.width) * 0.5f) + padding;
-    // btn2->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(btn2, (*z)++);
-
-    // Button *btn3 = cButton(engine, "Exit", text_size, padding - 5, state, {0,0},
-    //                        [engine]() { engine->req_close = true; }
-    // );
-    // btn3->is_resizable = true;
-    // btn3->position_info.center_x = true;
-    // btn3->position_info.center_y = true;
-    // btn3->calculate_rec();
-    // btn3->position_info.offset.y = title_size * 3;
-    // btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
-    // btn3->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(btn3, (*z)++);
 }
 
 static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
