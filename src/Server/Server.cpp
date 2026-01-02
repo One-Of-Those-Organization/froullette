@@ -215,6 +215,19 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         if (!use_bin) mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
         break;
     }
+    case MG_EV_OPEN:
+        printf("[SERVER] Connection opened:  %p\n", c);
+        break;
+    case MG_EV_CLOSE:
+        printf("[SERVER] Connection closed: %p\n", c);
+        // Clean up player from player_conmap here!
+        if (player_conmap.count(c)) {
+            player_conmap.erase(c);
+        }
+        break;
+    case MG_EV_ERROR:
+        printf("[SERVER] Error: %s\n", (char *)ev_data);
+        break;
     default:
         // NOTE: Dont care about other msg
         break;

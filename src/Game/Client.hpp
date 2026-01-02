@@ -32,9 +32,6 @@ static EMSCRIPTEN_WEBSOCKET_T g_ws_handle = 0;
     do { \
         if (g_ws_handle) { \
             if ((op) == WEBSOCKET_OP_TEXT) { \
-                /* emscripten_websocket_send_utf8_text calculates length via strlen, ensure null-terminated if needed */ \
-                /* But data might not be null terminated, so we might need a temp buffer if strictly text */ \
-                /* However, for most text ops, we can just send. If 'data' is raw bytes, use binary */ \
                 emscripten_websocket_send_utf8_text(g_ws_handle, (const char*)(data)); \
             } else { \
                 emscripten_websocket_send_binary(g_ws_handle, (const char*)(data), (int)(len)); \
@@ -68,8 +65,9 @@ class Client {
         char _buffer[DEFAULT_BUFFER_SIZE];
         struct mg_mgr mgr;
         std::atomic<bool> done{false};
+        std::atomic<bool> ws_connected{false};  // Track WebSocket handshake state
         struct mg_connection *c = nullptr;
-        std::vector<std::string> _outbox;
+        std::vector<std:: string> _outbox;
         std::mutex _outbox_mtx;
 
 #ifdef __EMSCRIPTEN__
@@ -93,7 +91,7 @@ class Client {
             return this->c != nullptr;
 #else
             if (!emscripten_websocket_is_supported()) {
-                std::cerr << "ERROR: Emscripten WebSocket not supported." << std::endl;
+                std::cerr << "ERROR: Emscripten WebSocket not supported." << std:: endl;
                 return false;
             }
 
@@ -125,22 +123,23 @@ class Client {
 
         void loop(size_t timeout_ms) {
 #ifndef __EMSCRIPTEN__
-            // while (c && !this->done) {
             while (!this->done) {
                 if (!c) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     continue;
                 }
                 mg_mgr_poll(&mgr, timeout_ms);
 
-                std::lock_guard<std::mutex> lock(_outbox_mtx);
-                if (!_outbox.empty() && c && !c->is_closing) {
-                    for (const auto& msg : _outbox) {
-                        mg_ws_send(c, msg.c_str(), msg.size(), WEBSOCKET_OP_TEXT);
+                // Only send messages after WebSocket handshake is complete
+                if (ws_connected) {
+                    std::lock_guard<std::mutex> lock(_outbox_mtx);
+                    if (!_outbox.empty() && c && !c->is_closing) {
+                        for (const auto& msg : _outbox) {
+                            mg_ws_send(c, msg.c_str(), msg.size(), WEBSOCKET_OP_TEXT);
+                        }
+                        _outbox.clear();
                     }
-                    _outbox.clear();
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
             }
 #else
             // Web is event-driven; loop logic is handled by browser event loop.
@@ -150,6 +149,7 @@ class Client {
 
         void cleanup() {
             this->done = true;
+            this->ws_connected = false;
 #ifndef __EMSCRIPTEN__
             mg_mgr_free(&this->mgr);
 #else
@@ -163,7 +163,6 @@ class Client {
         // NOTE: Use this to send msg to server
         void send(const struct Message &m) {
             char buf[DEFAULT_BUFFER_SIZE];
-            // Mongoose's mg_snprintf is useful, or use std::snprintf
             int len = mg_snprintf(buf, sizeof(buf), "%M", print_msg, &m);
 
 #ifndef __EMSCRIPTEN__
@@ -171,19 +170,22 @@ class Client {
             _outbox.push_back(std::string(buf, len));
 #else
             // On web, send immediately if connected
-            if (g_ws_handle) {
-                buf[len] = '\0'; // Ensure null termination for UTF8
+            if (g_ws_handle && ws_connected) {
+                buf[len] = '\0';
                 emscripten_websocket_send_utf8_text(g_ws_handle, buf);
             }
 #endif
         }
 
 #ifdef __EMSCRIPTEN__
-    private:
+    private: 
         static EM_BOOL on_open_ems(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData) {
             Client* self = (Client*)userData;
-            if (self && self->callback) {
-                self->callback(self->c, MG_EV_WS_OPEN, NULL);
+            if (self) {
+                self->ws_connected = true;
+                if (self->callback) {
+                    self->callback(self->c, MG_EV_WS_OPEN, NULL);
+                }
             }
             return EM_TRUE;
         }
@@ -191,11 +193,10 @@ class Client {
         static EM_BOOL on_message_ems(int eventType, const EmscriptenWebSocketMessageEvent *e, void *userData) {
             Client* self = (Client*)userData;
             if (self && self->callback) {
-                // Bridge Emscripten data to mg_ws_message struct
                 struct mg_ws_message wm;
                 wm.data.buf = (char*)e->data;
                 wm.data.len = e->numBytes;
-                wm.flags = 0; // Not used often in high-level handlers
+                wm.flags = 0;
 
                 self->callback(self->c, MG_EV_WS_MSG, &wm);
             }
@@ -203,12 +204,22 @@ class Client {
         }
 
         static EM_BOOL on_close_ems(int eventType, const EmscriptenWebSocketCloseEvent *e, void *userData) {
-            // Optional: Handle close event or auto-reconnect logic here
+            Client* self = (Client*)userData;
+            if (self) {
+                self->ws_connected = false;
+                if (self->callback) {
+                    self->callback(self->c, MG_EV_CLOSE, NULL);
+                }
+            }
             return EM_TRUE;
         }
 
         static EM_BOOL on_error_ems(int eventType, const EmscriptenWebSocketErrorEvent *e, void *userData) {
+            Client* self = (Client*)userData;
             std::cerr << "WebSocket Error!" << std::endl;
+            if (self && self->callback) {
+                self->callback(self->c, MG_EV_ERROR, (void*)"WebSocket error");
+            }
             return EM_TRUE;
         }
 #endif

@@ -45,11 +45,14 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     Client *client = gd->client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
+        TraceLog(LOG_INFO, "[CLIENT] WebSocket handshake complete!");
         if (!client) return;
+        client->ws_connected = true;
+        // Now safe to send GIVE_ID
         Message msg = {};
-        msg.type = MessageType::GIVE_ID;
+        msg. type = MessageType::GIVE_ID;
         msg.response = MessageType::NONE;
-        mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
+        client->send(msg);
     } break;
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
@@ -87,8 +90,16 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             break;
         }
     } break;
+    case MG_EV_OPEN:
+        TraceLog(LOG_INFO, "[CLIENT] Connection created");
+        break;
+    case MG_EV_ERROR:
+        TraceLog(LOG_ERROR, "[CLIENT] Error: %s", (char *)ev_data);
+        break;
     case MG_EV_CLOSE: {
+        TraceLog(LOG_INFO, "[CLIENT] Connection closed");
         if (client) {
+            client->ws_connected = false;
             std::lock_guard<std::mutex> lock(client->_outbox_mtx);
             client->_outbox.clear();
             client->c = nullptr;
