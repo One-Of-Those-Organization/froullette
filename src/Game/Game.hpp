@@ -30,6 +30,7 @@ struct GameData {
     Room *room;
     Player player;
     std::string url_buffer;
+    std::string buffer;
 };
 
 // TODO: Finish this
@@ -85,6 +86,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             break;
         }
     } break;
+    case MG_EV_CLOSE: {
+        if (client) {
+            std::lock_guard<std::mutex> lock(client->_outbox_mtx);
+            client->_outbox.clear();
+            client->c = nullptr;
+        }
+    } break;
     default:
         break;
     }
@@ -92,6 +100,27 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 
 static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
+}
+
+static TextInput *cTextInput(ArsEng *engine, const char *placeholder, std::string *buffer, int text_size,
+                            int padding, GameState state, Vector2 pos)
+{
+    TextInput *ti = new TextInput(placeholder);
+    ti->font = &engine->font;
+    ti->font_size = text_size;
+    ti->state = state;
+    ti->rec = { pos.x, pos.y, 100, 100};
+    ti->curpos = &engine->bigcanvas_cursor;
+    ti->padding = padding;
+    ti->draw_in_canvas = false;
+    ti->color[3] = {GetColor(0x000000ff)};
+    ti->color[2] = {GetColor(0xffffffff)};
+    ti->color[1] = {GetColor(0x000000ff)};
+    ti->color[0] = {GetColor(0xccccccff)};
+    ti->buffer = buffer;
+    ti->active_id = &engine->active;
+    ti->calculate_rec();
+    return ti;
 }
 
 static Button *cButton(ArsEng *engine, std::string text, int text_size,
@@ -148,17 +177,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     else {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
-
-    // FOR DEBUG
-    #define DEBUG_
-    #ifdef DEBUG_
-
-    Message msg = Message{};
-    msg.type = CREATE_ROOM,
-    msg.response = NONE,
-    gd->client->send(msg);
-
-    #endif // DEBUG_
 
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
@@ -306,23 +324,44 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     title1->rec.y = title1_len.y + padding;
     engine->om.add_object(title1, (*z)++);
 
-    TextInput *ti_url = new TextInput("Enter ip:port");
-    ti_url->font = &engine->font;
-    ti_url->font_size = text_size;
-    ti_url->state = state;
-    ti_url->rec = { wsize.x / 2.0f, title1->rec.y + title1->rec.height, 100, 100};
-    ti_url->curpos = &engine->bigcanvas_cursor;
-    ti_url->padding = padding;
-    ti_url->draw_in_canvas = false;
-    ti_url->color[0] = {GetColor(0xffffffff)};
-    ti_url->color[1] = {GetColor(0x000000ff)};
-    ti_url->color[2] = {GetColor(0x999999ff)};
-    ti_url->color[3] = {GetColor(0xffffffff)};
-    ti_url->buffer = &gd->url_buffer;
-    ti_url->active_id = &engine->active;
-    ti_url->calculate_rec();
-    ti_url->rec.x = (wsize.x - ti_url->rec.width) / 2.0f;
-    engine->om.add_object(ti_url, (*z)++);
+    TextInput *url = cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
+                               state, { wsize.x / 2.0f, title1->rec.y + title1->rec.height });
+    url->rec.width = (wsize.x - padding * 5) / 2.0f;
+    url->rec.x = (wsize.x - url->rec.width) / 2.0f;
+    engine->om.add_object(url, (*z)++);
+
+    TextInput *id = cTextInput(engine, "Room id (insert only on connect)", &gd->buffer, text_size, padding,
+                               state, { wsize.x / 2.0f, url->rec.y + url->rec.height + (padding * 2) });
+    id->rec.width = (wsize.x - padding * 5) / 2.0f;
+    id->rec.x = (wsize.x - id->rec.width) / 2.0f;
+    engine->om.add_object(id, (*z)++);
+
+    HBox *hbox = new HBox();
+    hbox->state = state;
+    hbox->rec.x = padding * 10;
+    hbox->rec.y = id->rec.y + id->rec.height + (padding * 2);
+    hbox->rec.width = wsize.x - (hbox->rec.x * 2);
+    hbox->rec.height = 64 + padding;
+    hbox->padding = padding;
+    hbox->al = Alignment::CENTER;
+    hbox->draw_in_canvas = false;
+    engine->om.add_object(hbox, (*z)++);
+
+    Button *btncreate = cButton(engine, "Create room", text_size, padding, state, {0,0},
+                              [engine]() { /* TODO: call the mangoose stuff to create room */ }
+    );
+    btncreate->calculate_rec();
+    engine->om.add_object(btncreate, (*z)++);
+    hbox->add_child(btncreate);
+    hbox->position_child();
+
+    Button *btnconnect = cButton(engine, "Connect to room", text_size, padding, state, {0,0},
+                              [engine]() { /* TODO: trigger something to show the dialog box for code */ }
+    );
+    btnconnect->calculate_rec();
+    engine->om.add_object(btnconnect, (*z)++);
+    hbox->add_child(btnconnect);
+    hbox->position_child();
 
     Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
                            [engine]() { engine->revert_state(); }

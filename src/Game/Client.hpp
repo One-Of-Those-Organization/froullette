@@ -133,7 +133,7 @@ class Client {
                 mg_mgr_poll(&mgr, timeout_ms);
 
                 std::lock_guard<std::mutex> lock(_outbox_mtx);
-                if (!_outbox.empty() && c != nullptr) {
+                if (!_outbox.empty() && c && !c->is_closing) {
                     for (const auto& msg : _outbox) {
                         mg_ws_send(c, msg.c_str(), msg.size(), WEBSOCKET_OP_TEXT);
                     }
