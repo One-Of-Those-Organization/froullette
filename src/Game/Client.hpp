@@ -4,6 +4,7 @@
 #include "../Shared/Player.hpp"
 #include <atomic>
 #include <iostream>
+#include <thread>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -72,8 +73,6 @@ class Client {
         std::vector<std::string> _outbox;
         std::mutex _outbox_mtx;
 
-        Player p;
-
 #ifdef __EMSCRIPTEN__
         // A dummy connection object to store fn_data and pass to the game handler
         struct mg_connection dummy_conn{};
@@ -83,7 +82,6 @@ class Client {
         ~Client() { this->cleanup(); };
 
         bool connect(void *data) {
-            this->p = {};
             if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s:%u",
                         this->ip.c_str(), this->port) < 0)
             {
@@ -129,7 +127,12 @@ class Client {
 
         void loop(size_t timeout_ms) {
 #ifndef __EMSCRIPTEN__
-            while (c && !this->done) {
+            // while (c && !this->done) {
+            while (!this->done) {
+                if (!c) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    continue;
+                }
                 mg_mgr_poll(&mgr, timeout_ms);
 
                 std::lock_guard<std::mutex> lock(_outbox_mtx);
@@ -139,6 +142,7 @@ class Client {
                     }
                     _outbox.clear();
                 }
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
             }
 #else
             // Web is event-driven; loop logic is handled by browser event loop.

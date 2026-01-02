@@ -66,7 +66,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 TraceLog(LOG_INFO, "Failed to get the player id from the server!");
                 break; // TODO(0): Handle error better
             }
-            client->p.id = (int)player_id;
+            gd->player.id = (int)player_id;
         } break;
         case HERE_ROOM: {
             mg_ws_message *wm = (mg_ws_message *)ev_data;
@@ -467,6 +467,7 @@ static void gameInit(ArsEng *engine) {
 
     gd->client = new Client();
 
+    // NOTE: i guess every time player leave it will free thread and create one again when connecting?
     // TODO: Call when the ip and port is inserted
     gd->client->ip = ip;
     gd->client->port = port;
