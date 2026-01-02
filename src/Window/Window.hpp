@@ -34,6 +34,7 @@ public:
             if (engine->req_close) break;
             if (engine->_req.t != DONE) {
                 switch (engine->_req.t) {
+                case TFULLSCREEN: { this->fullscreen_window(); } break;
                 case RESIZE: { this->resize_window(engine->_req.data.v); } break;
                 default:
                     break;
@@ -65,9 +66,22 @@ public:
         }
         return true;
     }
+
+    void fullscreen_window() {
+        if (IsWindowFullscreen()) {
+            this->resize_window(this->oldsize);
+        } else {
+            this->resize_window(Vector2(GetMonitorWidth(0) , GetMonitorHeight(0)));
+        }
+        ToggleFullscreen();
+        engine->_req.t = DONE;
+    }
+
     void resize_window(Vector2 newsize) {
         this->oldsize = this->size;
         SetWindowSize(newsize.x, newsize.y);
+        engine->window_size = newsize;
         this->size = newsize;
+        engine->_req.t = DONE;
     }
 };

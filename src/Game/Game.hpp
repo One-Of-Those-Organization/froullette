@@ -8,6 +8,7 @@
 #include "../Object/Needle.hpp"
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
+#include "../Object/Hbox.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
@@ -276,7 +277,84 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 }
 
-static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initSettings(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { engine->bigcanvas.texture.width, engine->bigcanvas.texture.height };
+    GameState state = GameState::SETTINGS;
+    size_t title_size = 64;
+    size_t text_size = 32;
+    size_t padding = 20;
+    Color title_color = WHITE;
+
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the settings state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
+
+    Text *title1 = cText(engine, state, "Settings", title_size, title_color, {0,0});
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = title1_len.y + padding;
+    engine->om.add_object(title1, (*z)++);
+
+    #ifndef __EMSCRIPTEN__
+    Text *restext = cText(engine, state, "Resolution", text_size, title_color, {0,0});
+    Vector2 restext_len = restext->calculate_len();
+    restext->rec.x = (wsize.x - restext_len.x) / 2.0f;
+    restext->rec.y = title1->rec.y + (padding * 5 + restext_len.y);
+    engine->om.add_object(restext, (*z)++);
+
+    // res here
+    HBox *hbox = new HBox();
+    hbox->state = state;
+    hbox->rec.x = padding * 10;
+    hbox->rec.y = restext->rec.y + restext->rec.height + padding;
+    hbox->rec.width = wsize.x - (hbox->rec.x * 2);
+    hbox->rec.height = 64 + padding;
+    hbox->padding = padding;
+    hbox->al = Alignment::CENTER;
+    hbox->draw_in_canvas = false;
+    engine->om.add_object(hbox, (*z)++);
+
+    Button *btnfull = cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_fullscreen(); }
+    );
+    btnfull->calculate_rec();
+    engine->om.add_object(btnfull, (*z)++);
+    hbox->add_child(btnfull);
+    hbox->position_child();
+
+    Button *btnhd = cButton(engine, "720p", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_resize({1280, 720}); }
+    );
+    btnhd->calculate_rec();
+    engine->om.add_object(btnhd, (*z)++);
+    hbox->add_child(btnhd);
+    hbox->position_child();
+
+    Button *btnfhd = cButton(engine, "1080p", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_resize({1920, 1080}); }
+    );
+    btnfhd->calculate_rec();
+    engine->om.add_object(btnfhd, (*z)++);
+    hbox->add_child(btnfhd);
+    hbox->position_child();
+    #endif // __EMSCRIPTEN__
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                           [engine]() { engine->revert_state(); }
+    );
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
+    engine->om.add_object(btn1, (*z)++);
 }
 
 
@@ -323,7 +401,7 @@ static void gameInit(ArsEng *engine) {
     // Load Object
     initTestObject (engine, kh_id, &z);
     initMenu       (engine, kh_id, &z);
-    // initSettings   (engine, kh_id, &win_size, &z);
+    initSettings   (engine, kh_id, &z);
     // initPlayMenu   (engine, kh_id, &canvas_size, &z);
     // initInGame     (engine, kh_id, &canvas_size, &z);
 }

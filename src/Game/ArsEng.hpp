@@ -11,6 +11,7 @@ static const Vector2 BIGCANVAS_SIZE = Vector2{128 * 10, 72 * 10};
 enum RequestType {
     DONE = 0,
     RESIZE,
+    TFULLSCREEN,
 };
 
 struct Request {
@@ -153,6 +154,10 @@ public:
         }
 
         this->_change_state();
+    }
+
+    void request_fullscreen() {
+        _req.t = TFULLSCREEN;
     }
 
     void request_resize(Vector2 new_size) {
