@@ -42,7 +42,7 @@ public:
     bool dragging = false;
     int dragged_obj = -1;
     int _last_dragged_obj = -1;
-    int active;
+    int active = -1;
 
     std::vector<Object *> render_later;
     void *additional_data = nullptr;

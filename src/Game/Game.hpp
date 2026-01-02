@@ -9,6 +9,7 @@
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "../Object/Hbox.hpp"
+#include "../Object/TextInput.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
@@ -28,6 +29,7 @@ struct GameData {
 #endif
     Room *room;
     Player player;
+    std::string url_buffer;
 };
 
 // TODO: Finish this
@@ -136,7 +138,8 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(ball, (*z)++);
 }
 
-static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initInGame(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::INGAME;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     GameData *gd = (GameData *)engine->additional_data;
@@ -160,8 +163,8 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
     p2->rec = Rectangle{ 0, 0, player2_text->width / 8.0f, player2_text->height / 8.0f };
-    p2->rec.x = (wsize->x - p2->rec.width) / 2;
-    p2->rec.y = (wsize->y - p2->rec.height) / 2;
+    p2->rec.x = (wsize.x - p2->rec.width) / 2;
+    p2->rec.y = (wsize.y - p2->rec.height) / 2;
 
     p2->state = state;
     p2->color = WHITE;
@@ -173,7 +176,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     desk->angle = {0.0f, 0.5f};
     desk->text = desk_text;
     float offset = 16;
-    desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
+    desk->rec = {offset, wsize.y / 2 + 5, wsize.x - offset * 2, wsize.y - 5};
     desk->color = GetColor(0x333333ff);
 
     desk->state = state;
@@ -220,7 +223,7 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
-    Vector2 wsize = { engine->bigcanvas.texture.width, engine->bigcanvas.texture.height };
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     (void)kh_id;
     GameState state = GameState::MENU;
     size_t title_size = 64;
@@ -242,8 +245,8 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
-                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-                           [engine]() { engine->request_change_state(GameState::INGAME); }
+                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           // [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->calculate_rec();
     btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
@@ -276,11 +279,64 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(btn3, (*z)++);
 }
 
-static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    GameState state = GameState::PLAYMENU;
+    int padding = 20;
+    int text_size = 32;
+    int title_size = 64;
+    Color title_color = WHITE;
+
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
+    GameData *gd = (GameData *)engine->additional_data;
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+
+    Text *title1 = cText(engine, state, "Get ready", title_size, title_color, {0,0});
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = title1_len.y + padding;
+    engine->om.add_object(title1, (*z)++);
+
+    TextInput *ti_url = new TextInput("Enter ip:port");
+    ti_url->font = &engine->font;
+    ti_url->font_size = text_size;
+    ti_url->state = state;
+    ti_url->rec = { wsize.x / 2.0f, title1->rec.y + title1->rec.height, 100, 100};
+    ti_url->curpos = &engine->bigcanvas_cursor;
+    ti_url->padding = padding;
+    ti_url->draw_in_canvas = false;
+    ti_url->color[0] = {GetColor(0xffffffff)};
+    ti_url->color[1] = {GetColor(0x000000ff)};
+    ti_url->color[2] = {GetColor(0x999999ff)};
+    ti_url->color[3] = {GetColor(0xffffffff)};
+    ti_url->buffer = &gd->url_buffer;
+    ti_url->active_id = &engine->active;
+    ti_url->calculate_rec();
+    ti_url->rec.x = (wsize.x - ti_url->rec.width) / 2.0f;
+    engine->om.add_object(ti_url, (*z)++);
+
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                           [engine]() { engine->revert_state(); }
+    );
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
+    engine->om.add_object(btn1, (*z)++);
 }
 
 static void initSettings(ArsEng *engine, int kh_id, int *z) {
-    Vector2 wsize = { engine->bigcanvas.texture.width, engine->bigcanvas.texture.height };
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
     size_t text_size = 32;
@@ -404,8 +460,8 @@ static void gameInit(ArsEng *engine) {
     initTestObject (engine, kh_id, &z);
     initMenu       (engine, kh_id, &z);
     initSettings   (engine, kh_id, &z);
-    // initPlayMenu   (engine, kh_id, &canvas_size, &z);
-    initInGame     (engine, kh_id, &canvas_size, &z);
+    initPlayMenu   (engine, kh_id, &z);
+    initInGame     (engine, kh_id, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {
