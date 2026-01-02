@@ -16,7 +16,7 @@ class Server {
         mg_mgr mgr;
         char *buffer = nullptr;
         void (*callback)(mg_connection *c, int ev, void *ev_data);
-        std::atomic<uint32_t> ccount = {0}; // to assign id
+        std::atomic<uint32_t> ccount = {1}; // to assign id
         Room rooms[MAX_ROOM_COUNT];
         std::unordered_map<int, Player> players;
 

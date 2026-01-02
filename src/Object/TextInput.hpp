@@ -19,7 +19,6 @@ class TextInput: public Object {
         virtual ~TextInput() = default;
         void render() override {
             if (!this->show || !font) return;
-            TraceLog(LOG_INFO, "this is being showed: %d", this->show);
 
             Color fgcolor = _hovered ? color[3]: color[1];
             Color bgcolor = _hovered ? color[2]: color[0];

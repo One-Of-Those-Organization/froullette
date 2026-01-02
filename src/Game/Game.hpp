@@ -102,6 +102,18 @@ static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
+static bool start_connection(ArsEng *engine) {
+    GameData *gd = (GameData *)engine->additional_data;
+    if (gd->url_buffer.empty()) return false;
+    gd->client->ip = gd->url_buffer.c_str();
+    gd->client->port = (uint16_t)atoi(gd->buffer.c_str());
+    if (!gd->client->connect((void *)gd)) {
+        TraceLog(LOG_INFO, "Failed to connect to the specified server");
+        return false;
+    }
+    return true;
+}
+
 static TextInput *cTextInput(ArsEng *engine, const char *placeholder, std::string *buffer, int text_size,
                             int padding, GameState state, Vector2 pos)
 {
@@ -347,9 +359,18 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     hbox->draw_in_canvas = false;
     engine->om.add_object(hbox, (*z)++);
 
-    Button *btncreate = cButton(engine, "Create room", text_size, padding, state, {0,0},
-                              [engine]() { /* TODO: call the mangoose stuff to create room */ }
-    );
+    Button *btncreate =
+        cButton(engine, "Create room", text_size, padding, state, {0,0},
+            [engine, gd]() {
+                if (gd->player.id <= 0) {
+                    if (!start_connection(engine)) return;
+                }
+                Message msg = Message{
+                    .type = CREATE_ROOM,
+                    .response = NONE,
+                };
+                gd->client->send(msg);
+        });
     btncreate->calculate_rec();
     engine->om.add_object(btncreate, (*z)++);
     hbox->add_child(btncreate);
@@ -458,23 +479,12 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 // TODO: Connect the connect_room, create_room, give_id
 //       use something like this: client->send(Message{});
 static void gameInit(ArsEng *engine) {
-    std::string ip = "127.0.0.1";
-    uint16_t port = 8000;
-
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
     gd->pstate = PlayerState::PLAYER1;
-
     gd->client = new Client();
-
-    // NOTE: i guess every time player leave it will free thread and create one again when connecting?
-    // TODO: Call when the ip and port is inserted
-    gd->client->ip = ip;
-    gd->client->port = port;
     gd->client->callback = client_handler;
-
-    // TODO: Move it to other func so it can be called when ip and port inserted
-    gd->client->connect((void *)gd);
+    gd->player = {};
 #ifndef __EMSCRIPTEN__
     // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
