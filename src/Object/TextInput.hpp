@@ -20,8 +20,8 @@ class TextInput: public Object {
         void render() override {
             if (!this->show || !font) return;
 
-            Color &fgcolor = _hovered ? color[3]: color[1];
-            Color &bgcolor = _hovered ? color[2]: color[0];
+            Color fgcolor = _hovered ? color[3]: color[1];
+            Color bgcolor = _hovered ? color[2]: color[0];
             if (this->active_id) {
                 if (*this->active_id == id) {
                     bgcolor = color[2];
