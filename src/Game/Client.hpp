@@ -63,8 +63,7 @@ static EMSCRIPTEN_WEBSOCKET_T g_ws_handle = 0;
 
 class Client {
     public:
-        std::string ip;
-        uint16_t port;
+        std::string url;
         void (*callback)(struct mg_connection *, int ev, void *ev_data);
         char _buffer[DEFAULT_BUFFER_SIZE];
         struct mg_mgr mgr;
@@ -82,8 +81,7 @@ class Client {
         ~Client() { this->cleanup(); };
 
         bool connect(void *data) {
-            if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s:%u",
-                        this->ip.c_str(), this->port) < 0)
+            if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s", this->url.c_str()) < 0)
             {
                 std::cerr << "ERROR: Failed to built the address string." << std::endl;
                 return false;

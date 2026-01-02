@@ -60,6 +60,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         Message msg = {};
         switch ((int)msgtype) {
         case GIVE_ID: {
+            std::cout << "get request id" << std::endl;
             msg.type = MessageType::HERE_ID;
             msg.response = MessageType::GIVE_ID;
             msg.data.Int = server->ccount;

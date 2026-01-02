@@ -67,6 +67,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 break; // TODO(0): Handle error better
             }
             gd->player.id = (int)player_id;
+            TraceLog(LOG_INFO, "assinged the id: %d", gd->player.id);
         } break;
         case HERE_ROOM: {
             mg_ws_message *wm = (mg_ws_message *)ev_data;
@@ -105,8 +106,7 @@ static int rand_range(int min, int max) {
 static bool start_connection(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
     if (gd->url_buffer.empty()) return false;
-    gd->client->ip = gd->url_buffer.c_str();
-    gd->client->port = (uint16_t)atoi(gd->buffer.c_str());
+    gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
         TraceLog(LOG_INFO, "Failed to connect to the specified server");
         return false;
