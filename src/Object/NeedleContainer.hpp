@@ -11,7 +11,7 @@ class NeedleContainer: public Object {
         ObjectManager *om;
 
         void render() override {
-            DrawRectangleRec(this->rec, this->color);
+            // DrawRectangleRec(this->rec, this->color);
         };
 
         NeedleContainer(ObjectManager *om): om(om) {}

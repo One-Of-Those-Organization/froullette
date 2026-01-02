@@ -168,11 +168,13 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     p2->text = player2_text;
     engine->om.add_object(p2, (*z)++);
 
+    Texture2D *desk_text = engine->tm.load_texture("desk", "./assets/desk.png");
     auto desk = new Desk();
     desk->angle = {0.0f, 0.5f};
+    desk->text = desk_text;
     float offset = 16;
     desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
-    desk->color = PINK;
+    desk->color = GetColor(0x333333ff);
 
     desk->state = state;
     engine->om.add_object(desk, (*z)++);
@@ -403,7 +405,7 @@ static void gameInit(ArsEng *engine) {
     initMenu       (engine, kh_id, &z);
     initSettings   (engine, kh_id, &z);
     // initPlayMenu   (engine, kh_id, &canvas_size, &z);
-    // initInGame     (engine, kh_id, &canvas_size, &z);
+    initInGame     (engine, kh_id, &canvas_size, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {
