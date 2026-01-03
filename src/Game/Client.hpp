@@ -159,14 +159,14 @@ class Client {
             _outbox.clear();
         }
 
-        void send(const struct Message &m) {
-            char buf[DEFAULT_BUFFER_SIZE];
-            int len = mg_snprintf(buf, sizeof(buf), "%M", print_msg, &m);
-            queue_message(buf, len, WEBSOCKET_OP_TEXT);
-        }
-
         void send_binary(const void* data, size_t len) {
             queue_message(data, len, WEBSOCKET_OP_BINARY);
+        }
+
+        void send(const Message &msg) {
+            uint8_t buf[MAX_MESSAGE_BIN_SIZE];
+            size_t n = generate_network_field((Message*)&msg, buf);
+            this->send_binary(buf, n);
         }
 
     private:

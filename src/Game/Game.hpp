@@ -51,6 +51,40 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     } break;
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
+        if ((wm->flags & 0x0f) != WEBSOCKET_OP_BINARY) break;
+        uint8_t *buf = (uint8_t *)wm->data.buf;
+        size_t len = wm->data.len;
+        size_t off = 0;
+
+        while (off < len) {
+            ParsedData pd{};
+            size_t used = 0;
+
+            if (!parse_one_packet(buf + off, len - off, &pd, &used))
+            break;
+
+            off += used;
+
+            switch (pd.type) {
+            case HERE_ID: {
+                gd->player.id = pd.data.Int;
+                TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
+            } break;
+            case HERE_ROOM: {
+                gd->room = pd.data.Room_obj;
+                TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
+            } break;
+            case ERROR: {
+                TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
+            } break;
+            case NONE: {
+                TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
+            } break;
+            default:
+                break;
+            }
+        }
+        /*
         struct mg_str payload = wm->data;
         double msgtype;
         bool success = mg_json_get_num(payload, "$.type", &msgtype);
@@ -84,6 +118,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         default:
             break;
         }
+        */
     } break;
     case MG_EV_OPEN: {
         TraceLog(LOG_INFO, "NET: Connection created");
@@ -508,6 +543,8 @@ static void gameInit(ArsEng *engine) {
         engine->canvas_size.x,
         engine->canvas_size.y,
     };
+    //TODO(1):
+    (void)canvas_size;
 
     KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
