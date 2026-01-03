@@ -39,20 +39,15 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
     GameData *gd = (GameData *)c->fn_data;
     if (!gd) {
-        TraceLog(LOG_INFO, "Failed to get the gamedata on the network thread");
+        TraceLog(LOG_INFO, "NET: Failed to get the gamedata on the network thread");
         return;
     }
     Client *client = gd->client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
-        TraceLog(LOG_INFO, "[CLIENT] WebSocket handshake complete!");
+        TraceLog(LOG_INFO, "NET: WebSocket handshake complete!");
         if (!client) return;
-        client->ws_connected = true;
-        // Now safe to send GIVE_ID
-        Message msg = {};
-        msg. type = MessageType::GIVE_ID;
-        msg.response = MessageType::NONE;
-        client->send(msg);
+        client->on_connected();
     } break;
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
@@ -66,43 +61,40 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             double player_id;
             success = mg_json_get_num(payload, "$.data", &player_id);
             if (!success) {
-                TraceLog(LOG_INFO, "Failed to get the player id from the server!");
+                TraceLog(LOG_INFO, "NET: Failed to get the player id from the server!");
                 break; // TODO(0): Handle error better
             }
             gd->player.id = (int)player_id;
-            TraceLog(LOG_INFO, "assinged the id: %d", gd->player.id);
+            TraceLog(LOG_INFO, "NET: assigned user id: %d", gd->player.id);
         } break;
         case HERE_ROOM: {
             mg_ws_message *wm = (mg_ws_message *)ev_data;
             if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
                 ParsedData pd = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
                 if (pd.type == HERE_ROOM) gd->room = pd.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
-                else TraceLog(LOG_INFO, "Wrong data on HERE_ROOM message!");
+                else TraceLog(LOG_INFO, "NET: Wrong data on HERE_ROOM message!");
+                TraceLog(LOG_INFO, "NET: get room with id: %s", gd->room->id);
             }
         } break;
         case ERROR:
         case NONE: {
-            if ((int)msgtype == ERROR) std::cout << "[NET-ERROR] "; // NOTE: This is annoying but needed to make the compiler shutup.
             char *buffer = mg_json_get_str(payload, "$.data");
-            std::cout << TextFormat("%s", buffer) << std::endl;
+            if (buffer) TraceLog(LOG_INFO, "NET: Got plain message: %s", buffer);
         } break;
         default:
             break;
         }
     } break;
-    case MG_EV_OPEN:
-        TraceLog(LOG_INFO, "[CLIENT] Connection created");
-        break;
-    case MG_EV_ERROR:
-        TraceLog(LOG_ERROR, "[CLIENT] Error: %s", (char *)ev_data);
-        break;
+    case MG_EV_OPEN: {
+        TraceLog(LOG_INFO, "NET: Connection created");
+    } break;
+    case MG_EV_ERROR: {
+        TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
+    } break;
     case MG_EV_CLOSE: {
-        TraceLog(LOG_INFO, "[CLIENT] Connection closed");
+        TraceLog(LOG_INFO, "NET: Connection closed");
         if (client) {
-            client->ws_connected = false;
-            std::lock_guard<std::mutex> lock(client->_outbox_mtx);
-            client->_outbox.clear();
-            client->c = nullptr;
+            client->on_disconnected();
         }
     } break;
     default:
@@ -119,9 +111,13 @@ static bool start_connection(ArsEng *engine) {
     if (gd->url_buffer.empty()) return false;
     gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
-        TraceLog(LOG_INFO, "Failed to connect to the specified server");
+        TraceLog(LOG_INFO, "NET: Failed to connect to the specified server");
         return false;
     }
+    Message msg = {};
+    msg.type = MessageType::GIVE_ID;
+    msg.response = MessageType::NONE;
+    gd->client->send(msg);
     return true;
 }
 
@@ -373,14 +369,14 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     Button *btncreate =
         cButton(engine, "Create room", text_size, padding, state, {0,0},
             [engine, gd]() {
-                if (gd->player.id <= 0) {
-                    if (!start_connection(engine)) return;
-                }
-                Message msg = Message{
-                    .type = CREATE_ROOM,
-                    .response = NONE,
-                };
-                gd->client->send(msg);
+            if (!gd->client->c) {
+                if (!start_connection(engine)) return;
+            }
+            Message msg = Message{
+                .type = CREATE_ROOM,
+                .response = NONE,
+            };
+            gd->client->send(msg);
         });
     btncreate->calculate_rec();
     engine->om.add_object(btncreate, (*z)++);
