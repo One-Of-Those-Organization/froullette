@@ -26,11 +26,11 @@ static inline void write_u32(uint8_t **pp, uint32_t v) {
     *pp += 4;
 }
 
-uint16_t read_u16(const uint8_t *p) {
+static uint16_t read_u16(const uint8_t *p) {
     return p[0] | (p[1] << 8);
 }
 
-uint32_t read_u32(const uint8_t *p) {
+static uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
@@ -48,6 +48,7 @@ enum PlayerField : uint8_t {
 enum MessageType {
     NONE = 0,
     ERROR,
+    OK,
 
     GIVE_ID,
     HERE_ID,
@@ -147,6 +148,15 @@ struct ParsedData {
         p += payload_len;
         break;
     }
+    case ERROR:
+    case OK: {
+        size_t str_len = strnlen(m->data.String, MAX_MESSAGE_STRING_SIZE);
+        write_u16(&p, str_len);
+        memcpy(p, m->data.String, str_len);
+        p += str_len;
+        payload_len += 2 + str_len;
+        break;
+    }
     default:
         break;
     }
@@ -200,6 +210,16 @@ static bool parse_one_packet(
     case HERE_ID:
         out->data.Int = read_u32(p);
         break;
+
+    case ERROR:
+    case OK: {
+        uint16_t len = read_u16(p);
+        p += 2;
+        memcpy(out->data.String, p, len);
+        out->data.String[len] = '\0';
+        p += len;
+        break;
+    }
 
     default:
         break;

@@ -9,6 +9,7 @@
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
 #include "../Object/Hbox.hpp"
+#include "../Object/Script.hpp"
 #include "../Object/TextInput.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
@@ -77,6 +78,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             case ERROR: {
                 TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
             } break;
+            case OK:
             case NONE: {
                 TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
             } break;
@@ -84,41 +86,6 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 break;
             }
         }
-        /*
-        struct mg_str payload = wm->data;
-        double msgtype;
-        bool success = mg_json_get_num(payload, "$.type", &msgtype);
-        if (!success) break;
-
-        switch ((int)msgtype) {
-        case HERE_ID: {
-            double player_id;
-            success = mg_json_get_num(payload, "$.data", &player_id);
-            if (!success) {
-                TraceLog(LOG_INFO, "NET: Failed to get the player id from the server!");
-                break; // TODO(0): Handle error better
-            }
-            gd->player.id = (int)player_id;
-            TraceLog(LOG_INFO, "NET: assigned user id: %d", gd->player.id);
-        } break;
-        case HERE_ROOM: {
-            mg_ws_message *wm = (mg_ws_message *)ev_data;
-            if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
-                ParsedData pd = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
-                if (pd.type == HERE_ROOM) gd->room = pd.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
-                else TraceLog(LOG_INFO, "NET: Wrong data on HERE_ROOM message!");
-                TraceLog(LOG_INFO, "NET: get room with id: %s", gd->room->id);
-            }
-        } break;
-        case ERROR:
-        case NONE: {
-            char *buffer = mg_json_get_str(payload, "$.data");
-            if (buffer) TraceLog(LOG_INFO, "NET: Got plain message: %s", buffer);
-        } break;
-        default:
-            break;
-        }
-        */
     } break;
     case MG_EV_OPEN: {
         TraceLog(LOG_INFO, "NET: Connection created");
@@ -407,10 +374,9 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
             if (!gd->client->c) {
                 if (!start_connection(engine)) return;
             }
-            Message msg = Message{
-                .type = CREATE_ROOM,
-                .response = NONE,
-            };
+            Message msg = {};
+            msg.type = CREATE_ROOM;
+            msg.response = NONE;
             gd->client->send(msg);
         });
     btncreate->calculate_rec();
@@ -518,8 +484,21 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 }
 
 
-// TODO: Connect the connect_room, create_room, give_id
-//       use something like this: client->send(Message{});
+static void initALLObject(ArsEng *engine, int kh_id, int *z) {
+    (void)kh_id;
+    Script *sc = new Script();
+    sc->state = GameState::ALL;
+    sc->callback = [engine]() {
+        GameData *gd = (GameData *)engine->additional_data;
+        if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
+        {
+            engine->request_change_state(GameState::ROOMMENU);
+        }
+    };
+    engine->om.add_object(sc, (*z)++);
+}
+
+
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
@@ -527,6 +506,7 @@ static void gameInit(ArsEng *engine) {
     gd->client = new Client();
     gd->client->callback = client_handler;
     gd->player = {};
+    gd->room = nullptr;
 #ifndef __EMSCRIPTEN__
     // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
@@ -551,6 +531,7 @@ static void gameInit(ArsEng *engine) {
     int kh_id = engine->om.add_object(kh, z++);
 
     // Load Object
+    initALLObject  (engine, kh_id, &z);
     initTestObject (engine, kh_id, &z);
     initMenu       (engine, kh_id, &z);
     initSettings   (engine, kh_id, &z);

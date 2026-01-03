@@ -5,7 +5,7 @@
 class Script: public Object {
     public:
         std::function<void()> callback;
-        Script();
+        Script(): Object() {};
         ~Script() = default;
 
         void render() override {}
