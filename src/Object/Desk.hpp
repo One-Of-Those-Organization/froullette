@@ -65,51 +65,37 @@ private:
         float w = rec.width;
         float h = rec.height;
 
-        // Calculate how much to extend the bottom to maintain full width at top
-        float shrink = angle.y * w * 0.5f;  // How much the top is narrower
-        float skew = angle.x * w * 0.5f;    // Horizontal skew
+        float shrink = angle. y * w * 0.5f;
+        float skew = angle.x * w * 0.5f;
 
-        // Top vertices (use the original rectangle bounds)
         Vector2 topLeft  = {x, y};
         Vector2 topRight = {x + w, y};
-
-        // Bottom vertices (extended outward to create trapezoid effect)
         Vector2 bottomLeft  = {x - shrink + skew, y + h};
         Vector2 bottomRight = {x + w + shrink + skew, y + h};
 
-        // UV coordinates for texture mapping
-        Vector2 uvTopLeft     = {0.0f, 0.0f};  // Top-left of texture
-        Vector2 uvTopRight    = {1.0f, 0.0f};  // Top-right of texture
-        Vector2 uvBottomLeft  = {0.0f, 1.0f};  // Bottom-left of texture
-        Vector2 uvBottomRight = {1.0f, 1.0f};  // Bottom-right of texture
+        // Use RL_QUADS for cleaner texture mapping
+        rlSetTexture(text->id);
+        rlBegin(RL_QUADS);
 
-        Color color = WHITE;
+        rlColor4ub(255, 255, 255, 255);  // White to show texture colors correctly
 
-        rlSetTexture(text->id);  // Bind the texture
-        rlBegin(RL_TRIANGLES);
-        rlColor4ub(color.r, color.g, color.b, color.a);
-
-        // Triangle 1: bottomLeft -> bottomRight -> topRight
-        rlTexCoord2f(uvBottomLeft.x, uvBottomLeft.y);
-        rlVertex2f(bottomLeft.x, bottomLeft.y);
-
-        rlTexCoord2f(uvBottomRight.x, uvBottomRight.y);
-        rlVertex2f(bottomRight.x, bottomRight.y);
-
-        rlTexCoord2f(uvTopRight.x, uvTopRight.y);
-        rlVertex2f(topRight.x, topRight.y);
-
-        // Triangle 2: bottomLeft -> topRight -> topLeft
-        rlTexCoord2f(uvBottomLeft.x, uvBottomLeft.y);
-        rlVertex2f(bottomLeft.x, bottomLeft.y);
-
-        rlTexCoord2f(uvTopRight.x, uvTopRight.y);
-        rlVertex2f(topRight.x, topRight.y);
-
-        rlTexCoord2f(uvTopLeft.x, uvTopLeft.y);
+        // Top-left
+        rlTexCoord2f(0.0f, 0.0f);
         rlVertex2f(topLeft.x, topLeft.y);
 
+        // Bottom-left
+        rlTexCoord2f(0.0f, 1.0f);
+        rlVertex2f(bottomLeft.x, bottomLeft.y);
+
+        // Bottom-right
+        rlTexCoord2f(1.0f, 1.0f);
+        rlVertex2f(bottomRight.x, bottomRight.y);
+
+        // Top-right
+        rlTexCoord2f(1.0f, 0.0f);
+        rlVertex2f(topRight.x, topRight.y);
+
         rlEnd();
-        rlSetTexture(0);  // Unbind texture
+        rlSetTexture(0);
     }
 };

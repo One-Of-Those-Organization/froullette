@@ -34,6 +34,7 @@ public:
             if (engine->req_close) break;
             if (engine->_req.t != DONE) {
                 switch (engine->_req.t) {
+                case TFULLSCREEN: { this->fullscreen_window(); } break;
                 case RESIZE: { this->resize_window(engine->_req.data.v); } break;
                 default:
                     break;
@@ -52,17 +53,35 @@ public:
                            Rectangle{0, 0, size.x, size.y},
                            Vector2{0, 0}, 0.0f, WHITE);
 
-            // Render later object (for ui and stuff)
+            // Render later object (for ui and stuff) to the big canvas
             engine->render();
+
+            // Render the big canvas
+            Texture2D *bigtxt = &engine->bigcanvas.texture;
+            DrawTexturePro(*bigtxt, Rectangle{0, 0, (float)bigtxt->width, -(float)bigtxt->height},
+                           Rectangle{0, 0, size.x, size.y},
+            Vector2{0, 0}, 0.0f, WHITE);
 
             EndDrawing();
         }
         return true;
     }
+
+    void fullscreen_window() {
+        if (IsWindowFullscreen()) {
+            this->resize_window(this->oldsize);
+        } else {
+            this->resize_window(Vector2(GetMonitorWidth(0) , GetMonitorHeight(0)));
+        }
+        ToggleFullscreen();
+        engine->_req.t = DONE;
+    }
+
     void resize_window(Vector2 newsize) {
         this->oldsize = this->size;
         SetWindowSize(newsize.x, newsize.y);
+        engine->window_size = newsize;
         this->size = newsize;
-        if (this->engine) this->engine->_handle_window_resize(newsize);
+        engine->_req.t = DONE;
     }
 };

@@ -8,8 +8,8 @@
 class Button : public Object {
     public:
         Vector2 *curpos = nullptr;
-        std::string text;
-        int text_size;
+        std::string str;
+        int str_size;
         Font *font;
         int padding;
         Color color[4];
@@ -30,16 +30,21 @@ class Button : public Object {
             Color &bgcolor = _hovered ? color[2]: color[0];
             DrawRectangleRec(rec, bgcolor);
 
-            if (text != "") {
-                DrawTextPro(*font, text.c_str(),
-                            Vector2(rec.x + padding, rec.y + padding), Vector2(0, 0), 0.0f, text_size,
+            if (str != "" || !text) {
+                DrawTextPro(*font, str.c_str(),
+                            Vector2(rec.x + padding, rec.y + padding), Vector2(0, 0), 0.0f, str_size,
                             _spacing, fgcolor);
+            } else {
+                DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height),
+                            rec, Vector2(0, 0), 0.0f, fgcolor);
             }
         }
 
         void calculate_rec() {
-            rec.width = this->_get_width() + this->padding * 2;
-            rec.height = this->text_size + this->padding * 2;
+            if (str != "" || !text) {
+                rec.width = this->_get_width() + this->padding * 2;
+                rec.height = this->str_size + this->padding * 2;
+            }
         }
 
         void logic(float dt) override {
@@ -60,8 +65,8 @@ class Button : public Object {
         if (font) {
             Vector2 size =
                 MeasureTextEx(
-                        *this->font, this->text.c_str(),
-                        this->text_size, this->_spacing
+                        *this->font, this->str.c_str(),
+                        this->str_size, this->_spacing
                         );
             return size.x;
         }

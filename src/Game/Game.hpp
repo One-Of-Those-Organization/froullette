@@ -8,6 +8,9 @@
 #include "../Object/Needle.hpp"
 #include "../Object/KeyHandler.hpp"
 #include "../Object/NeedleContainer.hpp"
+#include "../Object/Hbox.hpp"
+#include "../Object/Script.hpp"
+#include "../Object/TextInput.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
@@ -27,6 +30,8 @@ struct GameData {
 #endif
     Room *room;
     Player player;
+    std::string url_buffer;
+    std::string buffer;
 };
 
 // TODO: Finish this
@@ -35,51 +40,63 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
     GameData *gd = (GameData *)c->fn_data;
     if (!gd) {
-        TraceLog(LOG_INFO, "Failed to get the gamedata on the network thread");
+        TraceLog(LOG_INFO, "NET: Failed to get the gamedata on the network thread");
         return;
     }
     Client *client = gd->client;
     switch (ev) {
     case MG_EV_WS_OPEN: {
+        TraceLog(LOG_INFO, "NET: WebSocket handshake complete!");
         if (!client) return;
-        Message msg = {};
-        msg.type = MessageType::GIVE_ID;
-        msg.response = MessageType::NONE;
-        mg_ws_printf(c, WEBSOCKET_OP_TEXT, "%M", print_msg, &msg);
+        client->on_connected();
     } break;
     case MG_EV_WS_MSG: {
         mg_ws_message *wm = (mg_ws_message *)ev_data;
-        struct mg_str payload = wm->data;
-        double msgtype;
-        bool success = mg_json_get_num(payload, "$.type", &msgtype);
-        if (!success) break;
+        if ((wm->flags & 0x0f) != WEBSOCKET_OP_BINARY) break;
+        uint8_t *buf = (uint8_t *)wm->data.buf;
+        size_t len = wm->data.len;
+        size_t off = 0;
 
-        switch ((int)msgtype) {
-        case HERE_ID: {
-            double player_id;
-            success = mg_json_get_num(payload, "$.data", &player_id);
-            if (!success) {
-                TraceLog(LOG_INFO, "Failed to get the player id from the server!");
-                break; // TODO(0): Handle error better
-            }
-            client->p.id = (int)player_id;
-        } break;
-        case HERE_ROOM: {
-            mg_ws_message *wm = (mg_ws_message *)ev_data;
-            if ((wm->flags & 0x0f) == WEBSOCKET_OP_BINARY) {
-                ParsedData pd = parse_network_packet((uint8_t *) wm->data.buf, wm->data.len);
-                if (pd.type == HERE_ROOM) gd->room = pd.data.Room_obj; // NOTE: Dont forget to free them when leaving the room!
-                else TraceLog(LOG_INFO, "Wrong data on HERE_ROOM message!");
-            }
-        } break;
-        case ERROR:
-        case NONE: {
-            if ((int)msgtype == ERROR) std::cout << "[NET-ERROR] "; // NOTE: This is annoying but needed to make the compiler shutup.
-            char *buffer = mg_json_get_str(payload, "$.data");
-            std::cout << TextFormat("%s", buffer) << std::endl;
-        } break;
-        default:
+        while (off < len) {
+            ParsedData pd{};
+            size_t used = 0;
+
+            if (!parse_one_packet(buf + off, len - off, &pd, &used))
             break;
+
+            off += used;
+
+            switch (pd.type) {
+            case HERE_ID: {
+                gd->player.id = pd.data.Int;
+                TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
+            } break;
+            case HERE_ROOM: {
+                gd->room = pd.data.Room_obj;
+                TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
+            } break;
+            case ERROR: {
+                TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
+            } break;
+            case OK:
+            case NONE: {
+                TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
+            } break;
+            default:
+                break;
+            }
+        }
+    } break;
+    case MG_EV_OPEN: {
+        TraceLog(LOG_INFO, "NET: Connection created");
+    } break;
+    case MG_EV_ERROR: {
+        TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
+    } break;
+    case MG_EV_CLOSE: {
+        TraceLog(LOG_INFO, "NET: Connection closed");
+        if (client) {
+            client->on_disconnected();
         }
     } break;
     default:
@@ -91,6 +108,42 @@ static int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
+static bool start_connection(ArsEng *engine) {
+    GameData *gd = (GameData *)engine->additional_data;
+    if (gd->url_buffer.empty()) return false;
+    gd->client->url = gd->url_buffer.c_str();
+    if (!gd->client->connect((void *)gd)) {
+        TraceLog(LOG_INFO, "NET: Failed to connect to the specified server");
+        return false;
+    }
+    Message msg = {};
+    msg.type = MessageType::GIVE_ID;
+    msg.response = MessageType::NONE;
+    gd->client->send(msg);
+    return true;
+}
+
+static TextInput *cTextInput(ArsEng *engine, const char *placeholder, std::string *buffer, int text_size,
+                            int padding, GameState state, Vector2 pos)
+{
+    TextInput *ti = new TextInput(placeholder);
+    ti->font = &engine->font;
+    ti->font_size = text_size;
+    ti->state = state;
+    ti->rec = { pos.x, pos.y, 100, 100};
+    ti->curpos = &engine->bigcanvas_cursor;
+    ti->padding = padding;
+    ti->draw_in_canvas = false;
+    ti->color[3] = {GetColor(0x000000ff)};
+    ti->color[2] = {GetColor(0xffffffff)};
+    ti->color[1] = {GetColor(0x000000ff)};
+    ti->color[0] = {GetColor(0xccccccff)};
+    ti->buffer = buffer;
+    ti->active_id = &engine->active;
+    ti->calculate_rec();
+    return ti;
+}
+
 static Button *cButton(ArsEng *engine, std::string text, int text_size,
         int padding, GameState state, Vector2 pos,
         std::function<void()> callback)
@@ -98,9 +151,9 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
     auto btn = new Button();
     btn->rec = {pos.x, pos.y, 1, 1};
     btn->state = state;
-    btn->text = text;
-    btn->text_size = text_size;
-    btn->curpos = &engine->cursor;
+    btn->str = text;
+    btn->str_size = text_size;
+    btn->curpos = &engine->bigcanvas_cursor;
     btn->padding = padding;
     btn->callback = callback;
     btn->font = &engine->font;
@@ -109,28 +162,18 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
     btn->color[1] = {GetColor(0x000000ff)};
     btn->color[2] = {GetColor(0x999999ff)};
     btn->color[3] = {GetColor(0xffffffff)};
-    btn->store_rec();
     return btn;
 }
 
 static Text *cText(ArsEng *engine, GameState state,
-                  std::string text, size_t text_size, Color color, Vector2 pos,
-                  bool center_x = true, bool center_y = true, size_t offsetx = 0, size_t offsety = 0)
+                  std::string text, size_t text_size, Color color, Vector2 pos)
 {
-    Vector2 wsize = engine->window_size;
     auto text1 = new Text();
     text1->text = text;
     text1->font = &engine->font;
     text1->text_size = text_size;
     text1->text_color = color;
     text1->rec = {pos.x,pos.y,100,100};
-    text1->store_rec();
-    text1->is_resizable = true;
-    text1->position_info.center_x = center_x;
-    text1->position_info.center_y = center_y;
-    text1->position_info.offset.x = offsetx;
-    text1->position_info.offset.y = offsety;
-    text1->update_using_scale(engine->get_scale_factor(), wsize);
     text1->state = state;
     return text1;
 }
@@ -145,9 +188,12 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(ball, (*z)++);
 }
 
-static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initInGame(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::INGAME;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    GameData *gd = (GameData *)engine->additional_data;
+
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
     else {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
@@ -156,19 +202,21 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
     p2->rec = Rectangle{ 0, 0, player2_text->width / 8.0f, player2_text->height / 8.0f };
-    p2->rec.x = (wsize->x - p2->rec.width) / 2;
-    p2->rec.y = (wsize->y - p2->rec.height) / 2;
+    p2->rec.x = (wsize.x - p2->rec.width) / 2;
+    p2->rec.y = (wsize.y - p2->rec.height) / 2;
 
     p2->state = state;
     p2->color = WHITE;
     p2->text = player2_text;
     engine->om.add_object(p2, (*z)++);
 
+    Texture2D *desk_text = engine->tm.load_texture("desk", "./assets/desk.png");
     auto desk = new Desk();
     desk->angle = {0.0f, 0.5f};
+    desk->text = desk_text;
     float offset = 16;
-    desk->rec = {offset, wsize->y / 2 + 5, wsize->x - offset * 2, wsize->y - 5};
-    desk->color = PINK;
+    desk->rec = {offset, wsize.y / 2 + 5, wsize.x - offset * 2, wsize.y - 5};
+    desk->color = GetColor(0x333333ff);
 
     desk->state = state;
     engine->om.add_object(desk, (*z)++);
@@ -189,7 +237,6 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     ns->state = state;
 
     srand(time(0));
-    GameData *gd = (GameData *)engine->additional_data;
     for (size_t i = 0; i < gd->round_needle_count; i++) {
         auto needle = new Needle();
         const int padding = 10;
@@ -214,78 +261,154 @@ static void initInGame(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
     }
 }
 
-static void initMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     (void)kh_id;
     GameState state = GameState::MENU;
     size_t title_size = 64;
     Color title_color = WHITE;
 
     Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0,0});
-    title1->position_info.offset.y = -title1->rec.height;
-    title1->update_using_scale(engine->get_scale_factor(), *wsize);
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
     engine->om.add_object(title1, (*z)++);
 
     Text *title2 = cText(engine, state, "Roullete", title_size, title_color, {0,0});
+    Vector2 title2_len = title2->calculate_len();
+    title2->rec.x = (wsize.x - title2_len.x) / 2.0f;
+    title2->rec.y = (wsize.y / 2.0f);
     engine->om.add_object(title2, (*z)++);
-
 
     size_t text_size = 36;
     size_t padding = 20;
 
-    Button *btn1 = cButton(engine, "Play", text_size, padding, state, {0,0},
-                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-                           [engine]() { engine->request_change_state(GameState::INGAME); }
+    Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
+                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           // [engine]() { engine->request_change_state(GameState::INGAME); }
     );
-    btn1->is_resizable = true;
-    btn1->position_info.center_x = true;
-    btn1->position_info.center_y = true;
     btn1->calculate_rec();
-    btn1->position_info.offset.y = title_size * 3;
-    btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
+    btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
     engine->om.add_object(btn1, (*z)++);
 
-    Button *btn2 = cButton(engine, "Conf", text_size, padding - 5, state, {0,0},
+
+    Texture2D *settings_cog = engine->tm.load_texture("cogs", "./assets/settings.png");
+    Button *btn2 = cButton(engine, "", text_size, padding, state, {0,0},
                            [engine]() { engine->request_change_state(GameState::SETTINGS); }
     );
-    btn2->is_resizable = true;
-    btn2->position_info.center_x = true;
-    btn2->position_info.center_y = true;
+    btn2->text = settings_cog;
     btn2->calculate_rec();
-    btn2->position_info.offset.y = title_size * 3;
-    btn2->position_info.offset.x = ((btn1->rec.width + btn2->rec.width) * 0.5f) + padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn2->rec.x = btn1->rec.x + btn1->rec.width + padding;
+    btn2->rec.y = btn1->rec.y;
+    btn2->rec.width = btn1->rec.height;
+    btn2->rec.height = btn1->rec.height;
     engine->om.add_object(btn2, (*z)++);
 
-    Button *btn3 = cButton(engine, "Exit", text_size, padding - 5, state, {0,0},
+    Texture2D *exit_icon = engine->tm.load_texture("exit", "./assets/exit.png");
+    Button *btn3 = cButton(engine, "", text_size, padding, state, {0,0},
                            [engine]() { engine->req_close = true; }
     );
-    btn3->is_resizable = true;
-    btn3->position_info.center_x = true;
-    btn3->position_info.center_y = true;
+    btn3->text = exit_icon;
     btn3->calculate_rec();
-    btn3->position_info.offset.y = title_size * 3;
-    btn3->position_info.offset.x = -((btn1->rec.width + btn3->rec.width) * 0.5f) - padding;
-    btn3->update_using_scale(engine->get_scale_factor(), *wsize);
+    btn3->rec.x = btn1->rec.x - (btn1->rec.height + padding);
+    btn3->rec.y = btn1->rec.y;
+    btn3->rec.width = btn1->rec.height;
+    btn3->rec.height = btn1->rec.height;
     engine->om.add_object(btn3, (*z)++);
 }
 
-static void initPlayMenu(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
-    (void)wsize;
-    (void)kh_id;
-    (void)z;
-    (void)engine;
-
-    /*
-    GameState state = GameState::SETTINGS;
-    size_t title_size = 64;
+static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    GameState state = GameState::PLAYMENU;
+    int padding = 20;
+    int text_size = 32;
+    int title_size = 64;
     Color title_color = WHITE;
-    // NOTE: will be the place where player input the room id
-    */
+
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
+    GameData *gd = (GameData *)engine->additional_data;
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+
+    Text *title1 = cText(engine, state, "Get ready", title_size, title_color, {0,0});
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = title1_len.y + padding;
+    engine->om.add_object(title1, (*z)++);
+
+    TextInput *url = cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
+                               state, { wsize.x / 2.0f, title1->rec.y + title1->rec.height });
+    url->rec.width = (wsize.x - padding * 5) / 2.0f;
+    url->rec.x = (wsize.x - url->rec.width) / 2.0f;
+    engine->om.add_object(url, (*z)++);
+
+    TextInput *id = cTextInput(engine, "Room id (insert only on connect)", &gd->buffer, text_size, padding,
+                               state, { wsize.x / 2.0f, url->rec.y + url->rec.height + (padding * 2) });
+    id->rec.width = (wsize.x - padding * 5) / 2.0f;
+    id->rec.x = (wsize.x - id->rec.width) / 2.0f;
+    engine->om.add_object(id, (*z)++);
+
+    HBox *hbox = new HBox();
+    hbox->state = state;
+    hbox->rec.x = padding * 10;
+    hbox->rec.y = id->rec.y + id->rec.height + (padding * 2);
+    hbox->rec.width = wsize.x - (hbox->rec.x * 2);
+    hbox->rec.height = 64 + padding;
+    hbox->padding = padding;
+    hbox->al = Alignment::CENTER;
+    hbox->draw_in_canvas = false;
+    engine->om.add_object(hbox, (*z)++);
+
+    Button *btncreate =
+        cButton(engine, "Create room", text_size, padding, state, {0,0},
+            [engine, gd]() {
+            if (!gd->client->c) {
+                if (!start_connection(engine)) return;
+            }
+            Message msg = {};
+            msg.type = CREATE_ROOM;
+            msg.response = NONE;
+            gd->client->send(msg);
+        });
+    btncreate->calculate_rec();
+    engine->om.add_object(btncreate, (*z)++);
+    hbox->add_child(btncreate);
+    hbox->position_child();
+
+    Button *btnconnect = cButton(engine, "Connect to room", text_size, padding, state, {0,0},
+                              [engine]() { /* TODO: trigger something to show the dialog box for code */ }
+    );
+    btnconnect->calculate_rec();
+    engine->om.add_object(btnconnect, (*z)++);
+    hbox->add_child(btnconnect);
+    hbox->position_child();
+
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                           [engine]() { engine->revert_state(); }
+    );
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
+    engine->om.add_object(btn1, (*z)++);
 }
 
-static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
+static void initSettings(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
+    size_t text_size = 32;
+    size_t padding = 20;
     Color title_color = WHITE;
 
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
@@ -294,91 +417,96 @@ static void initSettings(ArsEng *engine, int kh_id, Vector2 *wsize, int *z) {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
 
-    Text *title1 = cText(engine, state, "Game Settings", title_size, title_color, {0,0}, false, false, 10, 10);
+    Text *title1 = cText(engine, state, "Settings", title_size, title_color, {0,0});
+    Vector2 title1_len = title1->calculate_len();
+    title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+    title1->rec.y = title1_len.y + padding;
     engine->om.add_object(title1, (*z)++);
 
+    #ifndef __EMSCRIPTEN__
+    Text *restext = cText(engine, state, "Resolution", text_size, title_color, {0,0});
+    Vector2 restext_len = restext->calculate_len();
+    restext->rec.x = (wsize.x - restext_len.x) / 2.0f;
+    restext->rec.y = title1->rec.y + (padding * 5 + restext_len.y);
+    engine->om.add_object(restext, (*z)++);
 
-    size_t text_size = 36;
-    size_t padding = 20;
+    // res here
+    HBox *hbox = new HBox();
+    hbox->state = state;
+    hbox->rec.x = padding * 10;
+    hbox->rec.y = restext->rec.y + restext_len.y + (padding * 2);
+    hbox->rec.width = wsize.x - (hbox->rec.x * 2);
+    hbox->rec.height = 64 + padding;
+    hbox->padding = padding;
+    hbox->al = Alignment::CENTER;
+    hbox->draw_in_canvas = false;
+    engine->om.add_object(hbox, (*z)++);
 
-    // Button *btn1 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
-    //                        [engine]() { engine->request_resize({1280, 720}); }
-    // );
-    // btn1->is_resizable = true;
-    // btn1->position_info.center_x = true;
-    // btn1->position_info.center_y = true;
-    // btn1->calculate_rec();
-    // btn1->update_using_scale(engine->get_scale_factor(), *wsize);
-    // engine->om.add_object(btn1, (*z)++);
-
-    Button *btn1 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1920, 1080}); }
+    Button *btnfull = cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_fullscreen(); }
     );
-    btn1->is_resizable = true;
-    btn1->calculate_rec();
-    btn1->position_info.center_y = true;
-    btn1->position_info.offset.y = -btn1->rec.height * 3;
-    btn1->position_info.offset.x = padding;
-    btn1->update_using_scale(engine->get_scale_factor(), *wsize);
+    btnfull->calculate_rec();
+    engine->om.add_object(btnfull, (*z)++);
+    hbox->add_child(btnfull);
+    hbox->position_child();
+
+    Button *btnhd = cButton(engine, "720p", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_resize({1280, 720}); }
+    );
+    btnhd->calculate_rec();
+    engine->om.add_object(btnhd, (*z)++);
+    hbox->add_child(btnhd);
+    hbox->position_child();
+
+    Button *btnfhd = cButton(engine, "1080p", text_size, padding, state, {0,0},
+                              [engine]() { engine->request_resize({1920, 1080}); }
+    );
+    btnfhd->calculate_rec();
+    engine->om.add_object(btnfhd, (*z)++);
+    hbox->add_child(btnfhd);
+    hbox->position_child();
+    #endif // __EMSCRIPTEN__
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                           [engine]() { engine->revert_state(); }
+    );
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
     engine->om.add_object(btn1, (*z)++);
-
-    Button *btn2 = cButton(engine, "720p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1280, 720}); }
-    );
-    btn2->is_resizable = true;
-    btn2->calculate_rec();
-    btn2->position_info.center_y = true;
-    btn2->position_info.offset_times_scale[0] = false;
-    btn2->position_info.offset.y = -btn2->rec.height * 3;
-    btn2->position_info.offset.x = btn1->rec.width * 2 + padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn2, (*z)++);
-
-    /*
-    Button *btn2 = cButton(engine, "1080p", text_size, padding - 5, state, {0,0},
-                           [engine]() { engine->request_resize({1920, 1080}); }
-    );
-    btn2->is_resizable = true;
-    btn2->position_info.center_x = true;
-    btn2->position_info.center_y = true;
-    btn2->calculate_rec();
-    btn2->position_info.offset.x = -((btn1->rec.width + btn2->rec.width) * 0.5f) - padding;
-    btn2->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn2, (*z)++);
-
-    Button *btn3 = cButton(engine, "Fullscreen", text_size, padding - 5, state, {0,0},
-                           []() { TraceLog(LOG_INFO, "Not implemented for now"); }
-    );
-    btn3->is_resizable = true;
-    btn3->position_info.center_x = true;
-    btn3->position_info.center_y = true;
-    btn3->calculate_rec();
-    btn3->position_info.offset.x = ((btn1->rec.width + btn3->rec.width) * 0.5f) + padding;
-    btn3->update_using_scale(engine->get_scale_factor(), *wsize);
-    engine->om.add_object(btn3, (*z)++);
-    */
 }
 
 
-// TODO: Connect the connect_room, create_room, give_id
-//       use something like this: client->send(Message{});
-static void gameInit(ArsEng *engine) {
-    std::string ip = "127.0.0.1";
-    uint16_t port = 8000;
+static void initALLObject(ArsEng *engine, int kh_id, int *z) {
+    (void)kh_id;
+    Script *sc = new Script();
+    sc->state = GameState::ALL;
+    sc->callback = [engine]() {
+        GameData *gd = (GameData *)engine->additional_data;
+        if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
+        {
+            engine->request_change_state(GameState::ROOMMENU);
+        }
+    };
+    engine->om.add_object(sc, (*z)++);
+}
 
+
+static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
     gd->pstate = PlayerState::PLAYER1;
-
     gd->client = new Client();
-
-    // TODO: Call when the ip and port is inserted
-    gd->client->ip = ip;
-    gd->client->port = port;
     gd->client->callback = client_handler;
-
-    // TODO: Move it to other func so it can be called when ip and port inserted
-    gd->client->connect((void *)gd);
+    gd->player = {};
+    gd->room = nullptr;
 #ifndef __EMSCRIPTEN__
     // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
@@ -395,18 +523,20 @@ static void gameInit(ArsEng *engine) {
         engine->canvas_size.x,
         engine->canvas_size.y,
     };
-    Vector2 win_size = engine->window_size;
+    //TODO(1):
+    (void)canvas_size;
 
     KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
     int kh_id = engine->om.add_object(kh, z++);
 
     // Load Object
+    initALLObject  (engine, kh_id, &z);
     initTestObject (engine, kh_id, &z);
-    initMenu       (engine, kh_id, &win_size, &z);
-    initSettings   (engine, kh_id, &win_size, &z);
-    initPlayMenu   (engine, kh_id, &canvas_size, &z);
-    initInGame     (engine, kh_id, &canvas_size, &z);
+    initMenu       (engine, kh_id, &z);
+    initSettings   (engine, kh_id, &z);
+    initPlayMenu   (engine, kh_id, &z);
+    initInGame     (engine, kh_id, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {
