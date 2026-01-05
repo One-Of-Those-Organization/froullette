@@ -111,12 +111,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 }
             } break;
             case CONNECT_ROOM: {
-                // TODO: broken
                 char *msgdata = pd.data.String;
-                printf("got data: %s\n", msgdata);
-                asm("int3");
-
                 if (!msgdata) break;
+
                 Room *selroom = nullptr;
                 for (auto &r: created_room) {
                     if (strncmp(r->id, msgdata, ID_MAX_COUNT) == 0) {
