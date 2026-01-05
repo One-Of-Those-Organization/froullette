@@ -190,7 +190,7 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initInGame(ArsEng *engine, int kh_id, int *z) {
-    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    Vector2 wsize = { (float)engine->canvas.texture.width, (float)engine->canvas.texture.height };
     GameState state = GameState::INGAME;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     GameData *gd = (GameData *)engine->additional_data;
@@ -199,6 +199,20 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     else {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
+
+    int text_size = 32;
+    int padding = 20;
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    Button *btnexit = cButton(engine, "", text_size, padding, state, {0,0},
+                           [engine]() { engine->req_close = true; }
+    );
+    btnexit->text = exit_icon;
+    btnexit->calculate_rec();
+    btnexit->rec.x = padding;
+    btnexit->rec.y = padding;
+    btnexit->rec.width  = 64;
+    btnexit->rec.height = 64;
+    engine->om.add_object(btnexit, (*z)++);
 
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
@@ -285,8 +299,8 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
-                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-                           // [engine]() { engine->request_change_state(GameState::INGAME); }
+                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->calculate_rec();
     btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
