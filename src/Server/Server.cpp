@@ -22,8 +22,10 @@ static void timer_fn(void *arg)
 {
     struct mg_mgr *mgr = (struct mg_mgr *) arg;
     for (struct mg_connection *wc = mgr->conns; wc != NULL; wc = wc->next) {
-      if (wc->data[0] == 'W') {}
-        // mg_ws_send(wc, data->buf, data->len, WEBSOCKET_OP_TEXT);
+        if (wc->data[0] == 'W') {}
+        // char *hello = "hello";
+        // size_t len = strlen(hello);
+        // mg_ws_send(wc, hello, len, WEBSOCKET_OP_BINARY);
     }
 }
 
@@ -94,7 +96,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                              "Max rooms count reached");
                 } else {
                     *r = Room{}; // this is the free selected room
-                    created_room.push_back(r); // NOTE: Store the room globally to have easy access later
                     int id = player_conmap[c];
                     r->player_len = 1;
                     r->players[0] = &server->players[id];
@@ -102,14 +103,53 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     char *stuff = generate_random_id(ID_MAX_COUNT); // NOTE: No need to free its using the Helper static buffer
                     strncpy(r->id, stuff, ID_MAX_COUNT);
                     r->id[ID_MAX_COUNT - 1] = 0;
+                    created_room.push_back(r); // NOTE: Store the room globally to have easy access later
 
                     reply.type = MessageType::HERE_ROOM;
                     reply.response = MessageType::CREATE_ROOM;
                     reply.data.Room_obj = r;
                 }
             } break;
-            case CONNECT_ROOM: {} break;
-            case EXIT_ROOM: {} break;
+            case CONNECT_ROOM: {
+                // TODO: broken
+                char *msgdata = pd.data.String;
+                printf("got data: %s\n", msgdata);
+                asm("int3");
+
+                if (!msgdata) break;
+                Room *selroom = nullptr;
+                for (auto &r: created_room) {
+                    if (strncmp(r->id, msgdata, ID_MAX_COUNT) == 0) {
+                        if (r->player_len < 2 && r->state != ROOM_RUNNING) {
+                            selroom = r;
+                            break;
+                        }
+                    }
+                }
+                if (!selroom) {
+                    reply.type = MessageType::ERROR;
+                    reply.response = MessageType::CONNECT_ROOM;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "The associated user cannot assigned to that room."); // TODO(0): make it more nice in the future by telling what is the reason.
+                } else {
+                    if (!player_conmap.count(c)) {
+                        reply.type = MessageType::ERROR;
+                        reply.response = MessageType::CONNECT_ROOM;
+                        snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                            "Please do GIVE_ID first to register/login.");
+                        break;
+                    }
+                    int id = player_conmap[c];
+                    selroom->players[get_room_player_empty(selroom)] = &server->players[id];
+                    selroom->player_len++;
+
+                    reply.type = MessageType::HERE_ROOM;
+                    reply.response = MessageType::CONNECT_ROOM;
+                    reply.data.Room_obj = selroom;
+                }
+            } break;
+            case EXIT_ROOM: {
+            } break;
             case GAME_START: {
                 Room *r = nullptr;
                 uint32_t id = player_conmap[c];

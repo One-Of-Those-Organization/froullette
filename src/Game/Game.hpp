@@ -20,6 +20,7 @@
 #include "Client.hpp"
 #include <ctime>
 #include <thread>
+#include <format>
 
 struct GameData {
     size_t round_needle_count;
@@ -371,13 +372,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     Button *btncreate =
         cButton(engine, "Create room", text_size, padding, state, {0,0},
             [engine, gd]() {
-            if (!gd->client->c) {
-                if (!start_connection(engine)) return;
-            }
-            Message msg = {};
-            msg.type = CREATE_ROOM;
-            msg.response = NONE;
-            gd->client->send(msg);
+                if (!gd->client->c) {
+                    if (!start_connection(engine)) return;
+                }
+                Message msg = {};
+                msg.type = CREATE_ROOM;
+                msg.response = NONE;
+                gd->client->send(msg);
         });
     btncreate->calculate_rec();
     engine->om.add_object(btncreate, (*z)++);
@@ -385,8 +386,16 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     hbox->position_child();
 
     Button *btnconnect = cButton(engine, "Connect to room", text_size, padding, state, {0,0},
-                              [engine]() { /* TODO: trigger something to show the dialog box for code */ }
-    );
+            [engine, gd]() {
+                if (!gd->client->c) {
+                    if (!start_connection(engine)) return;
+                }
+                Message msg = {};
+                msg.type = CONNECT_ROOM;
+                msg.response = NONE;
+                strncpy(msg.data.String, gd->buffer.data(), MAX_MESSAGE_STRING_SIZE);
+                gd->client->send(msg);
+        });
     btnconnect->calculate_rec();
     engine->om.add_object(btnconnect, (*z)++);
     hbox->add_child(btnconnect);
@@ -483,6 +492,59 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(btn1, (*z)++);
 }
 
+static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    GameState state = GameState::ROOMMENU;
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
+    else {
+        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    }
+
+    size_t text_size = 32;
+    size_t padding = 20;
+    Color title_color = WHITE;
+
+    Text *text_id = cText(engine, state, "Room id: _", text_size, title_color, {0,0});
+    Vector2 text_id_len = text_id->calculate_len();
+    text_id->rec.x = (wsize.x - text_id_len.x) / 2.0f;
+    text_id->rec.y = (wsize.y / 4.0f) - text_id_len.y;
+    engine->om.add_object(text_id, (*z)++);
+
+    Script *sc = new Script();
+    sc->callback = [engine, text_id, wsize]() {
+        GameData *gd = (GameData *)engine->additional_data;
+        if (gd->room) {
+            text_id->text = std::format("Room id: {}",gd->room->id);
+            text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
+        }
+        else if (has_flag(engine->state, GameState::ROOMMENU)){
+            engine->request_change_state(GameState::PLAYMENU);
+        }
+    };
+    engine->om.add_object(sc, (*z)++);
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                    [engine]() {
+                        GameData *gd = (GameData *)engine->additional_data;
+                        Message msg = {};
+                        msg.type = EXIT_ROOM;
+                        msg.response = NONE;
+                        gd->client->send(msg);
+                    });
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
+    engine->om.add_object(btn1, (*z)++);
+}
 
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     (void)kh_id;
@@ -498,7 +560,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(sc, (*z)++);
 }
 
-
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
@@ -508,7 +569,6 @@ static void gameInit(ArsEng *engine) {
     gd->player = {};
     gd->room = nullptr;
 #ifndef __EMSCRIPTEN__
-    // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
@@ -537,6 +597,7 @@ static void gameInit(ArsEng *engine) {
     initSettings   (engine, kh_id, &z);
     initPlayMenu   (engine, kh_id, &z);
     initInGame     (engine, kh_id, &z);
+    initRoomMenu   (engine, kh_id, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {

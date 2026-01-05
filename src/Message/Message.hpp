@@ -148,6 +148,7 @@ struct ParsedData {
         p += payload_len;
         break;
     }
+    case CONNECT_ROOM:
     case ERROR:
     case OK: {
         size_t str_len = strnlen(m->data.String, MAX_MESSAGE_STRING_SIZE);
@@ -210,7 +211,7 @@ static bool parse_one_packet(
     case HERE_ID:
         out->data.Int = read_u32(p);
         break;
-
+    case CONNECT_ROOM:
     case ERROR:
     case OK: {
         uint16_t len = read_u16(p);

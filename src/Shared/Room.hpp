@@ -5,7 +5,7 @@
 // Hardlimit for now too lazy...
 // it can be implemented using da(dynamic array) but the time is just too close.
 #define MAX_ROOM_COUNT 100
-#define ID_MAX_COUNT 16
+#define ID_MAX_COUNT 7
 
 enum RoomState {
     ROOM_FREE = 0,
