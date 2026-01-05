@@ -78,17 +78,6 @@ struct Message {
     } data;
 };
 
-struct ParsedData {
-    MessageType type;
-    union {
-        int Int;
-        char String[MAX_MESSAGE_STRING_SIZE];
-        Room *Room_obj;
-        Player *Player_obj;
-        // add more
-    } data;
-};
-
 [[maybe_unused]] static size_t gen_player_net_obj(uint8_t *buffer, Player *player) {
     uint8_t *p = buffer;
 
@@ -150,6 +139,7 @@ struct ParsedData {
     }
     case CONNECT_ROOM:
     case ERROR:
+    case NONE:
     case OK: {
         size_t str_len = strnlen(m->data.String, MAX_MESSAGE_STRING_SIZE);
         write_u16(&p, str_len);
@@ -169,7 +159,7 @@ struct ParsedData {
 }
 static bool parse_one_packet(
     uint8_t *buf, size_t len,
-    ParsedData *out,
+    Message *out,
     size_t *consumed
 ) {
     if (len < 3) return false;
@@ -212,6 +202,7 @@ static bool parse_one_packet(
         out->data.Int = read_u32(p);
         break;
     case CONNECT_ROOM:
+    case NONE:
     case ERROR:
     case OK: {
         uint16_t len = read_u16(p);

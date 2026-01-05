@@ -59,7 +59,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         size_t off = 0;
 
         while (off < len) {
-            ParsedData pd{};
+            Message pd{};
             size_t used = 0;
 
             if (!parse_one_packet(buf + off, len - off, &pd, &used))

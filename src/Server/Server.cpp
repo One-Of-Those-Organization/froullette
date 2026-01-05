@@ -49,7 +49,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         size_t len = wm->data.len;
         size_t off = 0;
         while (off < len) {
-            ParsedData pd{};
+            Message pd{};
             size_t used = 0;
             if (!parse_one_packet(buf + off, len - off, &pd, &used))
             break;
@@ -178,53 +178,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             printf("Generated data with size: %zu\n", n);
             mg_ws_send(c, out, n, WEBSOCKET_OP_BINARY);
         }
-    //     mg_ws_message *wm = (mg_ws_message *)ev_data;
-    //     struct mg_str payload = wm->data;
-    //     double msgtype;
-    //     bool success = mg_json_get_num(payload, "$.type", &msgtype);
-    //     if (!success) break;
-
     //     Message msg = {};
     //     switch ((int)msgtype) {
-    //     case CONNECT_ROOM: {
-    //         char *msgdata = mg_json_get_str(payload, "$.data");
-    //         if (!msgdata) break;
-    //         Room *selroom = nullptr;
-    //         for (auto &r: server->rooms) {
-    //             if (strncmp(r.id, msgdata, ID_MAX_COUNT) == 0) {
-    //                 if (r.player_len < 2 && r.state != ROOM_RUNNING) {
-    //                     selroom = &r;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         if (!selroom) {
-    //             msg.type = MessageType::ERROR;
-    //             msg.response = MessageType::CONNECT_ROOM;
-    //             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                 "The associated user cannot assigned to that room."); // TODO(0): make it more nice in the future by telling what is the reason.
-    //         } else {
-    //             if (!player_conmap.count(c)) {
-    //                 msg.type = MessageType::ERROR;
-    //                 msg.response = MessageType::CONNECT_ROOM;
-    //                 snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                     "Please do GIVE_ID first to register/login.");
-    //                 break;
-    //             }
-    //             use_bin = true;
-    //             int id = player_conmap[c];
-    //             selroom->players[get_room_player_empty(selroom)] = &server->players[id];
-    //             selroom->player_len++;
-
-    //             msg.type = MessageType::HERE_ROOM;
-    //             msg.response = MessageType::CONNECT_ROOM;
-    //             msg.data.Room_obj = selroom;
-
-    //             uint8_t buffer[MAX_MESSAGE_BIN_SIZE] = {};
-    //             size_t packet_len = generate_network_field(&msg, buffer);
-    //             mg_ws_send(c, buffer, packet_len, WEBSOCKET_OP_BINARY);
-    //         }
-    //     } break;
     //     case EXIT_ROOM: {
     //         if (!player_conmap.count(c)) {
     //             msg.type = MessageType::ERROR;
