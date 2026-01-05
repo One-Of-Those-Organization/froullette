@@ -330,7 +330,8 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
     else {
-        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+        // NOTE: Disable this binding because user can actually type q on the inputbox
+        // kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
     GameData *gd = (GameData *)engine->additional_data;
 
@@ -494,11 +495,20 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 
 static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    GameData *gd = (GameData *)engine->additional_data;
     GameState state = GameState::ROOMMENU;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
     else {
-        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+        kh->add_new(KEY_Q, state, [engine, gd]() {
+            Message msg = {};
+            msg.type = EXIT_ROOM;
+            msg.response = NONE;
+            gd->client->send(msg);
+            gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+            engine->revert_state();
+        });
+
     }
 
     size_t text_size = 32;
@@ -537,6 +547,8 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
                         msg.type = EXIT_ROOM;
                         msg.response = NONE;
                         gd->client->send(msg);
+                        gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+                        engine->revert_state();
                     });
     btn1->text = exit_icon;
     btn1->rec.width = 64;
