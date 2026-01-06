@@ -442,7 +442,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     hbox->position_child();
 
     Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
-                           [engine]() { engine->revert_state(); }
+                           [engine]() { engine->request_change_state(GameState::MENU); }
     );
     btn1->text = exit_icon;
     btn1->rec.width = 64;
@@ -456,7 +456,10 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
+
+    #ifndef __EMSCRIPTEN__
     size_t text_size = 32;
+    #endif
     size_t padding = 20;
     Color title_color = WHITE;
 
@@ -627,10 +630,18 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             GameState target = GameState::ROOMMENU;
             if (gd->room->state == ROOM_RUNNING) target = GameState::INGAME;
             engine->request_change_state(target);
+            return;
         }
         if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
             GameState target = GameState::PLAYMENU;
             engine->request_change_state(target);
+            return;
+        }
+        // TODO: the room_running will be fixed in the future with new msg.
+        if (gd->room && gd->room->state == ROOM_RUNNING) {
+            GameState target = GameState::INGAME;
+            engine->request_change_state(target);
+            return;
         }
     };
     engine->om.add_object(sc, (*z)++);
