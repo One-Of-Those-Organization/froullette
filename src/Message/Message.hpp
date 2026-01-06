@@ -120,7 +120,6 @@ struct Message {
     return (size_t)(p - buffer);
 }
 
-// TODO
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
 [[maybe_unused]] static size_t generate_network_field(Message *m, uint8_t *buffer) {
     uint8_t *p = buffer;

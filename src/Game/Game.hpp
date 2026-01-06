@@ -1,6 +1,6 @@
-// NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
-//       and pleasant the current API is SO SAD... and didnt work fully.
 #pragma once
+// NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
+
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
@@ -23,6 +23,7 @@
 #include <format>
 
 struct GameData {
+    std::mutex mutex;
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
@@ -69,10 +70,12 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 
             switch (pd.type) {
             case HERE_ID: {
+                std::lock_guard<std::mutex> lock(gd->mutex);
                 gd->player.id = pd.data.Int;
                 TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
             } break;
             case HERE_ROOM: {
+                std::lock_guard<std::mutex> lock(gd->mutex);
                 gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
@@ -95,7 +98,11 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
     } break;
     case MG_EV_CLOSE: {
+        std::lock_guard<std::mutex> lock(gd->mutex);
         TraceLog(LOG_INFO, "NET: Connection closed");
+        if (gd->room) delete gd->room;
+        gd->room = nullptr;
+        gd->player = Player{};
         if (client) {
             client->on_disconnected();
         }
@@ -111,6 +118,7 @@ static int rand_range(int min, int max) {
 
 static bool start_connection(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
+    std::lock_guard<std::mutex> lock(gd->mutex);
     if (gd->url_buffer.empty()) return false;
     gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
@@ -271,6 +279,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->curpos = &engine->canvas_cursor;
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
         needle->state = state;
+        needle->used = false;
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
@@ -599,7 +608,13 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
         GameData *gd = (GameData *)engine->additional_data;
         if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
         {
-            engine->request_change_state(GameState::ROOMMENU);
+            GameState target = GameState::ROOMMENU;
+            if (gd->room->state == ROOM_RUNNING) target = GameState::INGAME;
+            engine->request_change_state(target);
+        }
+        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
+            GameState target = GameState::PLAYMENU;
+            engine->request_change_state(target);
         }
     };
     engine->om.add_object(sc, (*z)++);

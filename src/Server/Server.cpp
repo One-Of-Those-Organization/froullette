@@ -160,7 +160,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                         if (ri->players[x]->id == id) {
                             r = ri;
                             p = ri->players[x];
-                            op = r->players[2 % (x+1)]; // Hack to get other player only work because 2 is the max
+                            if (ri->player_len > 1)
+                                op = r->players[2 % (x+1)]; // Hack to get other player only work because 2 is the max
                             break;
                         }
                     }
@@ -170,6 +171,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     p->ready = !p->ready; // Toggle ready state
                     if (op) {
                         if (op->ready && p->ready) { // if 2 of the player ready then start the game
+                            printf("%d and %d ready\n", p->ready, op->ready);
                             r->state = ROOM_RUNNING;
                             reply.type = MessageType::OK;
                             reply.response = MessageType::GAME_START;
@@ -178,6 +180,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                             break;
                         }
                     }
+                    reply.type = MessageType::OK;
+                    reply.response = MessageType::GAME_START;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Player ready!");
+                    break;
                 }
                 reply.type = MessageType::ERROR;
                 reply.response = MessageType::GAME_START;
