@@ -115,38 +115,59 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 char *msgdata = pd.data.String;
                 if (!msgdata) break;
 
+                if (!player_conmap.count(c)) {
+                    reply.type = MessageType::ERROR;
+                    reply.response = MessageType::CONNECT_ROOM;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "Please do GIVE_ID first.");
+                    break;
+                }
+
+                uint32_t my_id = player_conmap[c];
                 Room *selroom = nullptr;
-                for (auto &r: created_room) {
+
+                for (auto &r : created_room) {
                     if (strncmp(r->id, msgdata, ID_MAX_COUNT) == 0) {
-                        if (r->player_len < 2 && r->state != ROOM_RUNNING) {
-                            selroom = r;
+                        selroom = r;
+                        break;
+                    }
+                }
+
+                if (!selroom || selroom->state == ROOM_RUNNING || selroom->player_len >= 2) {
+                    reply.type = MessageType::ERROR;
+                    reply.response = MessageType::CONNECT_ROOM;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "Room full or not found.");
+                } else {
+                    bool already_in = false;
+                    for (int j = 0; j < 2; j++) {
+                        if (selroom->players[j] != nullptr && selroom->players[j]->id == my_id) {
+                            already_in = true;
                             break;
                         }
                     }
-                }
-                if (!selroom) {
-                    reply.type = MessageType::ERROR;
-                    reply.response = MessageType::CONNECT_ROOM;
-                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                        "The associated user cannot assigned to that room."); // TODO(0): make it more nice in the future by telling what is the reason.
-                } else {
-                    if (!player_conmap.count(c)) {
+
+                    if (already_in) {
                         reply.type = MessageType::ERROR;
                         reply.response = MessageType::CONNECT_ROOM;
-                        snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                            "Please do GIVE_ID first to register/login.");
-                        break;
-                    }
-                    int id = player_conmap[c];
-                    selroom->players[get_room_player_empty(selroom)] = &server->players[id];
-                    selroom->player_len++;
+                        snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "You are already in this room.");
+                    } else {
+                        int slot = get_room_player_empty(selroom);
+                        if (slot != -1) {
+                            selroom->players[slot] = &server->players[my_id];
+                            selroom->player_len++;
 
-                    reply.type = MessageType::HERE_ROOM;
-                    reply.response = MessageType::CONNECT_ROOM;
-                    reply.data.Room_obj = selroom;
+                            reply.type = MessageType::HERE_ROOM;
+                            reply.response = MessageType::CONNECT_ROOM;
+                            reply.data.Room_obj = selroom;
+                        } else {
+                            reply.type = MessageType::ERROR;
+                            reply.response = MessageType::CONNECT_ROOM;
+                            snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "No empty slots.");
+                        }
+                    }
                 }
             } break;
             case EXIT_ROOM: {
+                // TODO: this guy is the one that make empty info log
             } break;
             case GAME_START: {
                 Room *r = nullptr;
@@ -160,8 +181,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                         if (ri->players[x]->id == id) {
                             r = ri;
                             p = ri->players[x];
-                            if (ri->player_len > 1)
-                                op = r->players[2 % (x+1)]; // Hack to get other player only work because 2 is the max
+                            int other_idx = x ^ 1;
+                            if (ri->players[other_idx] != nullptr) {
+                                op = ri->players[other_idx];
+                            }
                             break;
                         }
                     }
@@ -180,10 +203,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                             break;
                         }
                     }
-                    reply.type = MessageType::OK;
+                    reply.type = MessageType::READY;
                     reply.response = MessageType::GAME_START;
-                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                        "Player ready!");
+                    reply.data.Boolean = (uint8_t)p->ready;
                     break;
                 }
                 reply.type = MessageType::ERROR;

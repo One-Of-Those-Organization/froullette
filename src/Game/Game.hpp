@@ -85,6 +85,12 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
+            case READY: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                gd->player.ready = pd.data.Boolean;
+            } break;
             case ERROR: {
                 TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
             } break;

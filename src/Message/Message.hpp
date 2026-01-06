@@ -64,6 +64,8 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
+    READY,
+
     GAME_START,         // for ready and stuff this stuff toggle
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
@@ -75,6 +77,7 @@ struct Message {
     MessageType type;
     MessageType response;
     union {
+        uint8_t Boolean;
         int Int;
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
@@ -141,6 +144,10 @@ struct Message {
         p += payload_len;
         break;
     }
+    case READY: {
+        *p++ = (uint8_t)m->data.Boolean;
+        payload_len++;
+    } break;
     case CONNECT_ROOM:
     case ERROR:
     case NONE:
@@ -203,6 +210,10 @@ static bool parse_one_packet(
         break;
     }
 
+    case READY: {
+        out->data.Boolean = (uint8_t)*p;
+        p++;
+    } break;
     case HERE_ID:
         out->data.Int = read_u32(p);
         break;
