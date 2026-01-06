@@ -23,7 +23,9 @@
 #include <format>
 
 struct GameData {
+#ifndef __EMSCRIPTEN__
     std::mutex mutex;
+#endif
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
@@ -70,12 +72,16 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 
             switch (pd.type) {
             case HERE_ID: {
+#ifndef __EMSCRIPTEN__
                 std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 gd->player.id = pd.data.Int;
                 TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
             } break;
             case HERE_ROOM: {
+#ifndef __EMSCRIPTEN__
                 std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
@@ -98,7 +104,9 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
     } break;
     case MG_EV_CLOSE: {
-        std::lock_guard<std::mutex> lock(gd->mutex);
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
         TraceLog(LOG_INFO, "NET: Connection closed");
         if (gd->room) delete gd->room;
         gd->room = nullptr;
@@ -118,7 +126,9 @@ static int rand_range(int min, int max) {
 
 static bool start_connection(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
-    std::lock_guard<std::mutex> lock(gd->mutex);
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     if (gd->url_buffer.empty()) return false;
     gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
