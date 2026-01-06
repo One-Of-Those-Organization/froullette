@@ -153,10 +153,15 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 uint32_t id = player_conmap[c];
                 for (size_t i = 0; i < created_room.size(); i++) {
                     Room *ri = created_room[i];
-                    if (ri->players[0]->id == id || ri->players[1]->id == id) {
-                        r = ri;
-                        break;
+                    for (int x = 0; x < 2; x++) {
+                        if (!ri->players[x]) continue;
+                        if (ri->players[x]->id == id) {
+                            r = ri;
+                            goto out;
+                        }
                     }
+                    out:
+                        if (r) break;
                 }
                 if (r) {
                     r->state = ROOM_RUNNING;
