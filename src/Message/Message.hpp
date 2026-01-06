@@ -43,6 +43,7 @@ enum RoomField : uint8_t {
 enum PlayerField : uint8_t {
     PF_ID     = 1,
     PF_HEALTH = 2,
+    PF_READY  = 3,
 };
 
 enum MessageType {
@@ -58,7 +59,7 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    GAME_START,
+    GAME_START, // for ready and stuff this stuff toggle
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
     GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
@@ -88,6 +89,10 @@ struct Message {
     *p++ = PF_HEALTH;
     write_u16(&p, 1);
     *p++ = (uint8_t)player->health;
+
+    *p++ = PF_READY;
+    *p++ = sizeof(uint8_t);
+    *p++ = (uint8_t)player->ready;
     return (size_t)(p - buffer);
 }
 
@@ -99,10 +104,6 @@ struct Message {
     write_u16(&p, id_len);
     memcpy(p, r->id, id_len);
     p += id_len;
-
-    // NOTE: Player will be sended later when the game start...
-    //       maybe that was right just to send the count of the player at that room
-    // gen_player_net_obj(buffer, player);
 
     *p++ = RF_PLAYER_COUNT;
     write_u16(&p, 1);
@@ -148,6 +149,7 @@ struct Message {
         payload_len += 2 + str_len;
         break;
     }
+    case GAME_START: {} break;
     default:
         break;
     }

@@ -65,6 +65,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     .id = server->ccount,
                     .health = MAX_PLAYER_HEALTH,
                     .con = c,
+                    .ready = false
                 };
                 player_conmap[c] = server->ccount;
                 ++server->ccount;

@@ -13,4 +13,5 @@ struct Player {
     #ifdef _SERVER
     mg_connection *con;
     #endif // _SERVER
+    bool ready;
 };

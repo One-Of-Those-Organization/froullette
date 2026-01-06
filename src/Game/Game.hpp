@@ -73,7 +73,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
             } break;
             case HERE_ROOM: {
-                gd->room = pd.data.Room_obj;
+                gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
             case ERROR: {
@@ -204,7 +204,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     int padding = 20;
     Texture2D *exit_icon = engine->tm.get_texture("exit");
     Button *btnexit = cButton(engine, "", text_size, padding, state, {0,0},
-                           [engine]() { engine->req_close = true; }
+                           [engine]() { engine->revert_state(); }
     );
     btnexit->text = exit_icon;
     btnexit->calculate_rec();
@@ -299,8 +299,8 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     size_t padding = 20;
 
     Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
-                           // [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-                           [engine]() { engine->request_change_state(GameState::INGAME); }
+                           [engine]() { engine->request_change_state(GameState::PLAYMENU); }
+                           // [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->calculate_rec();
     btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
@@ -519,7 +519,10 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
             msg.type = EXIT_ROOM;
             msg.response = NONE;
             gd->client->send(msg);
-            gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+            if (gd->room) {
+                delete gd->room;
+                gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+            }
             engine->revert_state();
         });
 
@@ -561,7 +564,10 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
                         msg.type = EXIT_ROOM;
                         msg.response = NONE;
                         gd->client->send(msg);
-                        gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+                        if (gd->room) {
+                            delete gd->room;
+                            gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+                        }
                         engine->revert_state();
                     });
     btn1->text = exit_icon;
@@ -570,6 +576,19 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     btn1->rec.x = padding;
     btn1->rec.y = padding;
     engine->om.add_object(btn1, (*z)++);
+
+    Button *btn2 = cButton(engine, "Ready", text_size, padding, state, {0,0},
+                [engine]() {
+                        GameData *gd = (GameData *)engine->additional_data;
+                        Message msg = {};
+                        msg.type = GAME_START;
+                        msg.response = NONE;
+                        gd->client->send(msg);
+                    });
+    btn2->calculate_rec();
+    btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    btn2->rec.y = (wsize.y - btn2->rec.width) / 2.0f;
+    engine->om.add_object(btn2, (*z)++);
 }
 
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
