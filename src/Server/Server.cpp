@@ -150,6 +150,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             } break;
             case GAME_START: {
                 Room *r = nullptr;
+                Player *p = nullptr;
+                Player *op = nullptr;
                 uint32_t id = player_conmap[c];
                 for (size_t i = 0; i < created_room.size(); i++) {
                     Room *ri = created_room[i];
@@ -157,19 +159,25 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                         if (!ri->players[x]) continue;
                         if (ri->players[x]->id == id) {
                             r = ri;
-                            goto out;
+                            p = ri->players[x];
+                            op = r->players[2 % (x+1)]; // Hack to get other player only work because 2 is the max
+                            break;
                         }
                     }
-                    out:
-                        if (r) break;
+                    if (r) break;
                 }
-                if (r) {
-                    r->state = ROOM_RUNNING;
-                    reply.type = MessageType::OK;
-                    reply.response = MessageType::GAME_START;
-                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                            "Started the game!");
-                    break;
+                if (r && p) {
+                    p->ready = !p->ready; // Toggle ready state
+                    if (op) {
+                        if (op->ready && p->ready) { // if 2 of the player ready then start the game
+                            r->state = ROOM_RUNNING;
+                            reply.type = MessageType::OK;
+                            reply.response = MessageType::GAME_START;
+                            snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                                "Started the game!");
+                            break;
+                        }
+                    }
                 }
                 reply.type = MessageType::ERROR;
                 reply.response = MessageType::GAME_START;
@@ -227,29 +235,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
     //         }
     //         msg.type = MessageType::ERROR;
     //         msg.response = MessageType::EXIT_ROOM;
-    //         snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                 "Cannot find the room!");
-    //     } break;
-    //     case GAME_START: {
-    //         Room *r = nullptr;
-    //         uint32_t id = player_conmap[c];
-    //         for (size_t i = 0; i < created_room.size(); i++) {
-    //             Room *ri = created_room[i];
-    //             if (ri->players[0]->id == id || ri->players[1]->id == id) {
-    //                 r = ri;
-    //                 break;
-    //             }
-    //         }
-    //         if (r) {
-    //             r->state = ROOM_RUNNING;
-    //             msg.type = MessageType::NONE;
-    //             msg.response = MessageType::GAME_START;
-    //             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                     "Started the game!");
-    //             break;
-    //         }
-    //         msg.type = MessageType::ERROR;
-    //         msg.response = MessageType::GAME_START;
     //         snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
     //                 "Cannot find the room!");
     //     } break;

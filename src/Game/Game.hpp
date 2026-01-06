@@ -269,7 +269,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->engine_dragged_id = &engine->dragged_obj;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
-        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
+        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
         needle->state = state;
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);

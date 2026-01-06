@@ -34,6 +34,11 @@ static uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
+enum NeedleField : uint8_t {
+    NF_ID = 1,
+    NF_TYPE = 2,
+};
+
 enum RoomField : uint8_t {
     RF_ID           = 1,
     RF_PLAYER_COUNT = 2,
@@ -59,7 +64,7 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    GAME_START, // for ready and stuff this stuff toggle
+    GAME_START,         // for ready and stuff this stuff toggle
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
     GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
@@ -74,7 +79,6 @@ struct Message {
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
         Player *Player_obj;
-        void *None;
         // add more
     } data;
 };
@@ -149,7 +153,7 @@ struct Message {
         payload_len += 2 + str_len;
         break;
     }
-    case GAME_START: {} break;
+    case GAME_START: { /* didnt need to send anything the server already know what to do. */ } break;
     default:
         break;
     }
