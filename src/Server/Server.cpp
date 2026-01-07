@@ -21,11 +21,20 @@ Room *find_free_room(Server* server) {
 static void timer_fn(void *arg)
 {
     struct mg_mgr *mgr = (struct mg_mgr *) arg;
+    /*
     for (struct mg_connection *wc = mgr->conns; wc != NULL; wc = wc->next) {
-        if (wc->data[0] == 'W') {}
-        // char *hello = "hello";
-        // size_t len = strlen(hello);
-        // mg_ws_send(wc, hello, len, WEBSOCKET_OP_BINARY);
+        if (wc->data[0] == 'W') {
+        }
+    }
+    */
+    for (auto &r: created_room) {
+        for (size_t i = 0; i < 2; i++) {
+            Player *p = r->players[i];
+            Player *op = r->players[x ^ 1];
+            if (!p) continue;
+            if (!op) break;
+            // TODO: broadcast the player stuff to each other
+        }
     }
 }
 
@@ -296,7 +305,7 @@ int main(int argc, char **argv)
 {
     static const char *ipflag = "-ip";
     static const char *portflag = "-port";
-    static const int resolution = 10;
+    static const int resolution = 100;
 
     bool error = false;
     std::string ip = "0.0.0.0";
