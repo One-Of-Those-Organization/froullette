@@ -28,13 +28,11 @@ static void timer_fn(void *arg)
     }
     */
     for (auto &r: created_room) {
-        for (size_t i = 0; i < 2; i++) {
-            Player *p = r->players[i];
-            Player *op = r->players[x ^ 1];
-            if (!p) continue;
-            if (!op) break;
-            // TODO: broadcast the player stuff to each other
-        }
+        Player *p = r->players[0];
+        Player *op = r->players[1];
+        if (!p || !op) continue; // if only 1 available continue to the next room skip the current one, take only the room with 2 valid player
+
+        // TODO: broadcast the player stuff to each other
     }
 }
 
