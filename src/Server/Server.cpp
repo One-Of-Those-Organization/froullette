@@ -3,11 +3,9 @@
 #include "Server.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Helper.hpp"
-#include "../Game/PlayerState.hpp"
 
 static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
-static PlayerState turn = PlayerState::PLAYER1;
 
 Room *find_free_room(Server* server) {
     for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
@@ -20,8 +18,9 @@ Room *find_free_room(Server* server) {
 
 static void timer_fn(void *arg)
 {
-    struct mg_mgr *mgr = (struct mg_mgr *) arg;
+    (void)arg;
     /*
+    struct mg_mgr *mgr = (struct mg_mgr *) arg;
     for (struct mg_connection *wc = mgr->conns; wc != NULL; wc = wc->next) {
         if (wc->data[0] == 'W') {
         }
