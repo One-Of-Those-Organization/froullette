@@ -301,6 +301,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
             .height = 20,
         };
 
+        needle->shared_id = i;
         needle->max_rec = needle_pos;
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;

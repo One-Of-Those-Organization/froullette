@@ -42,7 +42,8 @@ enum NeedleField : uint8_t {
 enum RoomField : uint8_t {
     RF_ID           = 1,
     RF_PLAYER_COUNT = 2,
-    RF_STATE        = 3
+    RF_STATE        = 3,
+    RF_PSTATE       = 4,
 };
 
 enum PlayerField : uint8_t {
@@ -118,6 +119,10 @@ struct Message {
     *p++ = RF_STATE;
     write_u16(&p, 1);
     *p++ = (uint8_t)r->state;
+
+    *p++ = RF_PSTATE;
+    write_u16(&p, 1);
+    *p++ = (uint8_t)r->turn;
 
     return (size_t)(p - buffer);
 }
@@ -203,6 +208,9 @@ static bool parse_one_packet(
                 break;
             case RF_STATE:
                 r->state = (RoomState)*p;
+                break;
+            case RF_PSTATE:
+                r->turn = (PlayerState)*p;
                 break;
             }
             p += flen;
