@@ -64,8 +64,7 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    READY,
-
+    READY,              // send back boolean to say if the user ready toggle
     GAME_START,         // for ready and stuff this stuff toggle
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
@@ -132,6 +131,7 @@ struct Message {
     write_u16(&p, 0);
 
     *p++ = (uint8_t)m->type;
+    *p++ = (uint8_t)m->response;
     size_t payload_len = 0;
     switch (m->type) {
     case HERE_ID: {
@@ -164,9 +164,8 @@ struct Message {
         break;
     }
 
-    uint16_t total_len = (uint16_t)(1 + payload_len);
-    len_ptr[0] = (uint8_t)(total_len & 0xff);
-    len_ptr[1] = (uint8_t)((total_len >> 8) & 0xff);
+    uint16_t total_len = (uint16_t)(2 + payload_len);
+    write_u16(&len_ptr, total_len);
     return 2 + total_len;
 }
 static bool parse_one_packet(
@@ -174,7 +173,7 @@ static bool parse_one_packet(
     Message *out,
     size_t *consumed
 ) {
-    if (len < 3) return false;
+    if (len < 4) return false;
 
     uint16_t msg_len = read_u16(buf);
     if ((uint16_t)len < msg_len + 2) return false;
@@ -183,6 +182,7 @@ static bool parse_one_packet(
     uint8_t *end = p + msg_len;
 
     out->type = (MessageType)*p++;
+    out->response = (MessageType)*p++;
 
     switch (out->type) {
     case HERE_ROOM: {
@@ -216,6 +216,7 @@ static bool parse_one_packet(
     } break;
     case HERE_ID:
         out->data.Int = read_u32(p);
+        p += sizeof(uint32_t);
         break;
     case CONNECT_ROOM:
     case NONE:

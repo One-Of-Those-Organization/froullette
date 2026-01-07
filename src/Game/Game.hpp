@@ -36,6 +36,7 @@ struct GameData {
     Player player;
     std::string url_buffer;
     std::string buffer;
+    std::string *text_buffer; // TODO: display this stuff
 };
 
 // TODO: Finish this
@@ -92,11 +93,19 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->player.ready = pd.data.Boolean;
             } break;
             case ERROR: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
+                *gd->text_buffer = pd.data.String;
             } break;
             case OK:
             case NONE: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
+                *gd->text_buffer = pd.data.String;
             } break;
             default:
                 break;
@@ -111,7 +120,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     } break;
     case MG_EV_CLOSE: {
 #ifndef __EMSCRIPTEN__
-                std::lock_guard<std::mutex> lock(gd->mutex);
+        std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         TraceLog(LOG_INFO, "NET: Connection closed");
         if (gd->room) delete gd->room;
@@ -620,11 +629,13 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     (void)kh_id;
+    GameState state = GameState::ALL;
     Script *sc = new Script();
-    sc->state = GameState::ALL;
-    sc->callback = [engine]() {
-        GameData *gd = (GameData *)engine->additional_data;
+    sc->state = state;
+    GameData *gd = (GameData *)engine->additional_data;
+    sc->callback = [engine, gd]() {
         if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
         {
             GameState target = GameState::ROOMMENU;
@@ -645,6 +656,14 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
         }
     };
     engine->om.add_object(sc, (*z)++);
+
+    // TODO: add 5 seconds timer to make the text unshow
+    int text_size = 32;
+    Color text_color = RED;
+    Text *t = cText(engine, state, std::string(), text_size, text_color, {0,0});
+    t->btext = gd->text_buffer;
+    t->rec.y = wsize.y - text_size;
+    engine->om.add_object(t, (*z)++);
 }
 
 static void gameInit(ArsEng *engine) {
@@ -655,6 +674,7 @@ static void gameInit(ArsEng *engine) {
     gd->client->callback = client_handler;
     gd->player = {};
     gd->room = nullptr;
+    gd->text_buffer = new std::string();
 #ifndef __EMSCRIPTEN__
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
@@ -695,6 +715,7 @@ static void gameDeinit(ArsEng *engine) {
         if (gd->_net.joinable()) { gd->_net.join(); }
 #endif
         delete gd->client;
+        delete gd->text_buffer;
         delete gd;
     }
 }

@@ -5,6 +5,7 @@
 
 class Text : public Object {
     public:
+        std::string *btext = nullptr;
         std::string text;
         int text_size;
         Color text_color;
@@ -21,12 +22,18 @@ class Text : public Object {
 
     void render() override {
         if (!this->show || !this->font) return;
-        DrawTextEx(*this->font, this->text.c_str(), {this->rec.x, this->rec.y}, (float)this->text_size, 1.0f, this->text_color);
+        if (this->btext)
+            DrawTextEx(*this->font, this->btext->c_str(), {this->rec.x, this->rec.y}, (float)this->text_size, 1.0f, this->text_color);
+        else
+            DrawTextEx(*this->font, this->text.c_str(), {this->rec.x, this->rec.y}, (float)this->text_size, 1.0f, this->text_color);
     }
 
     Vector2 calculate_len() {
         if (!this->font) return Vector2();
-        return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
+        if (this->btext)
+            return MeasureTextEx(*this->font, this->btext->c_str(), (float)this->text_size, 1.0f);
+        else
+            return MeasureTextEx(*this->font, this->text.c_str(), (float)this->text_size, 1.0f);
     }
 
     void logic(float dt) override {
