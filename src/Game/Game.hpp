@@ -580,19 +580,6 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     text_id->rec.y = (wsize.y / 4.0f) - text_id_len.y;
     engine->om.add_object(text_id, (*z)++);
 
-    Script *sc = new Script();
-    sc->callback = [engine, text_id, wsize]() {
-        GameData *gd = (GameData *)engine->additional_data;
-        if (gd->room) {
-            text_id->text = std::format("Room id: {}",gd->room->id);
-            text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
-        }
-        else if (has_flag(engine->state, GameState::ROOMMENU)){
-            engine->request_change_state(GameState::PLAYMENU);
-        }
-    };
-    engine->om.add_object(sc, (*z)++);
-
     Texture2D *exit_icon = engine->tm.get_texture("exit");
     if (!exit_icon) {
         TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
@@ -631,6 +618,34 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
     btn2->rec.y = (wsize.y - btn2->rec.width) / 2.0f;
     engine->om.add_object(btn2, (*z)++);
+
+    Script *sc = new Script();
+    sc->callback = [engine, text_id, wsize, btn2, gd]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->room) {
+            text_id->text = std::format("Room id: {}",gd->room->id);
+            text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
+        }
+        else if (has_flag(engine->state, GameState::ROOMMENU)){
+            engine->request_change_state(GameState::PLAYMENU);
+        }
+
+        // NOTE: This will be bad for performance but i guess for simplicity and for the result of my bad design
+        //       legit this is so bad...
+        if (gd->player.ready && btn2->str != "Ready") {
+            btn2->str = "Ready";
+            btn2->calculate_rec();
+            btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+        } else if (!gd->player.ready && btn2->str != "Unready"){
+            btn2->str = "Unready";
+            btn2->calculate_rec();
+            btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+        }
+    };
+    engine->om.add_object(sc, (*z)++);
+
 }
 
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
@@ -641,6 +656,9 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     sc->state = state;
     GameData *gd = (GameData *)engine->additional_data;
     sc->callback = [engine, gd]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
         if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
         {
             GameState target = GameState::ROOMMENU;
@@ -676,6 +694,9 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     ttimer->tt = LOOP;
     ttimer->state = state;
     ttimer->miss_callback = [t, gd, ttimer] () {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
         if (!gd->text_buffer_displayed) {
             gd->text_buffer_displayed = true;
             t->show = true;
@@ -683,6 +704,9 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
         }
     };
     ttimer->callback = [t, gd, ttimer]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
         if (!gd->text_buffer_displayed) {
             gd->text_buffer_displayed = true;
             t->show = true;
