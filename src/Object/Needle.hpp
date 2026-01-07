@@ -19,6 +19,7 @@ public:
     Rectangle max_rec = {};
     Rectangle _tooltip_rec = {};
     bool used = false;
+    int shared_id;
 
     Needle(): Object() {};
     virtual ~Needle() = default;
