@@ -39,7 +39,7 @@ struct GameData {
     std::string buffer;
 
     std::string *text_buffer;
-    std::string *old_text_buffer;
+    bool text_buffer_displayed;
 };
 
 // TODO: Finish this
@@ -100,7 +100,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
                 TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
-                *gd->old_text_buffer = *gd->text_buffer;
+                gd->text_buffer_displayed = false;
                 *gd->text_buffer = pd.data.String;
             } break;
             case OK:
@@ -109,7 +109,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
                 TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
-                *gd->old_text_buffer = *gd->text_buffer;
+                gd->text_buffer_displayed = false;
                 *gd->text_buffer = pd.data.String;
             } break;
             default:
@@ -668,17 +668,27 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     Text *t = cText(engine, state, std::string(), text_size, text_color, {0,0});
     t->btext = gd->text_buffer;
     t->rec.y = wsize.y - text_size;
+    t->show = false;
     engine->om.add_object(t, (*z)++);
 
     std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
     Timer *ttimer = new Timer(ms);
     ttimer->tt = LOOP;
     ttimer->state = state;
-    ttimer->callback = [t, gd]() {
-        if (*gd->old_text_buffer != *gd->text_buffer) {
+    ttimer->miss_callback = [t, gd, ttimer] () {
+        if (!gd->text_buffer_displayed) {
+            gd->text_buffer_displayed = true;
             t->show = true;
-            *gd->old_text_buffer = *gd->text_buffer;
-        } else t->show = false;
+            ttimer->start_timer();
+        }
+    };
+    ttimer->callback = [t, gd, ttimer]() {
+        if (!gd->text_buffer_displayed) {
+            gd->text_buffer_displayed = true;
+            t->show = true;
+            ttimer->start_timer();
+        }
+        t->show = false;
     };
     engine->om.add_object(ttimer, (*z)++);
     ttimer->start_timer();
@@ -693,7 +703,7 @@ static void gameInit(ArsEng *engine) {
     gd->player = {};
     gd->room = nullptr;
     gd->text_buffer = new std::string();
-    gd->old_text_buffer = new std::string();
+    gd->text_buffer_displayed = false;
 #ifndef __EMSCRIPTEN__
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
@@ -735,7 +745,6 @@ static void gameDeinit(ArsEng *engine) {
 #endif
         delete gd->client;
         delete gd->text_buffer;
-        delete gd->old_text_buffer;
         delete gd;
     }
 }
