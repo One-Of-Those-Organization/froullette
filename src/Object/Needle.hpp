@@ -20,6 +20,7 @@ public:
     Rectangle _tooltip_rec = {};
     bool used = false;
     int shared_id;
+    std::function<void()> callback;
 
     Needle(): Object() {};
     virtual ~Needle() = default;
@@ -68,18 +69,20 @@ public:
             this->offset.y = curpos->y - this->rec.y;
         }
 
-        // TODO: Handle mobile
         #ifdef MOBILE
+            if (this->_dragging && IsGestureDetected(GESTURE_DRAG)) {
+        #else
+            if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         #endif
-        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             _move_rec();
         }
         #ifdef MOBILE
+            if (this->_hovered && IsGestureDetected(GESTURE_DOUBLETAP)) {
+        #else
+            if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
         #endif
-        // NOTE: To use the needle use the right click
-        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
             this->used = true;
-            TraceLog(LOG_INFO, "TODO: Finish this");
+            if (this->callback) this->callback();
         }
 
     };
