@@ -690,12 +690,21 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
 
         // NOTE: This will be bad for performance but i guess for simplicity and for the result of my bad design
         //       legit this is so bad...
-        if (gd->player.ready && btn2->str != "Ready") {
-            btn2->str = "Ready";
-            btn2->calculate_rec();
-            btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
-        } else if (!gd->player.ready && btn2->str != "Unready"){
-            btn2->str = "Unready";
+        //  if (gd->player.ready && btn2->str != "Ready") {
+        //  btn2->str = "Ready";
+        //  btn2->calculate_rec();
+        //  btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+        //  } else if (!gd->player.ready && btn2->str != "Unready"){
+        //  btn2->str = "Unready";
+        //  btn2->calculate_rec();
+        //  btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+        //  }
+
+        // I'm trying to optimize this a bit maybe it's better? I don't know
+        static bool last_ready = false;
+        if (gd->player.ready != last_ready) {
+            last_ready = gd->player.ready;
+            btn2->str = gd->player.ready ? "Unready" : "Ready";
             btn2->calculate_rec();
             btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
         }
