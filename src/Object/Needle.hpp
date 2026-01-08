@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object.hpp"
+#include <functional>
 
 enum class NeedleType: int32_t {
     NT_BLANK = 0,

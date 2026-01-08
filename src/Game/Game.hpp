@@ -42,8 +42,6 @@ struct GameData {
     bool text_buffer_displayed;
 };
 
-// TODO: Finish this
-// NOTE: This is handler for the native version the web version wont be using this function
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
     GameData *gd = (GameData *)c->fn_data;
@@ -131,6 +129,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         if (gd->room) delete gd->room;
         gd->room = nullptr;
         gd->player = Player{};
+        gd->player.health = MAX_PLAYER_HEALTH;
         if (client) {
             client->on_disconnected();
         }
@@ -311,9 +310,17 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
         needle->state = state;
         needle->used = false;
+        needle->callback = [needle, gd]() {
+#ifndef __EMSCRIPTEN__
+            std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+            // TODO: Do some checkin when the health is <= 0
+            if (needle->type == NeedleType::NT_LIVE) gd->player.health--;
+        };
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
+    // TODO: put the whole health thing
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -340,7 +347,6 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 
     Button *btn1 = cButton(engine, "Start", text_size, padding, state, {0,0},
                            [engine]() { engine->request_change_state(GameState::PLAYMENU); }
-                           // [engine]() { engine->request_change_state(GameState::INGAME); }
     );
     btn1->calculate_rec();
     btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
@@ -383,8 +389,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
     else {
-        // NOTE: Disable this binding because user can actually type q on the inputbox
-        // kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+        kh->add_new(KEY_Q, state, [engine]() { if (engine->active >= 0) engine->revert_state(); });
     }
     GameData *gd = (GameData *)engine->additional_data;
 
@@ -680,7 +685,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     };
     engine->om.add_object(sc, (*z)++);
 
-    // TODO: add 5 seconds timer to make the text unshow
     int text_size = 32;
     Color text_color = RED;
     Text *t = cText(engine, state, std::string(), text_size, text_color, {0,0});
@@ -732,19 +736,10 @@ static void gameInit(ArsEng *engine) {
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
-#else
-    // Web: no network thread; WebSocket is event-driven via Emscripten callbacks
-    // If you need periodic work, do it in your render/update tick.
 #endif
 
     engine->additional_data = (void *)gd;
     int z = 1;
-    Vector2 canvas_size = {
-        engine->canvas_size.x,
-        engine->canvas_size.y,
-    };
-    //TODO(1):
-    (void)canvas_size;
 
     KeyHandler *kh = new KeyHandler();
     kh->engine_state = &engine->state;
@@ -765,7 +760,7 @@ static void gameDeinit(ArsEng *engine) {
     if (gd) {
         if (gd->client) { gd->client->done = true; }
 #ifndef __EMSCRIPTEN__
-        if (gd->_net.joinable()) { gd->_net.join(); }
+        if (gd->_net.joinable()) { gd->_net.join(); } // NOTE: on thread model no need no delay because `join` will wait that thread to exit.
 #endif
         delete gd->client;
         delete gd->text_buffer;
