@@ -3,11 +3,13 @@
 #include "Object.hpp"
 #include <functional>
 
+// Enum for Needle Types
 enum class NeedleType: int32_t {
     NT_BLANK = 0,
     NT_LIVE = 1,
 };
 
+// Needle Object
 class Needle : public Object {
 public:
     NeedleType type;
@@ -22,8 +24,10 @@ public:
     bool used = false;
     int shared_id;
 
-    std::function<void(Needle*)> on_clicked; // Init this to handle click event
+    // Initialize on_clicked as a std::function
+    std::function<void(Needle*)> on_clicked;
 
+    // Call constructor and destructor
     Needle(): Object() {};
     virtual ~Needle() = default;
 

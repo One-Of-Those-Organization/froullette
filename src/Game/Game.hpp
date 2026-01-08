@@ -296,14 +296,36 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         const int padding = 10;
 
         needle->on_clicked = [gd](Needle* n) {
-                    n->used = true; // Mark as used
-                    if (n->type == NeedleType::NT_LIVE) {
-                        gd->hp--;  // Damage player
-                        TraceLog(LOG_INFO, "LIVE needle - HP decreased!");
-                    } else {
-                        TraceLog(LOG_INFO, "BLANK needle - Safe!");
+            n->used = true;
+            if (n->type == NeedleType::NT_LIVE) {
+                gd->hp--; // Update Visuals
+
+                // Check if server is connected, because we can't send message without connection
+                if (gd->client && gd->client->c) {
+                    // HP update message
+                    Message hp_msg = {};
+                    hp_msg.type = PLAYER_HP_UPDATE;
+                    hp_msg.data. Int = gd->hp;
+                    gd->client->send(hp_msg);
+
+                    // Needle used message
+                    Message needle_msg = {};
+                    needle_msg. type = NEEDLE_USED;
+                    needle_msg.data.Int = n->shared_id;
+                    gd->client->send(needle_msg);
+
+                    // Player dead message
+                    if (gd->hp <= 0) {
+                        Message pstate_msg = {};
+                        pstate_msg.type = PLAYER_DEAD;
+                        gd->client->send(pstate_msg);
                     }
-                };
+                }
+                TraceLog(LOG_INFO, "LIVE needle - HP: %d", gd->hp);
+            } else {
+                TraceLog(LOG_INFO, "BLANK needle - Safe!");
+            }
+        };
 
         Rectangle current_pos = {
             .x      = padding + needle_pos.x + (i * 6),
@@ -319,7 +341,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->engine_dragged_id = &engine->dragged_obj;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
-        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
+        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
         needle->state = state;
         needle->used = false;
         engine->om.add_object(needle, (*z)++);
@@ -714,7 +736,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     };
     engine->om.add_object(sc, (*z)++);
 
-    // TODO: add 5 seconds timer to make the text unshow
     int text_size = 32;
     Color text_color = RED;
     Text *t = cText(engine, state, std::string(), text_size, text_color, {0,0});
@@ -723,11 +744,27 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     t->show = false;
     engine->om.add_object(t, (*z)++);
 
-    std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
+    std::chrono::milliseconds ms = std::chrono::milliseconds(5000); // 5 seconds
+    // Start timer and loop it
     Timer *ttimer = new Timer(ms);
     ttimer->tt = LOOP;
-    ttimer->state = state;
-    ttimer->miss_callback = [t, gd, ttimer] () {
+
+    // ttimer->state = state;
+    // ttimer->miss_callback = [t, gd, ttimer] () {
+
+    ttimer->miss_callback = [t, gd, ttimer]() {
+        // Show text when buffer has new message
+        if (!gd->text_buffer_displayed && !gd->text_buffer->empty()) {
+            gd->text_buffer_displayed = true;
+            t->show = true;
+            ttimer->start_timer();
+        }
+
+        ttimer->callback = [t, gd, ttimer]() {
+            // Hide text after timer ends
+            t->show = false;
+        }
+    }
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
