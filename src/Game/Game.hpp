@@ -320,7 +320,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
-    // TODO: put the whole health thing
+    // TODO: put the whole health thing (use the brain texture right)
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
