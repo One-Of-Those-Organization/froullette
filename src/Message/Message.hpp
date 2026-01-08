@@ -65,8 +65,9 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    READY,              // send back boolean to say if the user ready toggle
-    GAME_START,         // for ready and stuff this stuff toggle
+    READY_STATUS,       // send back boolean to say if the user ready toggle
+    TOGGLE_READY,       // for ready and stuff this stuff toggle
+    GAME_START,
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
     GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
@@ -149,7 +150,7 @@ struct Message {
         p += payload_len;
         break;
     }
-    case READY: {
+    case READY_STATUS: {
         *p++ = (uint8_t)m->data.Boolean;
         payload_len++;
     } break;
@@ -164,7 +165,8 @@ struct Message {
         payload_len += 2 + str_len;
         break;
     }
-    case GAME_START: { /* didnt need to send anything the server already know what to do. */ } break;
+    case GAME_START:
+    case TOGGLE_READY: { /* didnt need to send anything the server already know what to do. */ } break;
     default:
         break;
     }
@@ -218,7 +220,7 @@ static bool parse_one_packet(
         break;
     }
 
-    case READY: {
+    case READY_STATUS: {
         out->data.Boolean = (uint8_t)*p;
         p++;
     } break;

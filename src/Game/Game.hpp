@@ -87,7 +87,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
-            case READY: {
+            case READY_STATUS: {
 #ifndef __EMSCRIPTEN__
                 std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -110,6 +110,12 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->text_buffer_displayed = false;
                 *gd->text_buffer = pd.data.String;
             } break;
+            case GAME_START: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                if (gd->room) gd->room->state = ROOM_RUNNING;
+            } break;
             default:
                 break;
             }
@@ -119,7 +125,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         TraceLog(LOG_INFO, "NET: Connection created");
     } break;
     case MG_EV_ERROR: {
-        TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        const char *fm = TextFormat("NET: Error: %s", (char *)ev_data);
+        TraceLog(LOG_ERROR, "%s", fm);
+        gd->text_buffer_displayed = false;
+        *gd->text_buffer = fm;
     } break;
     case MG_EV_CLOSE: {
 #ifndef __EMSCRIPTEN__
@@ -146,12 +158,15 @@ static int rand_range(int min, int max) {
 static bool start_connection(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
 #ifndef __EMSCRIPTEN__
-                std::lock_guard<std::mutex> lock(gd->mutex);
+    std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
     if (gd->url_buffer.empty()) return false;
     gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
-        TraceLog(LOG_INFO, "NET: Failed to connect to the specified server");
+        const char *fm = "NET: Failed to connect to the specified server";
+        TraceLog(LOG_INFO, "%s", fm);
+        gd->text_buffer_displayed = false;
+        *gd->text_buffer = fm;
         return false;
     }
     Message msg = {};
@@ -615,7 +630,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
                 [engine]() {
                         GameData *gd = (GameData *)engine->additional_data;
                         Message msg = {};
-                        msg.type = GAME_START;
+                        msg.type = TOGGLE_READY;
                         msg.response = NONE;
                         gd->client->send(msg);
                     });
@@ -676,7 +691,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             engine->request_change_state(target);
             return;
         }
-        // TODO: the room_running will be fixed in the future with new msg.
         if (gd->room && gd->room->state == ROOM_RUNNING) {
             GameState target = GameState::INGAME;
             engine->request_change_state(target);
@@ -707,15 +721,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             ttimer->start_timer();
         }
     };
-    ttimer->callback = [t, gd, ttimer]() {
-#ifndef __EMSCRIPTEN__
-        std::lock_guard<std::mutex> lock(gd->mutex);
-#endif
-        if (!gd->text_buffer_displayed) {
-            gd->text_buffer_displayed = true;
-            t->show = true;
-            ttimer->start_timer();
-        }
+    ttimer->callback = [t]() {
         t->show = false;
     };
     engine->om.add_object(ttimer, (*z)++);

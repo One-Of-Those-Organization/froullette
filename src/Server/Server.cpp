@@ -30,7 +30,6 @@ static void timer_fn(void *arg)
         Player *p = r->players[0];
         Player *op = r->players[1];
         if (!p || !op) continue; // if only 1 available continue to the next room skip the current one, take only the room with 2 valid player
-
         // TODO: broadcast the player stuff to each other
     }
 }
@@ -175,7 +174,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             case EXIT_ROOM: {
                 // TODO: this guy is the one that make empty info log
             } break;
-            case GAME_START: {
+            case TOGGLE_READY: {
                 Room *r = nullptr;
                 Player *p = nullptr;
                 Player *op = nullptr;
@@ -200,22 +199,26 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     p->ready = !p->ready; // Toggle ready state
                     if (op) {
                         if (op->ready && p->ready) { // if 2 of the player ready then start the game
-                            printf("%d and %d ready\n", p->ready, op->ready);
                             r->state = ROOM_RUNNING;
+                            reply.type = MessageType::GAME_START;
+                            reply.response = MessageType::TOGGLE_READY;
+                            break;
+                            /*
                             reply.type = MessageType::OK;
-                            reply.response = MessageType::GAME_START;
+                            reply.response = MessageType::TOGGLE_READY;
                             snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                                 "Started the game!");
                             break;
+                            */
                         }
                     }
-                    reply.type = MessageType::READY;
-                    reply.response = MessageType::GAME_START;
+                    reply.type = MessageType::READY_STATUS;
+                    reply.response = MessageType::TOGGLE_READY;
                     reply.data.Boolean = (uint8_t)p->ready;
                     break;
                 }
                 reply.type = MessageType::ERROR;
-                reply.response = MessageType::GAME_START;
+                reply.response = MessageType::TOGGLE_READY;
                 snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                         "Cannot find the room!");
             } break;
