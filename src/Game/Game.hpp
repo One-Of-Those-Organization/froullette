@@ -300,27 +300,28 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
             if (n->type == NeedleType::NT_LIVE) {
                 gd->hp--; // Update Visuals
 
+                // TODO: Add these network messages later ???
                 // Check if server is connected, because we can't send message without connection
-                if (gd->client && gd->client->c) {
-                    // HP update message
-                    Message hp_msg = {};
-                    hp_msg.type = PLAYER_HP_UPDATE;
-                    hp_msg.data. Int = gd->hp;
-                    gd->client->send(hp_msg);
+                // if (gd->client && gd->client->c) {
+                //  // HP update message
+                //  Message hp_msg = {};
+                //  hp_msg.type = PLAYER_HP_UPDATE;
+                //  hp_msg.data. Int = gd->hp;
+                //  gd->client->send(hp_msg);
 
-                    // Needle used message
-                    Message needle_msg = {};
-                    needle_msg. type = NEEDLE_USED;
-                    needle_msg.data.Int = n->shared_id;
-                    gd->client->send(needle_msg);
+                //  // Needle used message
+                //  Message needle_msg = {};
+                //  needle_msg. type = NEEDLE_USED;
+                //  needle_msg.data.Int = n->shared_id;
+                //  gd->client->send(needle_msg);
 
-                    // Player dead message
-                    if (gd->hp <= 0) {
-                        Message pstate_msg = {};
-                        pstate_msg.type = PLAYER_DEAD;
-                        gd->client->send(pstate_msg);
-                    }
-                }
+                //  // Player dead message
+                //  if (gd->hp <= 0) {
+                //      Message pstate_msg = {};
+                //      pstate_msg.type = PLAYER_DEAD;
+                //      gd->client->send(pstate_msg);
+                //  }
+                //}
                 TraceLog(LOG_INFO, "LIVE needle - HP: %d", gd->hp);
             } else {
                 TraceLog(LOG_INFO, "BLANK needle - Safe!");
@@ -722,11 +723,11 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             return;
         }
         // Make sure to comment this whole check when testing without server client
-//        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
-//            GameState target = GameState::PLAYMENU;
-//            engine->request_change_state(target);
-//            return;
-//        }
+        //        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
+        //            GameState target = GameState::PLAYMENU;
+        //            engine->request_change_state(target);
+        //            return;
+        //        }
         // TODO: the room_running will be fixed in the future with new msg.
         if (gd->room && gd->room->state == ROOM_RUNNING) {
             GameState target = GameState::INGAME;
@@ -744,47 +745,35 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     t->show = false;
     engine->om.add_object(t, (*z)++);
 
-    std::chrono::milliseconds ms = std::chrono::milliseconds(5000); // 5 seconds
-    // Start timer and loop it
+    // 5 Seconds Timer to show the text buffer if not displayed yet
+    std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
     Timer *ttimer = new Timer(ms);
     ttimer->tt = LOOP;
+    ttimer->state = state;
 
-    // ttimer->state = state;
-    // ttimer->miss_callback = [t, gd, ttimer] () {
-
+    // Define Callbacks
     ttimer->miss_callback = [t, gd, ttimer]() {
-        // Show text when buffer has new message
-        if (!gd->text_buffer_displayed && !gd->text_buffer->empty()) {
-            gd->text_buffer_displayed = true;
-            t->show = true;
-            ttimer->start_timer();
-        }
-
-        ttimer->callback = [t, gd, ttimer]() {
-            // Hide text after timer ends
-            t->show = false;
-        }
-    }
 #ifndef __EMSCRIPTEN__
+        // Declare lock guard mutex
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+        // If has not been displayed yet, display it (new message)
         if (!gd->text_buffer_displayed) {
             gd->text_buffer_displayed = true;
             t->show = true;
             ttimer->start_timer();
         }
     };
+
+    // Clean up callback after every 5 seconds
     ttimer->callback = [t, gd, ttimer]() {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (!gd->text_buffer_displayed) {
-            gd->text_buffer_displayed = true;
-            t->show = true;
-            ttimer->start_timer();
-        }
-        t->show = false;
+        t->show = false; // Just hide it
     };
+
+    // Show the timer
     engine->om.add_object(ttimer, (*z)++);
     ttimer->start_timer();
 }
