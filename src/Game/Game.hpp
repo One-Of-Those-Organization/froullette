@@ -35,6 +35,7 @@ struct GameData {
 #endif
     Room *room;
     Player player;
+    int hp = 4;
     std::string url_buffer;
     std::string buffer;
 
@@ -294,6 +295,16 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         auto needle = new Needle();
         const int padding = 10;
 
+        needle->on_clicked = [gd](Needle* n) {
+                    n->used = true; // Mark as used
+                    if (n->type == NeedleType::NT_LIVE) {
+                        gd->hp--;  // Damage player
+                        TraceLog(LOG_INFO, "LIVE needle - HP decreased!");
+                    } else {
+                        TraceLog(LOG_INFO, "BLANK needle - Safe!");
+                    }
+                };
+
         Rectangle current_pos = {
             .x      = padding + needle_pos.x + (i * 6),
             .y      = needle_pos.y,
@@ -314,6 +325,20 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
+
+    Text *hp_display =cText(engine, state, "HP: 4", 32, RED, {wsize.x - 120, 20});
+    engine->om.add_object(hp_display, (*z)++);
+
+    Script *hpUpdater = new Script();
+    hpUpdater->state = state;
+    hpUpdater->callback = [gd, hp_display]() {
+        hp_display->text = TextFormat("HP: %d", gd->hp);
+        if (gd->hp <= 0) {
+            hp_display->text_color = BLACK;
+            TraceLog(LOG_INFO, "Player Died");
+        }
+    };
+    engine->om.add_object(hpUpdater, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -370,6 +395,14 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     btn3->rec.width = btn1->rec.height;
     btn3->rec.height = btn1->rec.height;
     engine->om.add_object(btn3, (*z)++);
+
+    // Test Mode Keybinding for Debugging
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (kh) {
+        kh->add_new(KEY_T, GameState::MENU, [engine]() {
+            engine->request_change_state(GameState::INGAME);
+        });
+    }
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
@@ -666,11 +699,12 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             engine->request_change_state(target);
             return;
         }
-        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
-            GameState target = GameState::PLAYMENU;
-            engine->request_change_state(target);
-            return;
-        }
+        // Make sure to comment this whole check when testing without server client
+//        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
+//            GameState target = GameState::PLAYMENU;
+//            engine->request_change_state(target);
+//            return;
+//        }
         // TODO: the room_running will be fixed in the future with new msg.
         if (gd->room && gd->room->state == ROOM_RUNNING) {
             GameState target = GameState::INGAME;
@@ -763,7 +797,13 @@ static void gameInit(ArsEng *engine) {
 static void gameDeinit(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
     if (gd) {
-        if (gd->client) { gd->client->done = true; }
+        // I'll keep the old version just in case wee don't need the delay
+        // if (gd->client) { gd->client->done = true; }
+        // Clean up ? Do we Need it ?
+        if (gd->client) {
+            gd->client->done = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
 #ifndef __EMSCRIPTEN__
         if (gd->_net.joinable()) { gd->_net.join(); }
 #endif

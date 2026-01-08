@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object.hpp"
+#include <functional>
 
 enum class NeedleType: int32_t {
     NT_BLANK = 0,
@@ -21,8 +22,15 @@ public:
     bool used = false;
     int shared_id;
 
+    std::function<void(Needle*)> on_clicked; // Init this to handle click event
+
     Needle(): Object() {};
     virtual ~Needle() = default;
+
+// Unused manual double tap detection
+//    float last_tap_time = 0.0f;
+//    const float DOUBLE_TAP_THRESHOLD = 0.3f;
+
     void render() override {
         if (!this->show || this->used) return;
 
@@ -46,19 +54,42 @@ public:
         if (!this->engine_dragging && !this->engine_dragged_id) return;
         if (this->used || !this->show) return;
 
-#ifdef MOBILE
-        if (IsGestureDetected(GESTURE_NONE))  {
-#else
-        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-#endif
-            this->_dragging = false;
-            *this->engine_dragging = false;
-        }
         this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
+
+// Inject Logic
+#ifdef MOBILE
+//        if (this->_hovered && IsGestureDetected(GESTURE_TAP) && this->on_clicked && !this->_dragging) {
+// Manual double tap detection
+        if (this->_hovered && IsGestureDetected(GESTURE_DOUBLETAP) && this->on_clicked && !this->_dragging) {
+//            float current_time = GetTime();
+            this->on_clicked(this);
+            return;
+
+// Unused manual double tap detection
+//            if (current_time - last_tap_time <= DOUBLE_TAP_THRESHOLD) {
+//                // DOUBLE TAP For Using
+//                this->on_clicked(this);
+//                last_tap_time = 0.0f;
+//                return;
+//            } else {
+//                // SINGLE TAP For Dragging
+//                last_tap_time = current_time;
+//            }
+        }
+#else
+        if (this->_hovered && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && this->on_clicked && !this->_dragging) {
+            this->on_clicked(this);
+            return;
+        }
+#endif
+//            this->_dragging = false;
+//            *this->engine_dragging = false;
+
+// Drag Logic
 #ifdef MOBILE
         if (this->_hovered && !*this->engine_dragging && IsGestureDetected(GESTURE_DRAG))  {
 #else
-        if (this->_hovered && !*this->engine_dragging && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ) {
+        if (this->_hovered && !*this->engine_dragging && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 #endif
             this->_dragging = true;
             *this->engine_dragging = true;
@@ -68,37 +99,89 @@ public:
             this->offset.y = curpos->y - this->rec.y;
         }
 
-        // TODO: Handle mobile
-        #ifdef MOBILE
-        #endif
-        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            _move_rec();
-        }
-        #ifdef MOBILE
-        #endif
-        // NOTE: To use the needle use the right click
-        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-            this->used = true;
-            TraceLog(LOG_INFO, "TODO: Finish this");
-        }
+// Drag Continue Logic
+#ifdef MOBILE
+    if (this->_dragging && IsGestureDetected(GESTURE_DRAG)) {
+#else
+    if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+#endif
+        _move_rec();
+    }
 
+// Drag Stop Logic
+#ifdef MOBILE
+        if (IsGestureDetected(GESTURE_NONE)) {
+#else
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+#endif
+            this->_dragging = false;
+            *this->engine_dragging = false;
+        }
     };
 
-    void _move_rec() {
-        Vector2 newpos = {};
-        newpos.x = this->curpos->x - this->offset.x;
-        newpos.y = this->curpos->y - this->offset.y;
+//        if (this->_dragging && IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+//            _move_rec();
+//        }
+//
+//        // TODO: Handle mobile
+//        #ifdef MOBILE
+//        #endif
+//        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+//            _move_rec();
+//        }
+//        #ifdef MOBILE
+//            if (IsGestureDetected(GESTURE_NONE))  {
+//        #else
+//            if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+//        #endif
+//        // NOTE: To use the needle use the right click
+////        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+////            this->used = true;
+////            TraceLog(LOG_INFO, "TODO: Finish this");
+////        }
+//        this->_dragging = false;
+//        *this->engine_dragging = false;
+//    };
 
-        if (newpos.x <= this->max_rec.x ||
-            newpos.y <= this->max_rec.y ||
-            newpos.x >= this->max_rec.width ||
-            newpos.y >= this->max_rec.height
-            ) {
-            this->offset.x = curpos->x - this->rec.x;
-            this->offset.y = curpos->y - this->rec.y;
-            return;
+//    void _move_rec() {
+//        Vector2 newpos = {};
+//        newpos.x = this->curpos->x - this->offset.x;
+//        newpos.y = this->curpos->y - this->offset.y;
+//
+//        // Don't allow moving out of bounds
+//        if (newpos.x <= this->max_rec.x ||
+//            newpos.y <= this->max_rec.y ||
+//            newpos.x >= this->max_rec.width ||
+//            newpos.y >= this->max_rec.height
+//            ) {
+//            // Reset offset if out of bounds
+//            this->offset.x = curpos->x - this->rec.x;
+//            this->offset.y = curpos->y - this->rec.y;
+//            return;
+//        }
+//
+//        // Move the needle
+//        rec.x = newpos.x;
+//        rec.y = newpos.y;
+//    }
+
+    void _move_rec() {
+        Vector2 target_pos = {
+            this->curpos->x - this->offset. x,
+            this->curpos->y - this->offset. y
+        };
+
+        if (target_pos. x < this->max_rec.x) target_pos.x = this->max_rec.x;
+        if (target_pos.y < this->max_rec.y) target_pos.y = this->max_rec.y;
+        if (target_pos. x > this->max_rec.x + this->max_rec.width - this->rec.width) {
+            target_pos.x = this->max_rec.x + this->max_rec.width - this->rec.width;
         }
-        rec.x = newpos.x;
-        rec.y = newpos.y;
+        if (target_pos.y > this->max_rec.y + this->max_rec.height - this->rec.height) {
+            target_pos.y = this->max_rec. y + this->max_rec.height - this->rec.height;
+        }
+
+        // Smooth movement (optional)
+        rec.x = target_pos.x;
+        rec.y = target_pos.y;
     }
 };
