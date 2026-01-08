@@ -349,7 +349,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         ns->needles.push_back(needle);
     }
 
-    Text *hp_display =cText(engine, state, "HP: 4", 32, RED, {wsize.x - 120, 20});
+    // Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {wsize.x - 100, wsize.y - 80});
+    // For now i use hardcoded values but i don't know how to make it responsive properly
+    Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {1100, 650});
     engine->om.add_object(hp_display, (*z)++);
 
     Script *hpUpdater = new Script();
@@ -812,6 +814,7 @@ static void gameInit(ArsEng *engine) {
         engine->canvas_size.x,
         engine->canvas_size.y,
     };
+    // Why is this TODO ? Specify reason please hehe
     //TODO(1):
     (void)canvas_size;
 
