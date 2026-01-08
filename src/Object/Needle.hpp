@@ -67,9 +67,15 @@ public:
             this->offset.x = curpos->x - this->rec.x;
             this->offset.y = curpos->y - this->rec.y;
         }
+
+        // TODO: Handle mobile
+        #ifdef MOBILE
+        #endif
         if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             _move_rec();
         }
+        #ifdef MOBILE
+        #endif
         // NOTE: To use the needle use the right click
         if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
             this->used = true;

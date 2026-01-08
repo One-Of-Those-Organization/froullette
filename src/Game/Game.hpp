@@ -347,7 +347,6 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
     engine->om.add_object(btn1, (*z)++);
 
-
     Texture2D *settings_cog = engine->tm.load_texture("cogs", "./assets/settings.png");
     Button *btn2 = cButton(engine, "", text_size, padding, state, {0,0},
                            [engine]() { engine->request_change_state(GameState::SETTINGS); }
