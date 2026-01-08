@@ -34,8 +34,13 @@ struct GameData {
     std::thread _net;
 #endif
     Room *room;
+
+    bool game_ended = false;
+
     Player player;
-    int hp = 4;
+    Player player1;
+    Player player2;
+
     std::string url_buffer;
     std::string buffer;
 
@@ -113,6 +118,39 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->text_buffer_displayed = false;
                 *gd->text_buffer = pd.data.String;
             } break;
+
+            case GAME_TURN_UPDATE: {
+                #ifndef __EMSCRIPTEN__
+                    std::lock_guard<std::mutex> lock(gd->mutex);
+                #endif
+                    gd->room->turn = (PlayerState)pd.data.Int;
+                    TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
+            } break;
+
+            case GAME_PLAYER_UPDATE: {
+                #ifndef __EMSCRIPTEN__
+                    std::lock_guard<std::mutex> lock(gd->mutex);
+                #endif
+                    gd->player.health = pd.data.Int;
+
+                    if (gd->pstate == PlayerState::PLAYER1) {
+                        gd->player1.health = pd.data.Int;
+                    } else {
+                        gd->player2.health = pd.data.Int;
+                    }
+                    TraceLog(LOG_INFO, "NET: Player Update received: %d", pd.data.Int);
+            } break;
+
+            // For the GAME_END should it be called when the game is ended?
+            case GAME_END: {
+                #ifndef __EMSCRIPTEN__
+                    std::lock_guard<std::mutex> lock(gd->mutex);
+                    gd->game_ended = true;
+                #endif
+                    // Handle Game Over Here for now i just throw to GAME MENU
+                    TraceLog(LOG_INFO, "NET: Game Ended");
+            } break;
+
             default:
                 break;
             }
@@ -296,37 +334,20 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         const int padding = 10;
 
         needle->on_clicked = [gd](Needle* n) {
+            // Allow click if it's the player's turn and needle is not used
+            if (gd->room->turn != gd->pstate) return;
+
             n->used = true;
-            if (n->type == NeedleType::NT_LIVE) {
-                gd->hp--; // Update Visuals
 
-                // TODO: Add these network messages later ???
-                // Check if server is connected, because we can't send message without connection
-                // if (gd->client && gd->client->c) {
-                //  // HP update message
-                //  Message hp_msg = {};
-                //  hp_msg.type = PLAYER_HP_UPDATE;
-                //  hp_msg.data. Int = gd->hp;
-                //  gd->client->send(hp_msg);
-
-                //  // Needle used message
-                //  Message needle_msg = {};
-                //  needle_msg. type = NEEDLE_USED;
-                //  needle_msg.data.Int = n->shared_id;
-                //  gd->client->send(needle_msg);
-
-                //  // Player dead message
-                //  if (gd->hp <= 0) {
-                //      Message pstate_msg = {};
-                //      pstate_msg.type = PLAYER_DEAD;
-                //      gd->client->send(pstate_msg);
-                //  }
-                //}
-                TraceLog(LOG_INFO, "LIVE needle - HP: %d", gd->hp);
-            } else {
-                TraceLog(LOG_INFO, "BLANK needle - Safe!");
-            }
+            // Send Needle Action
+            Message msg = {};
+            msg.type = GAME_PLAYER_UPDATE;
+            msg.data.Int = n->shared_id;
+            gd->client->send(msg);
         };
+
+        // TODO : Check if both players have used their needles to end the round
+        // WIP (Work In Progress)
 
         Rectangle current_pos = {
             .x      = padding + needle_pos.x + (i * 6),
@@ -349,19 +370,37 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         ns->needles.push_back(needle);
     }
 
+    // This for single player but we need to update for 2 players
     // Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {wsize.x - 100, wsize.y - 80});
-    // For now i use hardcoded values but i don't know how to make it responsive properly
+    // NOTE : For now i use hardcoded values but i don't know how to make it responsive properly
     Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {1100, 650});
     engine->om.add_object(hp_display, (*z)++);
 
     Script *hpUpdater = new Script();
     hpUpdater->state = state;
+
     hpUpdater->callback = [gd, hp_display]() {
-        hp_display->text = TextFormat("HP: %d", gd->hp);
-        if (gd->hp <= 0) {
-            hp_display->text_color = BLACK;
-            TraceLog(LOG_INFO, "Player Died");
+        // This for single player but we need to update for 2 players
+        //  hp_display->text = TextFormat("HP: %d", gd->player.health);
+        //  if (gd->player.health <= 0) {
+        //  hp_display->text_color = BLACK;
+        //  TraceLog(LOG_INFO, "Player Died");
+        //  }
+
+        // Updated for 2 players
+        if (gd->room->turn == PlayerState::PLAYER1) {
+            hp_display->text = TextFormat("P1 HP: %d", gd->player1.health);
+            hp_display->text_color = (gd->player1.health <= 0) ? BLACK : RED;
+        } else {
+            hp_display->text = TextFormat("P2 HP:  %d", gd->player2.health);
+            hp_display->text_color = (gd->player2.health <= 0) ? BLACK :  BLUE;
         }
+
+        if (gd->player.health <= 0 || gd->player.health <= 0) {
+            TraceLog(LOG_INFO, "Game Over");
+        }
+
+        // TODO : Add win condition and game over handling here, check who win and create some menu restart or go to main menu
     };
     engine->om.add_object(hpUpdater, (*z)++);
 }
@@ -723,6 +762,11 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     sc->state = state;
     GameData *gd = (GameData *)engine->additional_data;
     sc->callback = [engine, gd]() {
+        if (gd->game_ended) {
+            gd->game_ended = false;
+            engine->request_change_state(GameState::MENU);
+            return;
+        }
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -791,6 +835,8 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
 
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
+    gd->player1.health = 4;
+    gd->player2.health = 4;
     gd->round_needle_count = 5;
     gd->pstate = PlayerState::PLAYER1;
     gd->client = new Client();

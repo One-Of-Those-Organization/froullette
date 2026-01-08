@@ -5,7 +5,7 @@
 #include "../Shared/Player.hpp"
 
 // protocol: le
-// [msg_len][MSG][TYPE][len][bytes]
+// [msg_len][MSG][MSG][TYPE][len][bytes]
 
 #define MAX_MESSAGE_BIN_SIZE 512
 #define MAX_MESSAGE_STRING_SIZE 512
@@ -65,12 +65,12 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    READY,              // send back boolean to say if the user ready toggle
-    GAME_START,         // for ready and stuff this stuff toggle
-    GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
-    GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
-    GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
-    GAME_END,
+    READY,              // send back boolean to say if the user ready toggle (Already Used)
+    GAME_START,         // for ready and stuff this stuff toggle (Already Used)
+    GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE (Already Used)
+    GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def. (Already Used) -> Maybe add some more data if needed
+    GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?) - I guess not needed (Matthew)
+    GAME_END,           // Already Called but still need to continoue the implementation
 };
 
 struct Message {

@@ -147,45 +147,25 @@ public:
 //        *this->engine_dragging = false;
 //    };
 
-//    void _move_rec() {
-//        Vector2 newpos = {};
-//        newpos.x = this->curpos->x - this->offset.x;
-//        newpos.y = this->curpos->y - this->offset.y;
-//
-//        // Don't allow moving out of bounds
-//        if (newpos.x <= this->max_rec.x ||
-//            newpos.y <= this->max_rec.y ||
-//            newpos.x >= this->max_rec.width ||
-//            newpos.y >= this->max_rec.height
-//            ) {
-//            // Reset offset if out of bounds
-//            this->offset.x = curpos->x - this->rec.x;
-//            this->offset.y = curpos->y - this->rec.y;
-//            return;
-//        }
-//
-//        // Move the needle
-//        rec.x = newpos.x;
-//        rec.y = newpos.y;
-//    }
-
     void _move_rec() {
-        Vector2 target_pos = {
-            this->curpos->x - this->offset. x,
-            this->curpos->y - this->offset. y
-        };
+    	Vector2 newpos = {};
+		newpos.x = this->curpos->x - this->offset.x;
+		newpos.y = this->curpos->y - this->offset.y;
 
-        if (target_pos. x < this->max_rec.x) target_pos.x = this->max_rec.x;
-        if (target_pos.y < this->max_rec.y) target_pos.y = this->max_rec.y;
-        if (target_pos. x > this->max_rec.x + this->max_rec.width - this->rec.width) {
-            target_pos.x = this->max_rec.x + this->max_rec.width - this->rec.width;
-        }
-        if (target_pos.y > this->max_rec.y + this->max_rec.height - this->rec.height) {
-            target_pos.y = this->max_rec. y + this->max_rec.height - this->rec.height;
-        }
+          // Don't allow moving out of bounds
+		if (newpos.x <= this->max_rec.x ||
+			newpos.y <= this->max_rec.y ||
+			newpos.x >= this->max_rec.width ||
+			newpos.y >= this->max_rec.height
+			) {
+              // Reset offset if out of bounds
+			this->offset.x = curpos->x - this->rec.x;
+			this->offset.y = curpos->y - this->rec.y;
+			return;
+		}
 
-        // Smooth movement (optional)
-        rec.x = target_pos.x;
-        rec.y = target_pos.y;
-    }
+		// Move the needle
+		rec.x = newpos.x;
+		rec.y = newpos.y;
+	}
 };
