@@ -1,6 +1,6 @@
-// NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
-//       and pleasant the current API is SO SAD... and didnt work fully.
 #pragma once
+// NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
+
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
 #include "../Object/Desk.hpp"
@@ -11,6 +11,7 @@
 #include "../Object/Hbox.hpp"
 #include "../Object/Script.hpp"
 #include "../Object/TextInput.hpp"
+#include "../Object/Timer.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
@@ -20,8 +21,12 @@
 #include "Client.hpp"
 #include <ctime>
 #include <thread>
+#include <format>
 
 struct GameData {
+#ifndef __EMSCRIPTEN__
+    std::mutex mutex;
+#endif
     size_t round_needle_count;
     PlayerState pstate;
     Client *client;
@@ -32,6 +37,9 @@ struct GameData {
     Player player;
     std::string url_buffer;
     std::string buffer;
+
+    std::string *text_buffer;
+    bool text_buffer_displayed;
 };
 
 // TODO: Finish this
@@ -58,7 +66,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         size_t off = 0;
 
         while (off < len) {
-            ParsedData pd{};
+            Message pd{};
             size_t used = 0;
 
             if (!parse_one_packet(buf + off, len - off, &pd, &used))
@@ -68,19 +76,41 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 
             switch (pd.type) {
             case HERE_ID: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 gd->player.id = pd.data.Int;
                 TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
             } break;
             case HERE_ROOM: {
-                gd->room = pd.data.Room_obj;
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
             } break;
+            case READY: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                gd->player.ready = pd.data.Boolean;
+            } break;
             case ERROR: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
+                gd->text_buffer_displayed = false;
+                *gd->text_buffer = pd.data.String;
             } break;
             case OK:
             case NONE: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
                 TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
+                gd->text_buffer_displayed = false;
+                *gd->text_buffer = pd.data.String;
             } break;
             default:
                 break;
@@ -94,7 +124,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
         TraceLog(LOG_ERROR, "NET: Error: %s", (char *)ev_data);
     } break;
     case MG_EV_CLOSE: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
         TraceLog(LOG_INFO, "NET: Connection closed");
+        if (gd->room) delete gd->room;
+        gd->room = nullptr;
+        gd->player = Player{};
         if (client) {
             client->on_disconnected();
         }
@@ -110,6 +146,9 @@ static int rand_range(int min, int max) {
 
 static bool start_connection(ArsEng *engine) {
     GameData *gd = (GameData *)engine->additional_data;
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     if (gd->url_buffer.empty()) return false;
     gd->client->url = gd->url_buffer.c_str();
     if (!gd->client->connect((void *)gd)) {
@@ -189,7 +228,7 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initInGame(ArsEng *engine, int kh_id, int *z) {
-    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    Vector2 wsize = { (float)engine->canvas.texture.width, (float)engine->canvas.texture.height };
     GameState state = GameState::INGAME;
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     GameData *gd = (GameData *)engine->additional_data;
@@ -198,6 +237,20 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     else {
         kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
+
+    int text_size = 32;
+    int padding = 20;
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    Button *btnexit = cButton(engine, "", text_size, padding, state, {0,0},
+                           [engine]() { engine->revert_state(); }
+    );
+    btnexit->text = exit_icon;
+    btnexit->calculate_rec();
+    btnexit->rec.x = padding;
+    btnexit->rec.y = padding;
+    btnexit->rec.width  = 64;
+    btnexit->rec.height = 64;
+    engine->om.add_object(btnexit, (*z)++);
 
     Texture2D *player2_text = engine->tm.load_texture("p2", "./assets/DoctorFix1024.png");
     auto p2 = new Object();
@@ -248,14 +301,16 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
             .height = 20,
         };
 
+        needle->shared_id = i;
         needle->max_rec = needle_pos;
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
         needle->engine_dragged_id = &engine->dragged_obj;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
-        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
+        needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
         needle->state = state;
+        needle->used = false;
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
@@ -291,7 +346,6 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
     btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
     engine->om.add_object(btn1, (*z)++);
-
 
     Texture2D *settings_cog = engine->tm.load_texture("cogs", "./assets/settings.png");
     Button *btn2 = cButton(engine, "", text_size, padding, state, {0,0},
@@ -329,7 +383,8 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
     else {
-        kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+        // NOTE: Disable this binding because user can actually type q on the inputbox
+        // kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
     }
     GameData *gd = (GameData *)engine->additional_data;
 
@@ -371,13 +426,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     Button *btncreate =
         cButton(engine, "Create room", text_size, padding, state, {0,0},
             [engine, gd]() {
-            if (!gd->client->c) {
-                if (!start_connection(engine)) return;
-            }
-            Message msg = {};
-            msg.type = CREATE_ROOM;
-            msg.response = NONE;
-            gd->client->send(msg);
+                if (!gd->client->c) {
+                    if (!start_connection(engine)) return;
+                }
+                Message msg = {};
+                msg.type = CREATE_ROOM;
+                msg.response = NONE;
+                gd->client->send(msg);
         });
     btncreate->calculate_rec();
     engine->om.add_object(btncreate, (*z)++);
@@ -385,15 +440,23 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     hbox->position_child();
 
     Button *btnconnect = cButton(engine, "Connect to room", text_size, padding, state, {0,0},
-                              [engine]() { /* TODO: trigger something to show the dialog box for code */ }
-    );
+            [engine, gd]() {
+                if (!gd->client->c) {
+                    if (!start_connection(engine)) return;
+                }
+                Message msg = {};
+                msg.type = CONNECT_ROOM;
+                msg.response = NONE;
+                strncpy(msg.data.String, gd->buffer.data(), MAX_MESSAGE_STRING_SIZE);
+                gd->client->send(msg);
+        });
     btnconnect->calculate_rec();
     engine->om.add_object(btnconnect, (*z)++);
     hbox->add_child(btnconnect);
     hbox->position_child();
 
     Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
-                           [engine]() { engine->revert_state(); }
+                           [engine]() { engine->request_change_state(GameState::MENU); }
     );
     btn1->text = exit_icon;
     btn1->rec.width = 64;
@@ -407,7 +470,10 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     GameState state = GameState::SETTINGS;
     size_t title_size = 64;
+
+    #ifndef __EMSCRIPTEN__
     size_t text_size = 32;
+    #endif
     size_t padding = 20;
     Color title_color = WHITE;
 
@@ -483,21 +549,174 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(btn1, (*z)++);
 }
 
+static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    GameData *gd = (GameData *)engine->additional_data;
+    GameState state = GameState::ROOMMENU;
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
+    else {
+        kh->add_new(KEY_Q, state, [engine, gd]() {
+            Message msg = {};
+            msg.type = EXIT_ROOM;
+            msg.response = NONE;
+            gd->client->send(msg);
+            if (gd->room) {
+                delete gd->room;
+                gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+            }
+            engine->revert_state();
+        });
 
-static void initALLObject(ArsEng *engine, int kh_id, int *z) {
-    (void)kh_id;
+    }
+
+    size_t text_size = 32;
+    size_t padding = 20;
+    Color title_color = WHITE;
+
+    Text *text_id = cText(engine, state, "Room id: _", text_size, title_color, {0,0});
+    Vector2 text_id_len = text_id->calculate_len();
+    text_id->rec.x = (wsize.x - text_id_len.x) / 2.0f;
+    text_id->rec.y = (wsize.y / 4.0f) - text_id_len.y;
+    engine->om.add_object(text_id, (*z)++);
+
+    Texture2D *exit_icon = engine->tm.get_texture("exit");
+    if (!exit_icon) {
+        TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
+        return;
+    }
+
+    Button *btn1 = cButton(engine, "", 0, padding, state, {0,0},
+                    [engine]() {
+                        GameData *gd = (GameData *)engine->additional_data;
+                        Message msg = {};
+                        msg.type = EXIT_ROOM;
+                        msg.response = NONE;
+                        gd->client->send(msg);
+                        if (gd->room) {
+                            delete gd->room;
+                            gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+                        }
+                        engine->revert_state();
+                    });
+    btn1->text = exit_icon;
+    btn1->rec.width = 64;
+    btn1->rec.height = 64;
+    btn1->rec.x = padding;
+    btn1->rec.y = padding;
+    engine->om.add_object(btn1, (*z)++);
+
+    Button *btn2 = cButton(engine, "Ready", text_size, padding, state, {0,0},
+                [engine]() {
+                        GameData *gd = (GameData *)engine->additional_data;
+                        Message msg = {};
+                        msg.type = GAME_START;
+                        msg.response = NONE;
+                        gd->client->send(msg);
+                    });
+    btn2->calculate_rec();
+    btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    btn2->rec.y = (wsize.y - btn2->rec.width) / 2.0f;
+    engine->om.add_object(btn2, (*z)++);
+
     Script *sc = new Script();
-    sc->state = GameState::ALL;
-    sc->callback = [engine]() {
-        GameData *gd = (GameData *)engine->additional_data;
-        if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
-        {
-            engine->request_change_state(GameState::ROOMMENU);
+    sc->callback = [engine, text_id, wsize, btn2, gd]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->room) {
+            text_id->text = std::format("Room id: {}",gd->room->id);
+            text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
+        }
+        else if (has_flag(engine->state, GameState::ROOMMENU)){
+            engine->request_change_state(GameState::PLAYMENU);
+        }
+
+        // NOTE: This will be bad for performance but i guess for simplicity and for the result of my bad design
+        //       legit this is so bad...
+        if (gd->player.ready && btn2->str != "Ready") {
+            btn2->str = "Ready";
+            btn2->calculate_rec();
+            btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+        } else if (!gd->player.ready && btn2->str != "Unready"){
+            btn2->str = "Unready";
+            btn2->calculate_rec();
+            btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
         }
     };
     engine->om.add_object(sc, (*z)++);
+
 }
 
+static void initALLObject(ArsEng *engine, int kh_id, int *z) {
+    Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+    (void)kh_id;
+    GameState state = GameState::ALL;
+    Script *sc = new Script();
+    sc->state = state;
+    GameData *gd = (GameData *)engine->additional_data;
+    sc->callback = [engine, gd]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->room && !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED))
+        {
+            GameState target = GameState::ROOMMENU;
+            if (gd->room->state == ROOM_RUNNING) target = GameState::INGAME;
+            engine->request_change_state(target);
+            return;
+        }
+        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
+            GameState target = GameState::PLAYMENU;
+            engine->request_change_state(target);
+            return;
+        }
+        // TODO: the room_running will be fixed in the future with new msg.
+        if (gd->room && gd->room->state == ROOM_RUNNING) {
+            GameState target = GameState::INGAME;
+            engine->request_change_state(target);
+            return;
+        }
+    };
+    engine->om.add_object(sc, (*z)++);
+
+    // TODO: add 5 seconds timer to make the text unshow
+    int text_size = 32;
+    Color text_color = RED;
+    Text *t = cText(engine, state, std::string(), text_size, text_color, {0,0});
+    t->btext = gd->text_buffer;
+    t->rec.y = wsize.y - text_size;
+    t->show = false;
+    engine->om.add_object(t, (*z)++);
+
+    std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
+    Timer *ttimer = new Timer(ms);
+    ttimer->tt = LOOP;
+    ttimer->state = state;
+    ttimer->miss_callback = [t, gd, ttimer] () {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (!gd->text_buffer_displayed) {
+            gd->text_buffer_displayed = true;
+            t->show = true;
+            ttimer->start_timer();
+        }
+    };
+    ttimer->callback = [t, gd, ttimer]() {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (!gd->text_buffer_displayed) {
+            gd->text_buffer_displayed = true;
+            t->show = true;
+            ttimer->start_timer();
+        }
+        t->show = false;
+    };
+    engine->om.add_object(ttimer, (*z)++);
+    ttimer->start_timer();
+}
 
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
@@ -507,8 +726,9 @@ static void gameInit(ArsEng *engine) {
     gd->client->callback = client_handler;
     gd->player = {};
     gd->room = nullptr;
+    gd->text_buffer = new std::string();
+    gd->text_buffer_displayed = false;
 #ifndef __EMSCRIPTEN__
-    // Native: run network poll in a background thread
     gd->_net = std::thread([gd]() {
         if (gd && gd->client) { gd->client->loop(100); }
     });
@@ -537,6 +757,7 @@ static void gameInit(ArsEng *engine) {
     initSettings   (engine, kh_id, &z);
     initPlayMenu   (engine, kh_id, &z);
     initInGame     (engine, kh_id, &z);
+    initRoomMenu   (engine, kh_id, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {
@@ -547,6 +768,7 @@ static void gameDeinit(ArsEng *engine) {
         if (gd->_net.joinable()) { gd->_net.join(); }
 #endif
         delete gd->client;
+        delete gd->text_buffer;
         delete gd;
     }
 }

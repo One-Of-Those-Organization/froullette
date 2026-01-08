@@ -211,6 +211,8 @@ class Client {
 
 #ifdef __EMSCRIPTEN__
         static EM_BOOL on_open_ems(int eventType, const EmscriptenWebSocketOpenEvent *e, void *userData) {
+            (void)e;
+            (void)eventType;
             Client* self = (Client*)userData;
             if (self) {
                 self->on_connected();
@@ -222,6 +224,7 @@ class Client {
         }
 
         static EM_BOOL on_message_ems(int eventType, const EmscriptenWebSocketMessageEvent *e, void *userData) {
+            (void)eventType;
             Client* self = (Client*)userData;
             if (self && self->callback) {
                 struct mg_ws_message wm;
@@ -235,6 +238,8 @@ class Client {
         }
 
         static EM_BOOL on_close_ems(int eventType, const EmscriptenWebSocketCloseEvent *e, void *userData) {
+            (void)eventType;
+            (void)e;
             Client* self = (Client*)userData;
             if (self) {
                 self->on_disconnected();
@@ -246,6 +251,8 @@ class Client {
         }
 
         static EM_BOOL on_error_ems(int eventType, const EmscriptenWebSocketErrorEvent *e, void *userData) {
+            (void)eventType;
+            (void)e;
             Client* self = (Client*)userData;
             TraceLog(LOG_INFO, "NET: Websocket error");
             if (self && self->callback) {

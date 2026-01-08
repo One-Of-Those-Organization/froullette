@@ -1,3 +1,8 @@
-- [ ] Player struct init inside of the client
 - [ ] The item and stuff
 - [ ] effect of the item and needle
+- [ ] merge bram stuff
+- [ ] add player counter to the roommenu (impossible? since its only sending itown self ready status not other player?)
+
+- [x] make the ready button nicer
+- [x] Put the error on the client mine friende
+- [x] Player struct init inside of the client

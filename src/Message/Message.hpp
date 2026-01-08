@@ -34,15 +34,22 @@ static uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
+enum NeedleField : uint8_t {
+    NF_ID = 1,
+    NF_TYPE = 2,
+};
+
 enum RoomField : uint8_t {
     RF_ID           = 1,
     RF_PLAYER_COUNT = 2,
-    RF_STATE        = 3
+    RF_STATE        = 3,
+    RF_PSTATE       = 4,
 };
 
 enum PlayerField : uint8_t {
     PF_ID     = 1,
     PF_HEALTH = 2,
+    PF_READY  = 3,
 };
 
 enum MessageType {
@@ -58,7 +65,8 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    GAME_START,
+    READY,              // send back boolean to say if the user ready toggle
+    GAME_START,         // for ready and stuff this stuff toggle
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
     GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
@@ -69,22 +77,12 @@ struct Message {
     MessageType type;
     MessageType response;
     union {
+        uint8_t Boolean;
         int Int;
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
         Player *Player_obj;
         void *None;
-        // add more
-    } data;
-};
-
-struct ParsedData {
-    MessageType type;
-    union {
-        int Int;
-        char String[MAX_MESSAGE_STRING_SIZE];
-        Room *Room_obj;
-        Player *Player_obj;
         // add more
     } data;
 };
@@ -99,6 +97,10 @@ struct ParsedData {
     *p++ = PF_HEALTH;
     write_u16(&p, 1);
     *p++ = (uint8_t)player->health;
+
+    *p++ = PF_READY;
+    *p++ = sizeof(uint8_t);
+    *p++ = (uint8_t)player->ready;
     return (size_t)(p - buffer);
 }
 
@@ -111,10 +113,6 @@ struct ParsedData {
     memcpy(p, r->id, id_len);
     p += id_len;
 
-    // NOTE: Player will be sended later when the game start...
-    //       maybe that was right just to send the count of the player at that room
-    // gen_player_net_obj(buffer, player);
-
     *p++ = RF_PLAYER_COUNT;
     write_u16(&p, 1);
     *p++ = r->player_len;
@@ -123,10 +121,13 @@ struct ParsedData {
     write_u16(&p, 1);
     *p++ = (uint8_t)r->state;
 
+    *p++ = RF_PSTATE;
+    write_u16(&p, 1);
+    *p++ = (uint8_t)r->turn;
+
     return (size_t)(p - buffer);
 }
 
-// TODO
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
 [[maybe_unused]] static size_t generate_network_field(Message *m, uint8_t *buffer) {
     uint8_t *p = buffer;
@@ -136,6 +137,7 @@ struct ParsedData {
     write_u16(&p, 0);
 
     *p++ = (uint8_t)m->type;
+    *p++ = (uint8_t)m->response;
     size_t payload_len = 0;
     switch (m->type) {
     case HERE_ID: {
@@ -148,7 +150,13 @@ struct ParsedData {
         p += payload_len;
         break;
     }
+    case READY: {
+        *p++ = (uint8_t)m->data.Boolean;
+        payload_len++;
+    } break;
+    case CONNECT_ROOM:
     case ERROR:
+    case NONE:
     case OK: {
         size_t str_len = strnlen(m->data.String, MAX_MESSAGE_STRING_SIZE);
         write_u16(&p, str_len);
@@ -157,21 +165,21 @@ struct ParsedData {
         payload_len += 2 + str_len;
         break;
     }
+    case GAME_START: { /* didnt need to send anything the server already know what to do. */ } break;
     default:
         break;
     }
 
-    uint16_t total_len = (uint16_t)(1 + payload_len);
-    len_ptr[0] = (uint8_t)(total_len & 0xff);
-    len_ptr[1] = (uint8_t)((total_len >> 8) & 0xff);
+    uint16_t total_len = (uint16_t)(2 + payload_len);
+    write_u16(&len_ptr, total_len);
     return 2 + total_len;
 }
 static bool parse_one_packet(
     uint8_t *buf, size_t len,
-    ParsedData *out,
+    Message *out,
     size_t *consumed
 ) {
-    if (len < 3) return false;
+    if (len < 4) return false;
 
     uint16_t msg_len = read_u16(buf);
     if ((uint16_t)len < msg_len + 2) return false;
@@ -180,6 +188,7 @@ static bool parse_one_packet(
     uint8_t *end = p + msg_len;
 
     out->type = (MessageType)*p++;
+    out->response = (MessageType)*p++;
 
     switch (out->type) {
     case HERE_ROOM: {
@@ -201,16 +210,25 @@ static bool parse_one_packet(
             case RF_STATE:
                 r->state = (RoomState)*p;
                 break;
+            case RF_PSTATE:
+                r->turn = (PlayerState)*p;
+                break;
             }
             p += flen;
         }
         break;
     }
 
+    case READY: {
+        out->data.Boolean = (uint8_t)*p;
+        p++;
+    } break;
     case HERE_ID:
         out->data.Int = read_u32(p);
+        p += sizeof(uint32_t);
         break;
-
+    case CONNECT_ROOM:
+    case NONE:
     case ERROR:
     case OK: {
         uint16_t len = read_u16(p);
