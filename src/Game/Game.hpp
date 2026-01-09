@@ -28,7 +28,6 @@ struct GameData {
     std::mutex mutex;
 #endif
     size_t round_needle_count;
-    PlayerState pstate;
     Client *client;
 #ifndef __EMSCRIPTEN__
     std::thread _net;
@@ -256,8 +255,17 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     int padding = 20;
     Texture2D *exit_icon = engine->tm.get_texture("exit");
     Button *btnexit = cButton(engine, "", text_size, padding, state, {0,0},
-                           [engine]() { engine->revert_state(); }
-    );
+        [engine, gd]() {
+                Message msg = {};
+                msg.type = EXIT_ROOM;
+                msg.response = NONE;
+                gd->client->send(msg);
+                if (gd->room) {
+                    delete gd->room;
+                    gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
+                }
+                engine->revert_state();
+        });
     btnexit->text = exit_icon;
     btnexit->calculate_rec();
     btnexit->rec.x = padding;
@@ -731,7 +739,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
 static void gameInit(ArsEng *engine) {
     GameData *gd = new GameData();
     gd->round_needle_count = 5;
-    gd->pstate = PlayerState::PLAYER1;
     gd->client = new Client();
     gd->client->callback = client_handler;
     gd->player = {};
