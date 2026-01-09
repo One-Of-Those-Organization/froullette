@@ -49,6 +49,46 @@ struct GameData {
     bool text_buffer_displayed;
 };
 
+// Create Debug Mode for Dummy Room
+static void debug_mode(ArsEng *engine, GameData *gd) {
+    #ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+    #endif
+
+    // If Room not exist, create new
+    if (!gd->room) {
+        gd->room = new Room();
+        gd->room->state = ROOM_RUNNING;
+        return;
+    }
+
+    // Dummy Room Setup Steps:
+    strcpy(gd->room->id, "DEBUG_ROOM");
+    gd->room->state = ROOM_RUNNING; // Update State
+    gd->room->turn = PlayerState::PLAYER1; // Player 1 Start First
+    gd->room->player_len = 2; // 2 Players
+
+    // Dummy GameData Setup Steps:
+    gd->player.id = 100;
+    gd->player.ready = true;
+    gd->pstate = PlayerState::PLAYER1;
+
+    // Setup Player 1 and Player 2 Data
+    gd->player1.id = 100;
+    gd->player1.health = 4;
+    gd->player2.id = 200;
+    gd->player2.health = 4;
+
+    // Input the players into the room
+    gd->room->players[0] = &gd->player1;
+    gd->room->players[1] = &gd->player2;
+
+    TraceLog(LOG_INFO, "DEBUG: Dummy Room Created via 'T' Key");
+
+    // Instant Throw to Ingame for Testing
+    engine->request_change_state(GameState::INGAME);
+}
+
 // TODO: Finish this
 // NOTE: This is handler for the native version the web version wont be using this function
 static void client_handler(mg_connection *c, int ev, void *ev_data)
@@ -465,50 +505,11 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(btn3, (*z)++);
 
     // NOTE : Test Mode Keybinding for Debugging, Press T to go to Ingame directly
-	// Please ensure comment this code when building for release
+    // Please ensure comment this code when building for release
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (kh) {
         kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
-
-			// Add Dummy Room
-			#ifndef __EMSCRIPTEN__
-			std::lock_guard<std::mutex> lock(gd->mutex);
-            #endif
-
-			// If Room not exist, create new
-			if (!gd->room) {
-				gd->room = new Room();
-				gd->room->state = ROOM_RUNNING;
-				return;
-			}
-
-			// Dummy Room Setup Steps:
-            strcpy(gd->room->id, "DEBUG_ROOM");
-			TraceLog(LOG_INFO, "DEBUG: Setting up Dummy Room ID: %s", gd->room->id);
-            gd->room->state = ROOM_RUNNING;
-            gd->room->turn = PlayerState::PLAYER1; // Player 1 starts first
-            gd->room->player_len = 2; // 2 Players
-
-            // Dummy GameData Setup Steps:
-            gd->player.id = 100;
-            gd->player.ready = true;
-			gd->pstate = PlayerState::PLAYER1;
-
-            // Setup Player 1 and Player 2 Data
-            gd->player1.id = 100;
-            gd->player1.health = 4;
-
-            gd->player2.id = 200;
-            gd->player2.health = 4;
-
-            // Input the players into the room
-            gd->room->players[0] = &gd->player1;
-            gd->room->players[1] = &gd->player2;
-
-            TraceLog(LOG_INFO, "DEBUG: Dummy Room Created via 'T' Key");
-
-			// Instant Throw to Ingame for Testing
-            engine->request_change_state(GameState::INGAME);
+            debug_mode(engine, gd);
         });
     }
 }
