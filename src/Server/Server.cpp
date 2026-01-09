@@ -7,7 +7,8 @@
 static std::unordered_map<mg_connection*, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
 
-Room *find_free_room(Server* server) {
+Room *find_free_room(Server* server)
+{
     for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
         if (server->rooms[i].state == ROOM_FREE) {
             return &server->rooms[i];
@@ -18,6 +19,7 @@ Room *find_free_room(Server* server) {
 
 static void timer_fn(void *arg)
 {
+    uint8_t out[MAX_MESSAGE_BIN_SIZE];
     (void)arg;
     /*
     struct mg_mgr *mgr = (struct mg_mgr *) arg;
@@ -31,6 +33,17 @@ static void timer_fn(void *arg)
         Player *op = r->players[1];
         if (!p || !op) continue; // if only 1 available continue to the next room skip the current one, take only the room with 2 valid player
         // TODO: broadcast the player stuff to each other
+        if (r->state == ROOM_ACTIVE) {
+            Message msg = {};
+            msg.type = LOBBY_STATUS;
+            msg.response = NONE;
+            msg.data.LobbyStatus_obj = {r->player_len, {p->ready, op->ready}};
+            memset(out, 0, MAX_MESSAGE_BIN_SIZE);
+            size_t n = generate_network_field(&msg, out);
+            printf("Generated data with size: %zu\n", n);
+            mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+            mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+        }
     }
 }
 

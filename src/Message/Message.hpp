@@ -3,6 +3,7 @@
 #include "../mongoose.h"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
+#include "../Shared/LobbyStatus.hpp"
 
 // protocol: le
 // [msg_len][MSG][TYPE][len][bytes]
@@ -33,6 +34,11 @@ static uint16_t read_u16(const uint8_t *p) {
 static uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
+
+enum LobbyStatusField: uint8_t {
+    LSF_COUNT = 1,
+    LSF_READY = 2,
+};
 
 enum NeedleField : uint8_t {
     NF_ID = 1,
@@ -69,6 +75,9 @@ enum MessageType {
     READY_STATUS,       // send back boolean to say if the user ready toggle
     TOGGLE_READY,       // for ready and stuff this stuff toggle
     GAME_START,
+
+    LOBBY_STATUS,
+
     GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
     GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
     GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
@@ -84,6 +93,7 @@ struct Message {
         char String[MAX_MESSAGE_STRING_SIZE];
         Room *Room_obj;
         Player *Player_obj;
+        LobbyStatus LobbyStatus_obj;
         // add more
     } data;
 };
@@ -129,6 +139,22 @@ struct Message {
     return (size_t)(p - buffer);
 }
 
+// NOTE: make sure you sure that the 2 of the player is not null
+[[maybe_unused]] static size_t gen_lobby_status_net_obj(uint8_t *buffer, LobbyStatus *ls) {
+    uint8_t *p = buffer;
+
+    *p++ = LSF_COUNT;
+    write_u16(&p, 1);
+    *p++ = (uint8_t)ls->count;
+
+    *p++ = LSF_READY;
+    write_u16(&p, 2);
+    *p++ = (uint8_t)ls->ready[0];
+    *p++ = (uint8_t)ls->ready[1];
+
+    return (size_t)(p - buffer);
+}
+
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
 [[maybe_unused]] static size_t generate_network_field(Message *m, uint8_t *buffer) {
     uint8_t *p = buffer;
@@ -155,6 +181,10 @@ struct Message {
     case READY_STATUS: {
         *p++ = (uint8_t)m->data.Boolean;
         payload_len++;
+    } break;
+    case LOBBY_STATUS: {
+        LobbyStatus *r = &m->data.LobbyStatus_obj;
+        payload_len = gen_lobby_status_net_obj(p, r);
     } break;
     case CONNECT_ROOM:
     case ERROR:
@@ -219,9 +249,27 @@ static bool parse_one_packet(
             }
             p += flen;
         }
-        break;
-    }
+    } break;
+    case LOBBY_STATUS: {
+        out->data.LobbyStatus_obj = {};
+        while (p < end) {
+            uint8_t f = *p++;
+            uint16_t flen = read_u16(p); p += 2;
 
+            switch (f) {
+            case LSF_COUNT:
+                if (flen != 1) return false;
+                out->data.LobbyStatus_obj.count = *p;
+                break;
+            case LSF_READY:
+                if (flen != 2) return false;
+                out->data.LobbyStatus_obj.ready[0] = *p;
+                out->data.LobbyStatus_obj.ready[1] = *(p + 1);
+                break;
+            }
+            p += flen;
+        }
+    } break;
     case READY_STATUS: {
         out->data.Boolean = (uint8_t)*p;
         p++;

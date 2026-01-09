@@ -1,7 +1,8 @@
 - [ ] The item and stuff
 - [ ] effect of the item and needle
-- [ ] add player counter to the roommenu (impossible? since its only sending itown self ready status not other player?)
 - [ ] the server looping stuff
+- [ ] Init needle on the server
+- [x] add player counter to the roommenu (impossible? since its only sending itown self ready status not other player?) (server done)
 
 - [x] Finish exit room
 - [x] make the ready button nicer
