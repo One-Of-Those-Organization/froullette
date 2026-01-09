@@ -59,6 +59,7 @@ enum MessageType {
 
     GIVE_ID,
     HERE_ID,
+    LOGIN_ID,
 
     CREATE_ROOM,
     CONNECT_ROOM,
@@ -140,6 +141,7 @@ struct Message {
     *p++ = (uint8_t)m->response;
     size_t payload_len = 0;
     switch (m->type) {
+    case LOGIN_ID:
     case HERE_ID: {
         write_u32(&p, m->data.Int);
         payload_len = 4;
@@ -224,6 +226,7 @@ static bool parse_one_packet(
         out->data.Boolean = (uint8_t)*p;
         p++;
     } break;
+    case LOGIN_ID:
     case HERE_ID:
         out->data.Int = read_u32(p);
         p += sizeof(uint32_t);

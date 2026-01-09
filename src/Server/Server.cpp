@@ -63,6 +63,14 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
 
             Message reply{};
             switch (pd.type) {
+            case LOGIN_ID: {
+                if (server->players.count(pd.data.Int) > 0) {
+                    server->players[pd.data.Int].con = c;
+                    reply.type = OK;
+                    reply.response = LOGIN_ID;
+                    break;
+                }
+            } break;
             case GIVE_ID: {
                 reply.type = HERE_ID;
                 reply.data.Int = server->ccount;
@@ -202,6 +210,13 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                             r->state = ROOM_RUNNING;
                             reply.type = MessageType::GAME_START;
                             reply.response = MessageType::TOGGLE_READY;
+
+                            // NOTE: send to other player too
+                            uint8_t out[MAX_MESSAGE_BIN_SIZE];
+                            size_t n = generate_network_field(&reply, out);
+                            printf("Generated data with size: %zu\n", n);
+                            mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+
                             break;
                             /*
                             reply.type = MessageType::OK;
