@@ -22,6 +22,7 @@
 #include <ctime>
 #include <thread>
 #include <format>
+#include <functional>
 
 struct GameData {
 #ifndef __EMSCRIPTEN__
@@ -406,6 +407,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
+	// NOTE : For accessing gamedata in the keyhandler (Dummy), can Comment this out when building for release
+	GameData *gd = (GameData *)engine->additional_data;
+
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     (void)kh_id;
     GameState state = GameState::MENU;
@@ -460,10 +464,50 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     btn3->rec.height = btn1->rec.height;
     engine->om.add_object(btn3, (*z)++);
 
-    // Test Mode Keybinding for Debugging
+    // NOTE : Test Mode Keybinding for Debugging, Press T to go to Ingame directly
+	// Please ensure comment this code when building for release
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (kh) {
-        kh->add_new(KEY_T, GameState::MENU, [engine]() {
+        kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
+
+			// Add Dummy Room
+			#ifndef __EMSCRIPTEN__
+			std::lock_guard<std::mutex> lock(gd->mutex);
+            #endif
+
+			// If Room not exist, create new
+			if (!gd->room) {
+				gd->room = new Room();
+				gd->room->state = ROOM_RUNNING;
+				return;
+			}
+
+			// Dummy Room Setup Steps:
+            strcpy(gd->room->id, "DEBUG_ROOM");
+			TraceLog(LOG_INFO, "DEBUG: Setting up Dummy Room ID: %s", gd->room->id);
+            gd->room->state = ROOM_RUNNING;
+            gd->room->turn = PlayerState::PLAYER1; // Player 1 starts first
+            gd->room->player_len = 2; // 2 Players
+
+            // Dummy GameData Setup Steps:
+            gd->player.id = 100;
+            gd->player.ready = true;
+			gd->pstate = PlayerState::PLAYER1;
+
+            // Setup Player 1 and Player 2 Data
+            gd->player1.id = 100;
+            gd->player1.health = 4;
+
+            gd->player2.id = 200;
+            gd->player2.health = 4;
+
+            // Input the players into the room
+            gd->room->players[0] = &gd->player1;
+            gd->room->players[1] = &gd->player2;
+
+            TraceLog(LOG_INFO, "DEBUG: Dummy Room Created via 'T' Key");
+
+			// Instant Throw to Ingame for Testing
             engine->request_change_state(GameState::INGAME);
         });
     }
