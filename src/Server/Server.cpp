@@ -180,7 +180,48 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 }
             } break;
             case EXIT_ROOM: {
-                // TODO: this guy is the one that make empty info log
+                if (!player_conmap.count(c)) {
+                    reply.type = MessageType::ERROR;
+                    reply.response = MessageType::EXIT_ROOM;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Please do GIVE_ID first to register/login.");
+                    break;
+                }
+                uint32_t id = player_conmap[c];
+                Room *r = nullptr;
+                for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
+                    Room *ri = &server->rooms[i];
+                    if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
+                    {
+                        continue;
+                    } else {
+                        r = ri;
+                        break;
+                    }
+                }
+                if (r) {
+                    int index = get_room_player_empty(r);
+                    if (index < 0) {
+                        reply.type = MessageType::ERROR;
+                        reply.response = MessageType::EXIT_ROOM;
+                        snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                            "UNREACHABLE");
+                        break;
+                    }
+                    r->players[index] = nullptr;
+                    r->player_len--;
+                    if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
+
+                    reply.type = MessageType::NONE;
+                    reply.response = MessageType::EXIT_ROOM;
+                    snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                        "Done removed!");
+                    break;
+                }
+                reply.type = MessageType::ERROR;
+                reply.response = MessageType::EXIT_ROOM;
+                snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                    "Cannot find the room!");
             } break;
             case TOGGLE_READY: {
                 Room *r = nullptr;
@@ -218,13 +259,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                             mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
 
                             break;
-                            /*
-                            reply.type = MessageType::OK;
-                            reply.response = MessageType::TOGGLE_READY;
-                            snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                                "Started the game!");
-                            break;
-                            */
                         }
                     }
                     reply.type = MessageType::READY_STATUS;
@@ -245,57 +279,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
             printf("Generated data with size: %zu\n", n);
             mg_ws_send(c, out, n, WEBSOCKET_OP_BINARY);
         }
-    //     Message msg = {};
-    //     switch ((int)msgtype) {
-    //     case EXIT_ROOM: {
-    //         if (!player_conmap.count(c)) {
-    //             msg.type = MessageType::ERROR;
-    //             msg.response = MessageType::EXIT_ROOM;
-    //             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                     "Please do GIVE_ID first to register/login.");
-    //             break;
-    //         }
-    //         uint32_t id = player_conmap[c];
-    //         Room *r = nullptr;
-    //         for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
-    //             Room *ri = &server->rooms[i];
-    //             if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
-    //             {
-    //                 continue;
-    //             } else {
-    //                 r = ri;
-    //                 break;
-    //             }
-    //         }
-    //         if (r) {
-    //             int index = get_room_player_empty(r);
-    //             if (index < 0) {
-    //                 msg.type = MessageType::ERROR;
-    //                 msg.response = MessageType::EXIT_ROOM;
-    //                 snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                     "UNREACHABLE");
-    //                 break;
-    //             }
-    //             r->players[index] = nullptr;
-    //             r->player_len--;
-    //             if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
-
-    //             msg.type = MessageType::NONE;
-    //             msg.response = MessageType::EXIT_ROOM;
-    //             snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                     "Done removed!");
-    //             break;
-    //         }
-    //         msg.type = MessageType::ERROR;
-    //         msg.response = MessageType::EXIT_ROOM;
-    //         snprintf(msg.data.String, MAX_MESSAGE_STRING_SIZE,
-    //                 "Cannot find the room!");
-    //     } break;
-    //     case GAME_PLAYER_UPDATE: { /* NOTE: change the `turn` here and check first so the one that send this is valid and actually their turn. */ } break;
-    //     case GAME_END  : { /* NOTE: The sender of this msg is just server so ignore any message with this. */ } break;
-    //     default:
-    //         break;
-    //     }
     } break;
     case MG_EV_OPEN:
         printf("[SERVER] Connection opened:  %p\n", c);
