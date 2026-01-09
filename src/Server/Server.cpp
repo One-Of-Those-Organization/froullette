@@ -202,13 +202,15 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 }
                 uint32_t id = player_conmap[c];
                 Room *r = nullptr;
-                for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
-                    Room *ri = &server->rooms[i];
+                int idx = -1;
+                for (size_t i = 0; i < created_room.size(); i++) {
+                    Room *ri = created_room[i];
                     if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
                     {
                         continue;
                     } else {
                         r = ri;
+                        idx = i;
                         break;
                     }
                 }
@@ -224,6 +226,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     r->players[index] = nullptr;
                     r->player_len--;
                     if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
+                    if (idx >= 0) created_room.erase(created_room.begin() + idx);
 
                     reply.type = MessageType::NONE;
                     reply.response = MessageType::EXIT_ROOM;
@@ -298,7 +301,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
         break;
     case MG_EV_CLOSE:
         printf("[SERVER] Connection closed: %p\n", c);
-        // Clean up player from player_conmap here!
+        // TODO: cleanup their room too.
+        // NOTE: we dont need to cleanup the big player array right since they should beable to login
         if (player_conmap.count(c)) {
             player_conmap.erase(c);
         }
