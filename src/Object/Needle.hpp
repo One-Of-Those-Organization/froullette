@@ -60,38 +60,22 @@ public:
 
         this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
 
-// Inject Logic
+// Drag Stop Logic
 #ifdef MOBILE
-//        if (this->_hovered && IsGestureDetected(GESTURE_TAP) && this->on_clicked && !this->_dragging) {
-// Manual double tap detection
-        if (this->_hovered && IsGestureDetected(GESTURE_DOUBLETAP) && this->on_clicked && !this->_dragging) {
-//            float current_time = GetTime();
-            this->on_clicked(this);
-            return;
-
-// Unused manual double tap detection
-//            if (current_time - last_tap_time <= DOUBLE_TAP_THRESHOLD) {
-//                // DOUBLE TAP For Using
-//                this->on_clicked(this);
-//                last_tap_time = 0.0f;
-//                return;
-//            } else {
-//                // SINGLE TAP For Dragging
-//                last_tap_time = current_time;
-//            }
-        }
+        if (IsGestureDetected(GESTURE_NONE)) {
 #else
-        if (this->_hovered && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && this->on_clicked && !this->_dragging) {
-            this->on_clicked(this);
-            return;
-        }
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
 #endif
-//            this->_dragging = false;
-//            *this->engine_dragging = false;
+            this->_dragging = false;
+            *this->engine_dragging = false;
+        }
 
-// Drag Logic
+        // Check if Hovered
+        this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
+
+// Drag Start Logic
 #ifdef MOBILE
-        if (this->_hovered && !*this->engine_dragging && IsGestureDetected(GESTURE_DRAG))  {
+        if (this->_hovered && !*this->engine_dragging && IsGestureDetected(GESTURE_DRAG)) {
 #else
         if (this->_hovered && !*this->engine_dragging && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 #endif
@@ -103,69 +87,46 @@ public:
             this->offset.y = curpos->y - this->rec.y;
         }
 
-// Drag Continue Logic
+// Drag Move Logic
 #ifdef MOBILE
-    if (this->_dragging && IsGestureDetected(GESTURE_DRAG)) {
+        if (this->_dragging && IsGestureDetected(GESTURE_DRAG)) {
 #else
-    if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 #endif
-        _move_rec();
-    }
-
-// Drag Stop Logic
-#ifdef MOBILE
-        if (IsGestureDetected(GESTURE_NONE)) {
-#else
-        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-#endif
-            this->_dragging = false;
-            *this->engine_dragging = false;
+            _move_rec();
         }
-    };
 
-//        if (this->_dragging && IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-//            _move_rec();
-//        }
-//
-//        // TODO: Handle mobile
-//        #ifdef MOBILE
-//        #endif
-//        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-//            _move_rec();
-//        }
-//        #ifdef MOBILE
-//            if (IsGestureDetected(GESTURE_NONE))  {
-//        #else
-//            if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-//        #endif
-//        // NOTE: To use the needle use the right click
-////        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-////            this->used = true;
-////            TraceLog(LOG_INFO, "TODO: Finish this");
-////        }
-//        this->_dragging = false;
-//        *this->engine_dragging = false;
-//    };
+// Needles Logic
+#ifdef MOBILE
+        if (this->_hovered && IsGestureDetected(GESTURE_DOUBLETAP) && !this->_dragging) {
+#else
+        // Desktop: Pakai Klik Kanan (Released) biar aman
+            if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON) && !this->_dragging) {
+#endif
+                // Panggil fungsi on_clicked yang sudah di-assign di Game.hpp
+                if (this->on_clicked) this->on_clicked(this);
+            }
+    };
 
     void _move_rec() {
     	Vector2 newpos = {};
-		newpos.x = this->curpos->x - this->offset.x;
-		newpos.y = this->curpos->y - this->offset.y;
+        newpos.x = this->curpos->x - this->offset.x;
+        newpos.y = this->curpos->y - this->offset.y;
 
-          // Don't allow moving out of bounds
-		if (newpos.x <= this->max_rec.x ||
-			newpos.y <= this->max_rec.y ||
-			newpos.x >= this->max_rec.width ||
-			newpos.y >= this->max_rec.height
-			) {
-              // Reset offset if out of bounds
-			this->offset.x = curpos->x - this->rec.x;
-			this->offset.y = curpos->y - this->rec.y;
-			return;
-		}
+        // Don't allow moving out of bounds
+        if (newpos.x <= this->max_rec.x ||
+            newpos.y <= this->max_rec.y ||
+            newpos.x >= this->max_rec.width ||
+            newpos.y >= this->max_rec.height
+            ) {
+            // Reset offset if out of bounds
+            this->offset.x = curpos->x - this->rec.x;
+            this->offset.y = curpos->y - this->rec.y;
+            return;
+            }
 
-		// Move the needle
-		rec.x = newpos.x;
-		rec.y = newpos.y;
+            // Move the needle
+            rec.x = newpos.x;
+            rec.y = newpos.y;
 	}
 };

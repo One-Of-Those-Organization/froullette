@@ -40,6 +40,8 @@ struct GameData {
 
     bool game_ended = false;
 
+    int round_counter = 1;
+
     Player player;
     Player player1;
     Player player2;
@@ -375,11 +377,73 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         auto needle = new Needle();
         const int padding = 10;
 
-        needle->on_clicked = [gd](Needle* n) {
-            // Allow click if it's the player's turn and needle is not used
-            if (gd->room->turn != gd->pstate) return;
+        needle->on_clicked = [gd, ns](Needle* n) {
 
-            n->used = true;
+// NOTE :
+// Allow click if it's the player's turn and needle is not used
+// And turn off while it's DEBUG MODE
+#ifndef DEBUG_MODE
+if (gd->room->turn != gd->pstate) return;
+#endif
+
+            n->used = true; // Mark as
+
+            // Switch Turn (DEBUG ONLY), The real data is sended by server side
+#ifdef DEBUG_MODE
+            // Check Needles Type, LIVE : Damage Self, BLANK : Save
+            if (n->type == NeedleType::NT_LIVE) {
+                if (gd->room->turn == PlayerState::PLAYER1) {
+                    gd->player1.health--;
+                    TraceLog(LOG_INFO, "P1 Damaged...");
+                } else {
+                    gd->player2.health--;
+                    TraceLog(LOG_INFO, "P2 Damaged...");
+                }
+            } else {
+                if (gd->room->turn == PlayerState::PLAYER1) {
+                    TraceLog(LOG_INFO, "P1 Save");
+                } else {
+                    TraceLog(LOG_INFO, "P2 Save");
+                }
+            }
+
+            if (gd->room->turn == PlayerState::PLAYER1) {
+                gd->room->turn = PlayerState::PLAYER2;
+            } else {
+                gd->room->turn = PlayerState::PLAYER1;
+            }
+
+            // Mark as All use if there is no needle left
+            bool all_used = true;
+
+            // Make sure there is no needles left
+            for (auto* check_n : ns->needles) {
+                if (!check_n->used) {
+                    all_used = false;
+                    break;
+                }
+            }
+
+            if (all_used) {
+                gd->round_counter++;
+                TraceLog(LOG_INFO, "DEBUG: Round Finished! Starting Round %d", gd->round_counter);
+
+                int live_counter = 0;
+                int death_counter = 0;
+                for (auto* reset_n : ns->needles) {
+                    reset_n->used = false;
+
+                    reset_n->type = (rand_range(0, 1) == 1) ? NeedleType::NT_LIVE : NeedleType::NT_BLANK;
+
+                    if (reset_n->type == NeedleType::NT_LIVE) {
+                        live_counter++;
+                    } else {
+                        death_counter++;
+                    }
+                    TraceLog(LOG_INFO, "DEBUG: Reload Complete. Live Needles: %d. Death Needles: %d", live_counter, death_counter);
+                }
+            }
+#endif
 
             // Send Needle Action
             Message msg = {};
@@ -412,8 +476,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         ns->needles.push_back(needle);
     }
 
-    // This for single player but we need to update for 2 players
-    // Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {wsize.x - 100, wsize.y - 80});
     // NOTE : For now i use hardcoded values but i don't know how to make it responsive properly
     Text *hp_display = cText(engine, state, "HP: 4", 32, RED, {1100, 650});
     engine->om.add_object(hp_display, (*z)++);
@@ -422,13 +484,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     hpUpdater->state = state;
 
     hpUpdater->callback = [gd, hp_display]() {
-        // This for single player but we need to update for 2 players
-        //  hp_display->text = TextFormat("HP: %d", gd->player.health);
-        //  if (gd->player.health <= 0) {
-        //  hp_display->text_color = BLACK;
-        //  TraceLog(LOG_INFO, "Player Died");
-        //  }
-
         // Updated for 2 players
         if (gd->room->turn == PlayerState::PLAYER1) {
             hp_display->text = TextFormat("P1 HP: %d", gd->player1.health);
@@ -439,7 +494,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         }
 
         if (gd->player.health <= 0 || gd->player.health <= 0) {
-            TraceLog(LOG_INFO, "Game Over");
+            // TraceLog(LOG_INFO, "Game Over");
         }
 
         // TODO : Add win condition and game over handling here, check who win and create some menu restart or go to main menu
@@ -509,8 +564,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
         // Access Game Data only for DEBUG
         GameData *gd = (GameData *)engine->additional_data;
 
-        // Toggle DEBUG Mode
-        // Make sure you were in MENU
+        // Toggle DEBUG Mode, Make sure you were in MENU
         kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
             debug_mode(engine, gd);
         });
