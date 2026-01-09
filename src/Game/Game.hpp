@@ -1,4 +1,5 @@
 #pragma once
+#define DEBUG_ROOM
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
 
 #include "../Object/Balls.hpp"
@@ -59,7 +60,6 @@ static void debug_mode(ArsEng *engine, GameData *gd) {
     if (!gd->room) {
         gd->room = new Room();
         gd->room->state = ROOM_RUNNING;
-        return;
     }
 
     // Dummy Room Setup Steps:
@@ -447,9 +447,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
-	// NOTE : For accessing gamedata in the keyhandler (Dummy), can Comment this out when building for release
-	GameData *gd = (GameData *)engine->additional_data;
-
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
     (void)kh_id;
     GameState state = GameState::MENU;
@@ -504,14 +501,20 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
     btn3->rec.height = btn1->rec.height;
     engine->om.add_object(btn3, (*z)++);
 
-    // NOTE : Test Mode Keybinding for Debugging, Press T to go to Ingame directly
-    // Please ensure comment this code when building for release
+    // Debug Mode
+    #ifdef DEBUG_ROOM
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (kh) {
+        // Access Game Data only for DEBUG
+        GameData *gd = (GameData *)engine->additional_data;
+
+        // Toggle DEBUG Mode
+        // Make sure you were in Menu
         kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
             debug_mode(engine, gd);
         });
     }
+    #endif
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
