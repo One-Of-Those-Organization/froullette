@@ -1,4 +1,5 @@
 #pragma once
+
 #define DEBUG_ROOM
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it easier
 
@@ -63,7 +64,7 @@ static void debug_mode(ArsEng *engine, GameData *gd) {
     }
 
     // Dummy Room Setup Steps:
-    strcpy(gd->room->id, "DEBUG_ROOM");
+    strcpy(gd->room->id, "DEBUG");
     gd->room->state = ROOM_RUNNING; // Update State
     gd->room->turn = PlayerState::PLAYER1; // Player 1 Start First
     gd->room->player_len = 2; // 2 Players
@@ -509,7 +510,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
         GameData *gd = (GameData *)engine->additional_data;
 
         // Toggle DEBUG Mode
-        // Make sure you were in Menu
+        // Make sure you were in MENU
         kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
             debug_mode(engine, gd);
         });
@@ -825,12 +826,13 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             engine->request_change_state(target);
             return;
         }
-        // Make sure to comment this whole check when testing without server client
-        //        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
-        //            GameState target = GameState::PLAYMENU;
-        //            engine->request_change_state(target);
-        //            return;
-        //        }
+#ifndef DEBUG_ROOM
+        if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
+            GameState target = GameState::PLAYMENU;
+            engine->request_change_state(target);
+            return;
+        }
+#endif
         // TODO: the room_running will be fixed in the future with new msg.
         if (gd->room && gd->room->state == ROOM_RUNNING) {
             GameState target = GameState::INGAME;
