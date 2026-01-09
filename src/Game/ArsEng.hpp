@@ -39,6 +39,7 @@ public:
     Vector2 bigcanvas_cursor = {};
 
     bool req_close;
+
     bool dragging = false;
     int dragged_obj = -1;
     int _last_dragged_obj = -1;
@@ -73,6 +74,7 @@ public:
 
 #ifdef MOBILE
         SetGesturesEnabled(GESTURE_TAP);
+        SetGesturesEnabled(GESTURE_DOUBLETAP);
         SetGesturesEnabled(GESTURE_DRAG);
         SetGesturesEnabled(GESTURE_NONE);
 #endif

@@ -2,6 +2,7 @@
 
 #include "Object.hpp"
 #include <functional>
+#include <queue>
 
 enum class NeedleType: int32_t {
     NT_BLANK = 0,
@@ -14,14 +15,15 @@ public:
     bool _hovered = false;
     bool _dragging = false;
     bool *engine_dragging = nullptr;
-    int *engine_dragged_id = nullptr;
+    const int *engine_dragged_id = nullptr;
+    std::queue<int> *dragged_qq;
     Vector2 *curpos = nullptr;
     Vector2 offset = {};
     Rectangle max_rec = {};
     Rectangle _tooltip_rec = {};
     bool used = false;
     int shared_id;
-    std::function<void()> callback;
+    std::function<void(Needle *)> callback;
 
     Needle(): Object() {};
     virtual ~Needle() = default;
@@ -45,7 +47,7 @@ public:
     void logic(float dt) override {
         (void)dt;
         if (!curpos) return;
-        if (!this->engine_dragging && !this->engine_dragged_id) return;
+        if (!this->engine_dragging && !this->engine_dragged_id && !this->dragged_qq) return;
         if (this->used || !this->show) return;
 
 #ifdef MOBILE
@@ -64,7 +66,7 @@ public:
 #endif
             this->_dragging = true;
             *this->engine_dragging = true;
-            *this->engine_dragged_id = this->id;
+            if(*this->engine_dragged_id != this->id) this->dragged_qq->push(this->id);
 
             this->offset.x = curpos->x - this->rec.x;
             this->offset.y = curpos->y - this->rec.y;
@@ -78,12 +80,12 @@ public:
             _move_rec();
         }
         #ifdef MOBILE
-            if (this->_hovered && IsGestureDetected(GESTURE_DOUBLETAP)) {
+            if (this->_hovered && IsGestureDetected(GESTURE_TAP)) {
         #else
             if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
         #endif
-            this->used = true;
-            if (this->callback) this->callback();
+            if(*this->engine_dragged_id != this->id) this->dragged_qq->push(this->id);
+            else if (this->callback) this->callback(this);
         }
 
     };

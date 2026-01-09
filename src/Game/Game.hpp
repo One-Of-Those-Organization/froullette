@@ -22,6 +22,7 @@
 #include <ctime>
 #include <thread>
 #include <format>
+#include <queue>
 
 struct GameData {
 #ifndef __EMSCRIPTEN__
@@ -39,6 +40,8 @@ struct GameData {
 
     std::string *text_buffer;
     bool text_buffer_displayed;
+
+    std::queue<int> dragged_obj_qq; // queue for dragged_obj
 };
 
 static void client_handler(mg_connection *c, int ev, void *ev_data)
@@ -299,6 +302,20 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     auto ns = new NeedleContainer(&engine->om);
     engine->om.add_object(ns, (*z)++);
 
+    std::chrono::milliseconds ms = std::chrono::milliseconds(200);
+    Timer *drag_timer = new Timer(ms);
+    drag_timer->tt = LOOP;
+    drag_timer->state = state;
+    drag_timer->callback = [engine, gd]() {
+        if (gd->dragged_obj_qq.empty()) return;
+        int id = gd->dragged_obj_qq.front();
+        gd->dragged_obj_qq.pop();
+        if (engine->dragged_obj == id) return;
+        engine->dragged_obj = id;
+    };
+    engine->om.add_object(drag_timer, (*z)++);
+    drag_timer->start_timer();
+
     Texture2D *needle_text = engine->tm.load_texture("needle", "./assets/needle_normal.png");
     const Rectangle needle_pos = {
         .x      = desk->rec.x,
@@ -328,15 +345,17 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->text = needle_text;
         needle->engine_dragging = &engine->dragging;
         needle->engine_dragged_id = &engine->dragged_obj;
+        needle->dragged_qq = &gd->dragged_obj_qq;
         needle->rec = current_pos;
         needle->curpos = &engine->canvas_cursor;
         needle->type = rand_range(0,1) == 1 ? NeedleType::NT_LIVE : NeedleType::NT_BLANK; // TODO: will be moved to the server later.
         needle->state = state;
         needle->used = false;
-        needle->callback = [needle, gd]() {
+        needle->callback = [needle, gd](Needle *n) {
 #ifndef __EMSCRIPTEN__
             std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+            n->used = true;
             // TODO: Do some checkin when the health is <= 0
             if (needle->type == NeedleType::NT_LIVE) gd->player.health--;
         };
@@ -412,7 +431,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
     KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
     if (!kh) TraceLog(LOG_INFO, "Failed to register keybinding to the playmenu state");
     else {
-        kh->add_new(KEY_Q, state, [engine]() { if (engine->active >= 0) engine->revert_state(); });
+        kh->add_new(KEY_Q, state, [engine]() { if (engine->active < 0) engine->revert_state(); });
     }
     GameData *gd = (GameData *)engine->additional_data;
 
