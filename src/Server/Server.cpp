@@ -32,7 +32,6 @@ static void timer_fn(void *arg)
         Player *p = r->players[0];
         Player *op = r->players[1];
         if (!p || !op) continue; // if only 1 available continue to the next room skip the current one, take only the room with 2 valid player
-        // TODO: broadcast the player stuff to each other
         if (r->state == ROOM_ACTIVE) {
             Message msg = {};
             msg.type = LOBBY_STATUS;

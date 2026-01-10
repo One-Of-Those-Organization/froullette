@@ -25,7 +25,6 @@ class KeyHandler: public Object {
             for (size_t i = 0; i < handler.size(); i++) {
                 auto &current = handler[i];
                 if (has_flag(*this->engine_state, current.state) && IsKeyReleased(current.key)) {
-                    TraceLog(LOG_INFO, "this->state: %d and current->state: %d", this->state, current.state);
                     current.callback();
                 }
             }

@@ -15,9 +15,9 @@
 #include "../Message/Message.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shared/Player.hpp"
+#include "../Shared/LobbyStatus.hpp"
 #include "ArsEng.hpp"
 #include "GameState.hpp"
-#include "PlayerState.hpp"
 #include "Client.hpp"
 #include <ctime>
 #include <thread>
@@ -42,6 +42,7 @@ struct GameData {
     bool text_buffer_displayed;
 
     std::queue<int> dragged_obj_qq; // queue for dragged_obj
+    LobbyStatus ls;
 };
 
 static void client_handler(mg_connection *c, int ev, void *ev_data)
@@ -69,8 +70,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
             Message pd{};
             size_t used = 0;
 
-            if (!parse_one_packet(buf + off, len - off, &pd, &used))
-            break;
+            if (!parse_one_packet(buf + off, len - off, &pd, &used)) break;
 
             off += used;
 
@@ -88,6 +88,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
 #endif
                 gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
                 TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
+            } break;
+            case LOBBY_STATUS: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                gd->ls.count = pd.data.LobbyStatus_obj.count;
+                memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready, 2); // ready index 0 is the current client.
             } break;
             case READY_STATUS: {
 #ifndef __EMSCRIPTEN__
@@ -618,10 +625,11 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     }
 
     size_t text_size = 32;
+    size_t title_size = 48;
     size_t padding = 20;
     Color title_color = WHITE;
 
-    Text *text_id = cText(engine, state, "Room id: _", text_size, title_color, {0,0});
+    Text *text_id = cText(engine, state, "Room id: _", title_size, title_color, {0,0});
     Vector2 text_id_len = text_id->calculate_len();
     text_id->rec.x = (wsize.x - text_id_len.x) / 2.0f;
     text_id->rec.y = (wsize.y / 4.0f) - text_id_len.y;
@@ -689,10 +697,44 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
             btn2->str = "Unready";
             btn2->calculate_rec();
             btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
-        }
+       }
     };
+
     engine->om.add_object(sc, (*z)++);
 
+    Color text_color = WHITE;
+    Text *pcounttxt = cText(engine, state, "Player(0/2)", text_size, text_color, {0,0});;
+    Vector2 pcounttxt_len = pcounttxt->calculate_len();
+    pcounttxt->rec.x = wsize.x - pcounttxt_len.x;
+    pcounttxt->rec.y = wsize.y - pcounttxt_len.y;
+    engine->om.add_object(pcounttxt, (*z)++);
+
+    Text *readytxt = cText(engine, state, "Ready(0/2)", text_size, text_color, {0,0});;
+    Vector2 readytxt_len = readytxt->calculate_len();
+    readytxt->rec.x = wsize.x - readytxt_len.x;
+    readytxt->rec.y = pcounttxt->rec.y - pcounttxt_len.y;
+    engine->om.add_object(readytxt, (*z)++);
+    // TODO: Script
+
+    std::chrono::milliseconds ms = std::chrono::milliseconds(100);
+    Timer *tu_timer = new Timer(ms);
+    tu_timer->tt = LOOP;
+    tu_timer->state = state;
+    tu_timer->callback = [readytxt, pcounttxt, gd, wsize]() {
+        const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
+        if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
+            pcounttxt->text = count_update;
+            pcounttxt->rec.x = wsize.x - pcounttxt->calculate_len().x;
+        }
+        int count = gd->player.ready + gd->ls.ready[1];
+        const char *ready_update = TextFormat("Ready(%d/2)", count);
+        if (strcmp(ready_update, readytxt->text.c_str()) != 0) {
+            readytxt->text = ready_update;
+            readytxt->rec.x = wsize.x - readytxt->calculate_len().x;
+        }
+    };
+    engine->om.add_object(tu_timer, (*z)++);
+    tu_timer->start_timer();
 }
 
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
@@ -762,6 +804,7 @@ static void gameInit(ArsEng *engine) {
     gd->client->callback = client_handler;
     gd->player = {};
     gd->room = nullptr;
+    gd->ls = { 1, { false, false } };
     gd->text_buffer = new std::string();
     gd->text_buffer_displayed = false;
 #ifndef __EMSCRIPTEN__
