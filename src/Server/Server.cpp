@@ -90,7 +90,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                     .id = server->ccount,
                     .health = MAX_PLAYER_HEALTH,
                     .con = c,
-                    .ready = false
+                    .ready = false,
+                    .turn = PlayerState::PLAYER1, // NOTE: update this on room enter.
                 };
                 player_conmap[c] = server->ccount;
                 ++server->ccount;

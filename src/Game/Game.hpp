@@ -33,7 +33,12 @@ struct GameData {
     std::thread _net;
 #endif
     Room *room;
+
     Player player;
+    Player oplayer;
+    int round_counter = 1;
+    // NOTE: game_ended handled by the room pointer my guy
+
     std::string url_buffer;
     std::string buffer;
 
@@ -43,6 +48,45 @@ struct GameData {
     std::queue<int> dragged_obj_qq; // queue for dragged_obj
     LobbyStatus ls;
 };
+
+#ifdef DEBUG_ROOM_
+static void debug_mode(ArsEng *engine, GameData *gd) {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+
+    if (!gd->room) {
+        gd->room = new Room();
+        gd->room->state = ROOM_RUNNING;
+    }
+
+    // Dummy Room Setup Steps:
+    strcpy(gd->room->id, "DEBUG");
+    gd->room->state = ROOM_RUNNING; // Update State
+    gd->room->turn = PlayerState::PLAYER1; // Player 1 Start First
+    gd->room->player_len = 2; // 2 Players
+
+    // Dummy GameData Setup Steps:
+    gd->player.id = 100;
+    gd->player.ready = true;
+    gd->pstate = PlayerState::PLAYER1;
+
+    // Setup Player 1 and Player 2 Data
+    gd->player1.id = 100;
+    gd->player1.health = 4;
+    gd->player2.id = 200;
+    gd->player2.health = 4;
+
+    // Input the players into the room
+    gd->room->players[0] = &gd->player1;
+    gd->room->players[1] = &gd->player2;
+
+    TraceLog(LOG_INFO, "DEBUG: Dummy Room Created via 'T' Key");
+
+    // Instant Throw to Ingame for Testing
+    engine->request_change_state(GameState::INGAME);
+-}
+#endif // DEBUG_ROOM_
 
 static void client_handler(mg_connection *c, int ev, void *ev_data)
 {
@@ -95,6 +139,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->ls.count = pd.data.LobbyStatus_obj.count;
                 memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready, 2); // ready index 0 is the current client.
             } break;
+
             case READY_STATUS: {
 #ifndef __EMSCRIPTEN__
                 std::lock_guard<std::mutex> lock(gd->mutex);
@@ -118,6 +163,23 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 gd->text_buffer_displayed = false;
                 *gd->text_buffer = pd.data.String;
             } break;
+
+            case GAME_TURN_UPDATE: {
+#ifndef __EMSCRIPTEN__
+                std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+                gd->room->turn = (PlayerState)pd.data.Boolean; // use smaller one bro it doesnt need to use int because thats already 4 byte.
+                TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
+            } break;
+
+            case GAME_PLAYER_UPDATE: {
+                // TODO: finish this
+            } break;
+
+            case GAME_END: {
+                // TODO: finish this with screen too
+            } break;
+
             case GAME_START: {
 #ifndef __EMSCRIPTEN__
                 std::lock_guard<std::mutex> lock(gd->mutex);
@@ -358,21 +420,34 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         needle->state = state;
         needle->used = false;
         needle->callback = [needle, gd](Needle *n) {
+            if (gd->room->turn != gd->player.turn) return;
+
 #ifndef __EMSCRIPTEN__
             std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
             n->used = true;
-            // TODO: Do some checkin when the health is <= 0
+            // TODO: Do some checkin when the health is <= 0 and other logic
             if (needle->type == NeedleType::NT_LIVE) gd->player.health--;
         };
         engine->om.add_object(needle, (*z)++);
         ns->needles.push_back(needle);
     }
     // TODO: put the whole health thing (use the brain texture right)
+    // TODO: the whole all_used stuff should be put here with diff script or timer object.
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
     Vector2 wsize = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+
+#ifdef DEBUG_ROOM_
+    KeyHandler *kh = (KeyHandler*)engine->om.get_object(kh_id);
+    if (kh) {
+        GameData *gd = (GameData *)engine->additional_data;
+        kh->add_new(KEY_T, GameState::MENU, [engine, gd]() {
+            debug_mode(engine, gd);
+        });
+    }
+#endif // DEBUG_ROOM_
     (void)kh_id;
     GameState state = GameState::MENU;
     size_t title_size = 64;
@@ -754,6 +829,8 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             engine->request_change_state(target);
             return;
         }
+
+#ifndef DEBUG_ROOM_
         if (!gd->room && gd->player.id == 0 && has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME | GameState::FINISHED)) {
             GameState target = GameState::PLAYMENU;
             engine->request_change_state(target);
@@ -763,6 +840,11 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             GameState target = GameState::INGAME;
             engine->request_change_state(target);
             return;
+        }
+#endif
+        if (gd->room->state == ROOM_FINISHED) {
+            /* TODO: Handle the finished game menu */
+            gd->room->state = ROOM_ACTIVE;
         }
     };
     engine->om.add_object(sc, (*z)++);

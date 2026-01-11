@@ -11,7 +11,8 @@
 enum RoomState {
     ROOM_FREE = 0,
     ROOM_ACTIVE,
-    ROOM_RUNNING
+    ROOM_RUNNING,
+    ROOM_FINISHED, // NOTE: If see this and already get the msg please set it to active again.
 };
 
 struct Room {

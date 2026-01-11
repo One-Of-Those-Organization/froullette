@@ -1,4 +1,5 @@
 #pragma once
+#include "../Game/PlayerState.hpp"
 
 #define MAX_PLAYER_COUNT 512
 #define MAX_PLAYER_HEALTH 5
@@ -14,4 +15,5 @@ struct Player {
     mg_connection *con;
     #endif // _SERVER
     bool ready;
+    PlayerState turn; // TODO: apply this to all the stuff that create player.
 };
