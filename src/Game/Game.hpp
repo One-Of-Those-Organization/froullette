@@ -185,6 +185,11 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
                 std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
                 if (gd->room) gd->room->state = ROOM_RUNNING;
+                Player *parr = (Player *)pd.data.Byte.data;
+                if (parr[0].id == gd->player.id) {
+                    gd->player = parr[0];
+                    gd->oplayer = parr[1];
+                }
             } break;
             default:
                 break;
@@ -754,7 +759,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         if (gd->room) {
-            const char *fmt = TextFormat("Room id: %d", gd->room->id);
+            std::string fmt = std::format("Room id: {}", gd->room->id);
             text_id->text = fmt;
             text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
         }
@@ -784,27 +789,15 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     pcounttxt->rec.y = wsize.y - pcounttxt_len.y;
     engine->om.add_object(pcounttxt, (*z)++);
 
-    Text *readytxt = cText(engine, state, "Ready(0/2)", text_size, text_color, {0,0});;
-    Vector2 readytxt_len = readytxt->calculate_len();
-    readytxt->rec.x = wsize.x - readytxt_len.x;
-    readytxt->rec.y = pcounttxt->rec.y - pcounttxt_len.y;
-    engine->om.add_object(readytxt, (*z)++);
-
     std::chrono::milliseconds ms = std::chrono::milliseconds(100);
     Timer *tu_timer = new Timer(ms);
     tu_timer->tt = LOOP;
     tu_timer->state = state;
-    tu_timer->callback = [readytxt, pcounttxt, gd, wsize]() {
+    tu_timer->callback = [pcounttxt, gd, wsize]() {
         const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
         if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
             pcounttxt->text = count_update;
             pcounttxt->rec.x = wsize.x - pcounttxt->calculate_len().x;
-        }
-        int count = gd->player.ready + gd->ls.ready[1];
-        const char *ready_update = TextFormat("Ready(%d/2)", count);
-        if (strcmp(ready_update, readytxt->text.c_str()) != 0) {
-            readytxt->text = ready_update;
-            readytxt->rec.x = wsize.x - readytxt->calculate_len().x;
         }
     };
     engine->om.add_object(tu_timer, (*z)++);
@@ -842,7 +835,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
             return;
         }
 #endif
-        if (gd->room->state == ROOM_FINISHED) {
+        if (gd->room && gd->room->state == ROOM_FINISHED) {
             /* TODO: Handle the finished game menu */
             gd->room->state = ROOM_ACTIVE;
         }

@@ -203,31 +203,26 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 uint32_t id = player_conmap[c];
                 Room *r = nullptr;
                 int idx = -1;
+                int roomi = -1;
                 for (size_t i = 0; i < created_room.size(); i++) {
                     Room *ri = created_room[i];
-                    if (ri->player_len < 1 || (ri->players[0]->id != id && ri->players[1]->id != id) || ri->player_len >= 2)
-                    {
-                        continue;
-                    } else {
-                        r = ri;
-                        idx = i;
-                        break;
+                    if (ri->player_len < 1 || ri->player_len > 2) continue;
+                    for (int x = 0; x < 2; x++) {
+                        if (ri->players[x] && ri->players[x]->id == id) {
+                            r = ri;
+                            idx = x;
+                            roomi = i;
+                            break;
+                        }
                     }
                 }
                 if (r) {
-                    int index = get_room_player_empty(r);
-                    if (index < 0) {
-                        reply.type = MessageType::ERROR;
-                        reply.response = MessageType::EXIT_ROOM;
-                        snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
-                            "UNREACHABLE");
-                        break;
-                    }
-                    r->players[index] = nullptr;
+                    r->players[idx] = nullptr;
                     r->player_len--;
-                    if (r->player_len <= 0) { *r = Room{}; } // NOTE: Reset all of the value
-                    if (idx >= 0) created_room.erase(created_room.begin() + idx);
-
+                    if (r->player_len <= 0) {
+                        *r = Room{};
+                        if (roomi >= 0) created_room.erase(created_room.begin() + roomi);
+                    }
                     reply.type = MessageType::NONE;
                     reply.response = MessageType::EXIT_ROOM;
                     snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
@@ -263,10 +258,13 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data)
                 if (r && p) {
                     p->ready = !p->ready; // Toggle ready state
                     if (op) {
-                        if (op->ready && p->ready) { // if 2 of the player ready then start the game
+                        if (op->ready && p->ready) {
+                            Player buffer[] = {*p, *op};
                             r->state = ROOM_RUNNING;
                             reply.type = MessageType::GAME_START;
                             reply.response = MessageType::TOGGLE_READY;
+                            reply.data.Byte.len = sizeof(Player) * 2;
+                            memcpy(reply.data.Byte.data, buffer, reply.data.Byte.len);
 
                             // NOTE: send to other player too
                             uint8_t out[MAX_MESSAGE_BIN_SIZE];
