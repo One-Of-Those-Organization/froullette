@@ -21,7 +21,6 @@
 #include "Client.hpp"
 #include <ctime>
 #include <thread>
-#include <format>
 #include <queue>
 
 struct GameData {
@@ -160,7 +159,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data)
     }
 }
 
-static int rand_range(int min, int max) {
+static inline int rand_range(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
@@ -680,7 +679,8 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         if (gd->room) {
-            text_id->text = std::format("Room id: {}",gd->room->id);
+            const char *fmt = TextFormat("Room id: %d", gd->room->id);
+            text_id->text = fmt;
             text_id->rec.x = (wsize.x - text_id->calculate_len().x) / 2.0;
         }
         else if (has_flag(engine->state, GameState::ROOMMENU)){
@@ -714,7 +714,6 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     readytxt->rec.x = wsize.x - readytxt_len.x;
     readytxt->rec.y = pcounttxt->rec.y - pcounttxt_len.y;
     engine->om.add_object(readytxt, (*z)++);
-    // TODO: Script
 
     std::chrono::milliseconds ms = std::chrono::milliseconds(100);
     Timer *tu_timer = new Timer(ms);
