@@ -2,7 +2,7 @@
 - [ ] effect of the item and needle
 - [ ] Init needle on the server
 - [ ] Player set the turn by the server and client.
-- [ ] Fix the ready counter logic
+- [ ] Game update message
 
 - [x] Merge with ingame branch
 - [x] the server looping stuff

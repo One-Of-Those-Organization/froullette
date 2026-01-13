@@ -4,7 +4,7 @@
 #include <raylib.h>
 
 struct PState {
-public:
+  public:
     Vector2 mWindowSize;
     bool mIsFullscreen;
 

@@ -1,12 +1,12 @@
 #pragma once
 
-#include <cstdint>
-#include <raylib.h>
 #include "../Game/ArsEng.hpp"
 #include "../Game/Game.hpp"
+#include <cstdint>
+#include <raylib.h>
 
 class Window {
-public:
+  public:
     Vector2 size;
     Vector2 oldsize;
     uint32_t fps;
@@ -31,11 +31,16 @@ public:
 
     bool loop() {
         while (!WindowShouldClose()) {
-            if (engine->req_close) break;
+            if (engine->req_close)
+                break;
             if (engine->_req.t != DONE) {
                 switch (engine->_req.t) {
-                case TFULLSCREEN: { this->fullscreen_window(); } break;
-                case RESIZE: { this->resize_window(engine->_req.data.v); } break;
+                case TFULLSCREEN: {
+                    this->fullscreen_window();
+                } break;
+                case RESIZE: {
+                    this->resize_window(engine->_req.data.v);
+                } break;
                 default:
                     break;
                 }
@@ -48,19 +53,19 @@ public:
 
             // Do post-processing here
             Texture2D *txt = &engine->canvas.texture;
-            DrawTexturePro(*txt,
-                           Rectangle{0, 0, (float)txt->width, -(float)txt->height},
-                           Rectangle{0, 0, size.x, size.y},
-                           Vector2{0, 0}, 0.0f, WHITE);
+            DrawTexturePro(
+                *txt, Rectangle{0, 0, (float)txt->width, -(float)txt->height},
+                Rectangle{0, 0, size.x, size.y}, Vector2{0, 0}, 0.0f, WHITE);
 
             // Render later object (for ui and stuff) to the big canvas
             engine->render();
 
             // Render the big canvas
             Texture2D *bigtxt = &engine->bigcanvas.texture;
-            DrawTexturePro(*bigtxt, Rectangle{0, 0, (float)bigtxt->width, -(float)bigtxt->height},
-                           Rectangle{0, 0, size.x, size.y},
-            Vector2{0, 0}, 0.0f, WHITE);
+            DrawTexturePro(
+                *bigtxt,
+                Rectangle{0, 0, (float)bigtxt->width, -(float)bigtxt->height},
+                Rectangle{0, 0, size.x, size.y}, Vector2{0, 0}, 0.0f, WHITE);
 
             EndDrawing();
         }
@@ -71,7 +76,8 @@ public:
         if (IsWindowFullscreen()) {
             this->resize_window(this->oldsize);
         } else {
-            this->resize_window(Vector2(GetMonitorWidth(0) , GetMonitorHeight(0)));
+            this->resize_window(
+                Vector2(GetMonitorWidth(0), GetMonitorHeight(0)));
         }
         ToggleFullscreen();
         engine->_req.t = DONE;

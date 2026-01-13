@@ -1,28 +1,28 @@
 #ifndef OBJECT_MANAGER_H_
 #define OBJECT_MANAGER_H_
 
-#include <vector>
-#include <algorithm>
-#include "Object.hpp"
 #include "../Game/GameState.hpp"
+#include "Object.hpp"
+#include <algorithm>
+#include <vector>
 
 struct ObjectSlot {
     int id;
     int z;
     int _oldz;
-    Object* obj;
+    Object *obj;
 };
 
 struct ObjectManager {
-public:
+  public:
     std::vector<ObjectSlot> objects;
-    std::vector<Object*> sorted;
+    std::vector<Object *> sorted;
     int counter;
 
     ObjectManager() : counter(0) {}
     ~ObjectManager() { clear(); }
 
-    int add_object(Object* obj, int z) {
+    int add_object(Object *obj, int z) {
         ObjectSlot slot;
         slot.id = counter++;
         slot.z = z;
@@ -48,7 +48,7 @@ public:
     }
 
     int get_zindex(int id) {
-        for (auto& s : objects) {
+        for (auto &s : objects) {
             if (s.id == id) {
                 return s.z;
             }
@@ -57,9 +57,10 @@ public:
     }
 
     bool update_zindex(int id, int new_zindex) {
-        for (auto& s : objects) {
+        for (auto &s : objects) {
             if (s.id == id) {
-                if (s.z != new_zindex) s._oldz = s.z;
+                if (s.z != new_zindex)
+                    s._oldz = s.z;
                 s.z = new_zindex;
                 regenerate_sorted_data();
                 return true;
@@ -69,7 +70,7 @@ public:
     }
 
     void revert_zindex(int id) {
-        for (auto& s : objects) {
+        for (auto &s : objects) {
             if (s.id == id) {
                 s.z = s._oldz;
                 regenerate_sorted_data();
@@ -81,10 +82,13 @@ public:
     void switch_zindex(int id1, int id2) {
         ObjectSlot *o1 = nullptr;
         ObjectSlot *o2 = nullptr;
-        for (auto& s : objects) {
-            if (o1 && o2) break;
-            if (s.id == id1) o1 = &s;
-            if (s.id == id2) o2 = &s;
+        for (auto &s : objects) {
+            if (o1 && o2)
+                break;
+            if (s.id == id1)
+                o1 = &s;
+            if (s.id == id2)
+                o2 = &s;
         }
         o1->_oldz = o1->z;
         o2->_oldz = o2->z;
@@ -96,8 +100,8 @@ public:
         regenerate_sorted_data();
     }
 
-    Object* get_object(int id) {
-        for (auto& s : objects) {
+    Object *get_object(int id) {
+        for (auto &s : objects) {
             if (s.id == id)
                 return s.obj;
         }
@@ -105,18 +109,17 @@ public:
     }
 
     void regenerate_sorted_data() {
-        std::sort(objects.begin(), objects.end(),
-        [](const ObjectSlot& a, const ObjectSlot& b) {
-            return a.z < b.z;
-        });
+        std::sort(
+            objects.begin(), objects.end(),
+            [](const ObjectSlot &a, const ObjectSlot &b) { return a.z < b.z; });
 
         sorted.clear();
-        for (auto& s : objects)
-        sorted.push_back(s.obj);
+        for (auto &s : objects)
+            sorted.push_back(s.obj);
     }
 
     void clear() {
-        for (auto& s : objects)
+        for (auto &s : objects)
             delete s.obj;
         objects.clear();
         sorted.clear();

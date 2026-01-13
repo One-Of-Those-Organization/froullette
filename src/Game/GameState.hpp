@@ -4,22 +4,24 @@
 #include <cstdint>
 
 enum class GameState : uint32_t {
-    NONE     = 0,
-    MENU     = 1 << 0,
+    NONE = 0,
+    MENU = 1 << 0,
     PLAYMENU = 1 << 1,
     ROOMMENU = 1 << 2,
     SETTINGS = 1 << 3,
-    INGAME   = 1 << 4,
+    INGAME = 1 << 4,
     FINISHED = 1 << 5,
-    ALL      = MENU | SETTINGS | INGAME | PLAYMENU | FINISHED | ROOMMENU
+    ALL = MENU | SETTINGS | INGAME | PLAYMENU | FINISHED | ROOMMENU
 };
 
 inline GameState operator|(GameState a, GameState b) {
-    return static_cast<GameState>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    return static_cast<GameState>(static_cast<uint32_t>(a) |
+                                  static_cast<uint32_t>(b));
 }
 
 inline GameState operator&(GameState a, GameState b) {
-    return static_cast<GameState>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+    return static_cast<GameState>(static_cast<uint32_t>(a) &
+                                  static_cast<uint32_t>(b));
 }
 
 inline bool has_flag(GameState value, GameState flag) {

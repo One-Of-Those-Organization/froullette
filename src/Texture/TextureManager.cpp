@@ -11,7 +11,8 @@ Texture2D *TextureManager::get_texture(const char *name) {
     return nullptr;
 };
 
-Texture2D *TextureManager::load_texture(std::string name, std::string img_path) {
+Texture2D *TextureManager::load_texture(std::string name,
+                                        std::string img_path) {
     Texture2D *ctxt = get_texture(name.c_str());
     if (ctxt != nullptr) {
         return nullptr;

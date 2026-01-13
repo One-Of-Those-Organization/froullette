@@ -1,8 +1,6 @@
 #include "ManagedSound.hpp"
 
-ManagedSound::ManagedSound(const char *name) {
-    mName = name;
-}
+ManagedSound::ManagedSound(const char *name) { mName = name; }
 
 ManagedSound::~ManagedSound() {}
 
@@ -20,7 +18,8 @@ bool ManagedSound::unload_sound() {
     return true;
 }
 void ManagedSound::play_sound() {
-    if (!IsSoundValid(mData)) return;
+    if (!IsSoundValid(mData))
+        return;
     PlaySound(mData);
 }
 

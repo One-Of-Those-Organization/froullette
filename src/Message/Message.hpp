@@ -1,9 +1,11 @@
 #pragma once
-#include <stdint.h>
-#include "../mongoose.h"
-#include "../Shared/Room.hpp"
-#include "../Shared/Player.hpp"
+#include "../Shared/GameAction.hpp"
 #include "../Shared/LobbyStatus.hpp"
+#include "../Shared/Player.hpp"
+#include "../Shared/Room.hpp"
+#include <cstring>
+#include <stdint.h>
+#include <stdlib.h>
 
 // protocol: le
 // [msg_len][MSG][MSG][TYPE][len][bytes]
@@ -27,15 +29,13 @@ static inline void write_u32(uint8_t **pp, uint32_t v) {
     *pp += 4;
 }
 
-static uint16_t read_u16(const uint8_t *p) {
-    return p[0] | (p[1] << 8);
-}
+static uint16_t read_u16(const uint8_t *p) { return p[0] | (p[1] << 8); }
 
 static uint32_t read_u32(const uint8_t *p) {
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
-enum LobbyStatusField: uint8_t {
+enum LobbyStatusField : uint8_t {
     LSF_COUNT = 1,
     LSF_READY = 2,
 };
@@ -46,17 +46,22 @@ enum NeedleField : uint8_t {
 };
 
 enum RoomField : uint8_t {
-    RF_ID           = 1,
+    RF_ID = 1,
     RF_PLAYER_COUNT = 2,
-    RF_STATE        = 3,
-    RF_PSTATE       = 4,
+    RF_STATE = 3,
+    RF_PSTATE = 4,
 };
 
 enum PlayerField : uint8_t {
-    PF_ID     = 1,
+    PF_ID = 1,
     PF_HEALTH = 2,
-    PF_READY  = 3,
-    PF_TURN   = 4,
+    PF_READY = 3,
+    PF_TURN = 4,
+};
+
+enum GameActionField : uint8_t {
+    GAF_ACTION = 1, // uint8_t
+    GAF_DATA = 2,   // int32_t
 };
 
 enum MessageType {
@@ -73,15 +78,18 @@ enum MessageType {
     HERE_ROOM,
     EXIT_ROOM,
 
-    READY_STATUS,       // send back boolean to say if the user ready toggle
-    TOGGLE_READY,       // for ready and stuff this stuff toggle
+    READY_STATUS, // send back boolean to say if the user ready toggle
+    TOGGLE_READY, // for ready and stuff this stuff toggle
     GAME_START,
 
     LOBBY_STATUS,
 
-    GAME_TURN_UPDATE,   // send the turn update after player done GAME_PLAYER_UPDATE
-    GAME_PLAYER_UPDATE, // send what player do what action they take it will need new struct def.
-    GAME_PERIODIC,      // will be sended every n times for the update (is this really needed?)
+    GAME_TURN_UPDATE,   // send the turn update after player done
+                        // GAME_PLAYER_UPDATE
+    GAME_PLAYER_UPDATE, // send what player do what action they take it will
+                        // need new struct def. TODO: WORKING ON THIS
+    GAME_PERIODIC,      // will be sended every n times for the update (is this
+                        // really needed?)
     GAME_END,
 };
 
@@ -101,11 +109,28 @@ struct Message {
         Player *Player_obj;
         ByteT Byte; // what type of the data can be seen from the MessageType
         LobbyStatus LobbyStatus_obj;
+        GameAction *action;
         // add more
     } data;
 };
 
-[[maybe_unused]] static size_t gen_player_net_obj(uint8_t *buffer, Player *player) {
+[[maybe_unused]] static size_t gen_game_action_net_obj(uint8_t *buffer,
+                                                       GameAction *action) {
+    uint8_t *p = buffer;
+
+    *p++ = GAF_ACTION;
+    write_u16(&p, sizeof(char));
+    *p++ = (uint8_t)action->type;
+
+    *p++ = GAF_DATA;
+    write_u16(&p, sizeof(int));
+    write_u32(&p, action->data.i32);
+
+    return (size_t)(p - buffer);
+}
+
+[[maybe_unused]] static size_t gen_player_net_obj(uint8_t *buffer,
+                                                  Player *player) {
     uint8_t *p = buffer;
 
     *p++ = PF_ID;
@@ -152,7 +177,8 @@ struct Message {
 }
 
 // NOTE: make sure you sure that the 2 of the player is not null
-[[maybe_unused]] static size_t gen_lobby_status_net_obj(uint8_t *buffer, LobbyStatus *ls) {
+[[maybe_unused]] static size_t gen_lobby_status_net_obj(uint8_t *buffer,
+                                                        LobbyStatus *ls) {
     uint8_t *p = buffer;
 
     *p++ = LSF_COUNT;
@@ -168,7 +194,8 @@ struct Message {
 }
 
 // NOTE: Assume the buffer will be < MAX_MESSAGE_BIN_SIZE
-[[maybe_unused]] static size_t generate_network_field(Message *m, uint8_t *buffer) {
+[[maybe_unused]] static size_t generate_network_field(Message *m,
+                                                      uint8_t *buffer) {
     uint8_t *p = buffer;
 
     // Reserve space for length (u16)
@@ -188,8 +215,9 @@ struct Message {
         Room *r = m->data.Room_obj;
         payload_len = gen_room_net_obj(p, r);
         p += payload_len;
-        break;
-    }
+
+    } break;
+    case GAME_TURN_UPDATE:
     case READY_STATUS: {
         *p++ = (uint8_t)m->data.Boolean;
         payload_len++;
@@ -225,7 +253,9 @@ struct Message {
         write_u16(&len_pos, (uint32_t)actual_payload);
         payload_len += 2 + actual_payload;
     } break;
-    case TOGGLE_READY: { /* didnt need to send anything the server already know what to do. */ } break;
+    case TOGGLE_READY: { /* didnt need to send anything the server already know
+                            what to do. */
+    } break;
     default:
         break;
     }
@@ -234,15 +264,15 @@ struct Message {
     write_u16(&len_ptr, total_len);
     return 2 + total_len;
 }
-static bool parse_one_packet(
-    uint8_t *buf, size_t len,
-    Message *out,
-    size_t *consumed
-) {
-    if (len < 4) return false;
+
+[[maybe_unused]] static bool parse_one_packet(uint8_t *buf, size_t len,
+                                              Message *out, size_t *consumed) {
+    if (len < 4)
+        return false;
 
     uint16_t msg_len = read_u16(buf);
-    if ((uint16_t)len < msg_len + 2) return false;
+    if ((uint16_t)len < msg_len + 2)
+        return false;
 
     uint8_t *p = buf + 2;
     uint8_t *end = p + msg_len;
@@ -257,7 +287,8 @@ static bool parse_one_packet(
 
         while (p < end) {
             uint8_t f = *p++;
-            uint16_t flen = read_u16(p); p += 2;
+            uint16_t flen = read_u16(p);
+            p += 2;
 
             switch (f) {
             case RF_ID:
@@ -281,15 +312,18 @@ static bool parse_one_packet(
         out->data.LobbyStatus_obj = {};
         while (p < end) {
             uint8_t f = *p++;
-            uint16_t flen = read_u16(p); p += 2;
+            uint16_t flen = read_u16(p);
+            p += 2;
 
             switch (f) {
             case LSF_COUNT:
-                if (flen != 1) return false;
+                if (flen != 1)
+                    return false;
                 out->data.LobbyStatus_obj.count = *p;
                 break;
             case LSF_READY:
-                if (flen != 2) return false;
+                if (flen != 2)
+                    return false;
                 out->data.LobbyStatus_obj.ready[0] = *p;
                 out->data.LobbyStatus_obj.ready[1] = *(p + 1);
                 break;
@@ -298,14 +332,16 @@ static bool parse_one_packet(
         }
     } break;
     case GAME_START: {
-        out->data.Byte.len = read_u16(p); p += 2;
+        out->data.Byte.len = read_u16(p);
+        p += 2;
         Player *player = (Player *)out->data.Byte.data;
         int idx = 0;
         int fields_parsed = 0;
 
         while (p < end) {
             uint8_t f = *p++;
-            uint16_t flen = read_u16(p); p += 2;
+            uint16_t flen = read_u16(p);
+            p += 2;
 
             switch (f) {
             case PF_ID:
@@ -315,12 +351,14 @@ static bool parse_one_packet(
                 player[idx].health = *p;
                 break;
             case PF_READY:
-                if (flen != 1) return false;
+                if (flen != 1)
+                    return false;
                 player[idx].ready = *p;
                 break;
             case PF_TURN:
-                if (flen != 1) return false;
-                player[idx].turn = *(PlayerState*)p;
+                if (flen != 1)
+                    return false;
+                player[idx].turn = *(PlayerState *)p;
                 break;
             }
             p += flen;
@@ -331,6 +369,7 @@ static bool parse_one_packet(
             }
         }
     } break;
+    case GAME_TURN_UPDATE:
     case READY_STATUS: {
         out->data.Boolean = (uint8_t)*p;
         p++;

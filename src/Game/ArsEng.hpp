@@ -1,9 +1,9 @@
 #pragma once
 
-#include <raylib.h>
 #include "../Object/ObjectManager.hpp"
 #include "../Shader/ShadersManager.hpp"
 #include "../Texture/TextureManager.hpp"
+#include <raylib.h>
 
 static const Vector2 CANVAS_SIZE = Vector2{128 * 1.5, 72 * 1.5};
 static const Vector2 BIGCANVAS_SIZE = Vector2{128 * 10, 72 * 10};
@@ -22,7 +22,7 @@ struct Request {
 };
 
 class ArsEng {
-public:
+  public:
     Vector2 window_size;
     RenderTexture2D canvas;
     RenderTexture2D bigcanvas;
@@ -50,7 +50,8 @@ public:
     Request _req;
     GameState _req_state;
 
-    ArsEng(Vector2 wsize): om(), tm(), state(GameState::MENU), _req_state(GameState::MENU) {
+    ArsEng(Vector2 wsize)
+        : om(), tm(), state(GameState::MENU), _req_state(GameState::MENU) {
         canvas = LoadRenderTexture(CANVAS_SIZE.x, CANVAS_SIZE.y);
         bigcanvas = LoadRenderTexture(BIGCANVAS_SIZE.x, BIGCANVAS_SIZE.y);
         SetTextureFilter(canvas.texture, TEXTURE_FILTER_POINT);
@@ -62,15 +63,16 @@ public:
         this->req_close = false;
         this->canvas_size.x = this->canvas.texture.width;
         this->canvas_size.y = this->canvas.texture.height;
-        this->font =
-            LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
-                       120, NULL, 95);
+        this->font = LoadFontEx(
+            "assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf", 120,
+            NULL, 95);
 
         if (this->font.texture.id == 0)
-            TraceLog(LOG_FATAL,
-                     TextFormat("%s\n",
-                                "Try to launch the game from the correct path."
-                                " The game expect the `assets` folder in cwd."));
+            TraceLog(
+                LOG_FATAL,
+                TextFormat("%s\n",
+                           "Try to launch the game from the correct path."
+                           " The game expect the `assets` folder in cwd."));
 
 #ifdef MOBILE
         SetGesturesEnabled(GESTURE_TAP);
@@ -80,9 +82,7 @@ public:
 #endif
     }
 
-    ~ArsEng() {
-        UnloadFont(this->font);
-    };
+    ~ArsEng() { UnloadFont(this->font); };
 
     void check_and_recreate_canvas() {
         if (canvas.texture.id == 0) {
@@ -105,8 +105,9 @@ public:
     void render() {
         BeginTextureMode(bigcanvas);
         ClearBackground(BLANK);
-        for (auto &obj: this->render_later) {
-            if (!has_flag(state, obj->state)) continue;
+        for (auto &obj : this->render_later) {
+            if (!has_flag(state, obj->state))
+                continue;
             obj->render();
         }
         render_later.clear();
@@ -117,10 +118,13 @@ public:
         render_later.clear();
         BeginTextureMode(canvas);
         ClearBackground(BLACK);
-        for (auto &obj: om.sorted) {
-            if (!has_flag(state, obj->state)) continue;
-            if (obj->draw_in_canvas) obj->render();
-            else render_later.push_back(obj);
+        for (auto &obj : om.sorted) {
+            if (!has_flag(state, obj->state))
+                continue;
+            if (obj->draw_in_canvas)
+                obj->render();
+            else
+                render_later.push_back(obj);
         }
         EndTextureMode();
     }
@@ -136,11 +140,14 @@ public:
         this->canvas_cursor.y =
             (this->cursor.y / this->window_size.y) * this->canvas_size.y;
 
-        this->bigcanvas_cursor.x = (this->cursor.x / this->window_size.x) * this->bigcanvas.texture.width;
-        this->bigcanvas_cursor.y = (this->cursor.y / this->window_size.y) * this->bigcanvas.texture.height;
+        this->bigcanvas_cursor.x = (this->cursor.x / this->window_size.x) *
+                                   this->bigcanvas.texture.width;
+        this->bigcanvas_cursor.y = (this->cursor.y / this->window_size.y) *
+                                   this->bigcanvas.texture.height;
 
-        for (const auto &o: this->om.sorted) {
-            if (!has_flag(state, o->state) || !o->show) continue;
+        for (const auto &o : this->om.sorted) {
+            if (!has_flag(state, o->state) || !o->show)
+                continue;
             o->logic(dt);
         }
         if (this->dragged_obj != this->_last_dragged_obj) {
@@ -158,9 +165,7 @@ public:
         this->_change_state();
     }
 
-    void request_fullscreen() {
-        _req.t = TFULLSCREEN;
-    }
+    void request_fullscreen() { _req.t = TFULLSCREEN; }
 
     void request_resize(Vector2 new_size) {
         _req.t = RESIZE;
