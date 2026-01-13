@@ -4,15 +4,15 @@
 #include <raylib.h>
 
 struct PState {
-  public:
-    Vector2 mWindowSize;
-    bool mIsFullscreen;
+public:
+  Vector2 mWindowSize;
+  bool mIsFullscreen;
 
-    PState();
-    ~PState() = default;
+  PState();
+  ~PState() = default;
 
-    bool write_to_file(const char *file_path);
-    bool read_from_file(const char *file_path);
+  bool write_to_file(const char *file_path);
+  bool read_from_file(const char *file_path);
 };
 
 #endif // STATE_H_

@@ -8,14 +8,14 @@
 // ObjectManger as usual.
 
 class NeedleContainer : public Object {
-  public:
-    std::vector<Needle *> needles;
-    ObjectManager *om;
+public:
+  std::vector<Needle *> needles;
+  ObjectManager *om;
 
-    void render() override {
-        // DrawRectangleRec(this->rec, this->color);
-    };
+  void render() override {
+    // DrawRectangleRec(this->rec, this->color);
+  };
 
-    NeedleContainer(ObjectManager *om) : om(om) {}
-    ~NeedleContainer() = default;
+  NeedleContainer(ObjectManager *om) : om(om) {}
+  ~NeedleContainer() = default;
 };

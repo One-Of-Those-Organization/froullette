@@ -9,26 +9,26 @@
 #define ID_MAX_COUNT 7
 
 enum RoomState {
-    ROOM_FREE = 0,
-    ROOM_ACTIVE,
-    ROOM_RUNNING,
-    ROOM_FINISHED, // NOTE: If see this and already get the msg please set it to
-                   // active again.
+  ROOM_FREE = 0,
+  ROOM_ACTIVE,
+  ROOM_RUNNING,
+  ROOM_FINISHED, // NOTE: If see this and already get the msg please set it to
+                 // active again.
 };
 
 struct Room {
-    char id[ID_MAX_COUNT];
-    Player *players[2];
-    uint8_t player_len;
-    RoomState state;
-    PlayerState turn;
+  char id[ID_MAX_COUNT];
+  Player *players[2];
+  uint8_t player_len;
+  RoomState state;
+  PlayerState turn;
 };
 
 int get_room_player_empty(Room *room) {
-    for (size_t i = 0; i < 2; i++) {
-        if (room->players[i] == nullptr) {
-            return i;
-        }
+  for (size_t i = 0; i < 2; i++) {
+    if (room->players[i] == nullptr) {
+      return i;
     }
-    return -1;
+  }
+  return -1;
 }
