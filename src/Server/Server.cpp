@@ -265,7 +265,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                  "Cannot find the room!");
       } break;
       case GAME_PLAYER_UPDATE: {
-        // stuff
+        // TODO: finish this
+        switch (pd.data.action->type) {
+          case INJECT: {} break;
+          case USE_ITEM: {} break;
+        }
       } break;
       case TOGGLE_READY: {
         Room *r = nullptr;
@@ -325,6 +329,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               std::vector<MinimalNeedle> mn;
               mn.reserve(needle_count);
 
+              // NOTE: plaese sync the id with the client right now it is since the 2 of them use 0..4
               for (int i = 0; i < needle_count; ++i) {
                 _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
                 r->needles.push_back(needle);

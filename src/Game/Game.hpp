@@ -468,7 +468,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->curpos = &engine->canvas_cursor;
     needle->type = NeedleType::NT_BLANK;
     needle->state = state;
-    needle->used = false;
+    needle->used = true; // NOTE: default set to true so it only rendered when the server give it a go.
     needle->callback = [gd](Needle *n) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
@@ -476,10 +476,8 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       if (gd->room->turn != gd->player.turn && gd->lock_action)
         return;
 
-      // TODO: server handle GAME_PLAYER_UPDATE
       gd->action.type = GameActionType::INJECT;
-      gd->action.data.i32 = n->shared_id; // TODO: get the shared id and
-                                          // generate them from the server.
+      gd->action.data.i32 = n->shared_id;
       gd->lock_action =
           true; // TODO: wait some special response from the server to unlock
                 // the lock_action so you can do other action. (wait for turn
