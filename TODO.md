@@ -1,15 +1,15 @@
 # FOCUS
-- [ ] server handle `GAME_PLAYER_UPDATE`
-- [ ] client handle `GAME_TURN_UPDATE`
+- [ ] Server        :handle `GAME_PLAYER_UPDATE`
 
 # BACK BURNER
-- [ ] The item and stuff
-- [ ] effect of the item and needle
-- [ ] Player set the turn by the server and client.
-- [ ] Player health, Player turn
-- [ ] Item flow and spawn
+- [ ] Base          :The item and stuff
+- [ ] Base          :effect of the item and needle
+- [ ] Client        :Display Player health, Player turn
+- [ ] Client&Server :Item flow and spawn
 
 # FINISHED
+- [x] Player set the turn by the server and client.
+- [x] client handle `GAME_TURN_UPDATE`
 - [x] client handle `GAME_PLAYER_UPDATE`
 - [x] 1 player exit maka `ROOM_RUNNING` akan diganti.
 - [x] Init needle on the server

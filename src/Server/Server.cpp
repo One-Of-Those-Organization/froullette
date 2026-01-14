@@ -215,6 +215,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         Room *r = nullptr;
         int idx = -1;
         int roomi = -1;
+        bool done = false;
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
           if (ri->player_len < 1 || ri->player_len > 2)
@@ -224,9 +225,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               r = ri;
               idx = x;
               roomi = i;
+              done = true;
               break;
             }
           }
+          if (done) break;
         }
         if (r) {
           r->players[idx] = nullptr;
@@ -277,8 +280,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         Room *r = nullptr;
         Player *p = nullptr;
         Player *op = nullptr;
+        bool done = false;
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
+          if (ri->player_len < 2) break; // NOTE: this message is for inside game start so gate keep this func
           if (ri->player_len < 1 || ri->player_len > 2)
             continue;
           for (int x = 0; x < 2; x++) {
@@ -286,9 +291,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               r = ri;
               p = r->players[x];
               op = r->players[x ^ 1];
+              done = true;
               break;
             }
           }
+          if (done) break;
         }
         if (r) {
           switch (pd.data.action->type) {
@@ -363,6 +370,16 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               // NOTE: send to other player too
               uint8_t out[MAX_MESSAGE_BIN_SIZE];
               size_t n = generate_network_field(&reply, out);
+              printf("Generated data with size: %zu\n", n);
+              mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+              mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+
+              // NOTE: send the player turn too
+              memset(out, 0, MAX_MESSAGE_BIN_SIZE);
+              reply.type = MessageType::GAME_TURN_UPDATE;
+              reply.response = MessageType::TOGGLE_READY;
+              reply.data.Boolean = (uint8_t)r->turn;
+              n = generate_network_field(&reply, out);
               printf("Generated data with size: %zu\n", n);
               mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
               mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
