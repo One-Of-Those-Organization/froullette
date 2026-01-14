@@ -49,6 +49,8 @@ struct GameData {
 
   std::queue<int> dragged_obj_qq; // queue for dragged_obj
   LobbyStatus ls;
+  GameAction action;
+  bool lock_action = false;
 };
 
 #ifdef DEBUG_ROOM_
@@ -181,9 +183,11 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
       } break;
 
-      case GAME_PLAYER_UPDATE: {
-        // TODO: finish this
-      } break;
+        // NOTE: this handled by the server this msg have no meaning on the
+        // client
+        //       the client just need to send the update not receive them.
+        // case GAME_PLAYER_UPDATE: {
+        // } break;
 
       case GAME_END: {
         // TODO: finish this with screen too
@@ -446,23 +450,33 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->state = state;
     needle->used = false;
     needle->callback = [needle, gd](Needle *n) {
-      if (gd->room->turn != gd->player.turn)
-        return;
-
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+      if (gd->room->turn != gd->player.turn && gd->lock_action)
+        return;
+
+      // TODO: server handle GAME_PLAYER_UPDATE
+      gd->action.type = GameActionType::INJECT;
+      gd->action.data.i32 = n->shared_id; // TODO: get the shared id and
+                                          // generate them from the server.
+      gd->lock_action =
+          true; // TODO: wait some special response from the server to unlock
+                // the lock_action so you can do other action.
+
       n->used = true;
-      // TODO: Do some checkin when the health is <= 0 and other logic
-      if (needle->type == NeedleType::NT_LIVE)
-        gd->player.health--;
+      Message msg = {};
+      msg.type = GAME_PLAYER_UPDATE;
+      msg.response = NONE;
+      msg.data.action = &gd->action;
+      gd->client->send(msg);
     };
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
   }
   // TODO: put the whole health thing (use the brain texture right)
-  // TODO: the whole all_used stuff should be put here with diff script or
-  // timer object.
+  // TODO: the whole all_used needle stuff should be put here with diff script
+  // or timer object.
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
