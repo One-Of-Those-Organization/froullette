@@ -206,10 +206,17 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 
         if (parr[0].id == gd->player.id) {
           gd->player = parr[0];
+          gd->player.turn = PlayerState::PLAYER1;
+
           gd->oplayer = parr[1];
+          gd->oplayer.turn = PlayerState::PLAYER2;
+
         } else {
           gd->player = parr[1];
+          gd->player.turn = PlayerState::PLAYER2;
+
           gd->oplayer = parr[0];
+          gd->oplayer.turn = PlayerState::PLAYER1;
         }
       } break;
       case GAME_NEEDLE_DATA: {
@@ -359,18 +366,23 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
 static void initInGame(ArsEng *engine, int kh_id, int *z) {
   Vector2 wsize = {(float)engine->canvas.texture.width,
                    (float)engine->canvas.texture.height};
+
+  // For UI Positioning
+  float sw = (float)GetScreenWidth();
+  float sh = (float)GetScreenHeight();
+
   GameState state = GameState::INGAME;
   KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
   GameData *gd = (GameData *)engine->additional_data;
 
   // NOTE : I use 5 hp because the init needles is 5 for now
   // Player 1 HP Text (Later Change to Brain) Left Bottom
-  Text *hp_p1 = cText(engine, state, "HP: 5", 32, GREEN, {20, wsize.y - 100});
+  Text *hp_p1 = cText(engine, state, "HP: 5", 32, GREEN, {20, sh - 100});
   hp_p1->draw_in_canvas = false;
   engine->om.add_object(hp_p1, (*z)++);
 
   // Player 2 HP Text (Later Change to Brain) Right Upper
-  Text *hp_p2 = cText(engine, state, "HP: 5", 32, RED, {wsize.x - 200, 20});
+  Text *hp_p2 = cText(engine, state, "HP: 5", 32, RED, {sw - 250, 20});
   hp_p2->draw_in_canvas = false;
   engine->om.add_object(hp_p2, (*z)++);
 
@@ -382,10 +394,13 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   // Update Indicator
   Script *turn_update = new Script();
   turn_update->state = state;
-  turn_update->callback = [hp_p1, hp_p2, turn_txt, gd, engine]() {
+  turn_update->callback = [hp_p1, hp_p2, turn_txt, gd, engine, sw]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+
+    if (!gd->room) return;
+
     hp_p1->text = "HP: " + std::to_string(gd->player.health);
     hp_p2->text = "Enemy HP: " + std::to_string(gd->oplayer.health);
 
@@ -411,7 +426,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 
     // Center the turn text
     Vector2 len = turn_txt->calculate_len();
-    turn_txt->rec.x = (engine->window_size.x - len.x) / 2.0f;
+    turn_txt->rec.x = (sw - len.x) / 2.0f;
   };
 
   engine->om.add_object(turn_update, (*z)++);
@@ -905,12 +920,12 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     // NOTE: This will be bad for performance but i guess for simplicity and
     // for the result of my bad design
     //       legit this is so bad...
-    if (gd->player.ready && btn2->str != "Ready") {
-      btn2->str = "Ready";
+    if (gd->player.ready && btn2->str != "Unready") {
+      btn2->str = "Unready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
-    } else if (!gd->player.ready && btn2->str != "Unready") {
-      btn2->str = "Unready";
+    } else if (!gd->player.ready && btn2->str != "Ready") {
+      btn2->str = "Ready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
     }
@@ -1016,12 +1031,13 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   Texture2D *cursor_text =
       engine->tm.load_texture("cursor", "./assets/cursor.png");
   Cursor *cr = new Cursor();
+  cr->rec = {};
+  cr->state =  state;
   cr->text = cursor_text;
   cr->cursor = &engine->bigcanvas_cursor;
   cr->draw_in_canvas = false;
-  engine->om.add_object(cr, 9999);
+  engine->om.add_object(cr, 999);
   // hide the real cursor
-  HideCursor();
 #endif
 }
 

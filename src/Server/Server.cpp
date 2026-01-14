@@ -348,6 +348,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             if (all_used && r->state != ROOM_FINISHED) {
               printf("[Server.cpp line %d] All needles used, resetting needles for next round.\n", __LINE__);
 
+              if (!p || !op) {
+                printf("[SERVER] Error: Player missing during reset!\n");
+                break;
+              }
+
               // Clean old needles
               r->needles.clear();
 
