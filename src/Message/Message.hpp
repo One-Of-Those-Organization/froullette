@@ -92,7 +92,7 @@ enum MessageType {
   GAME_PERIODIC,      // will be sended every n times for the update (is this
                       // really needed?)
   GAME_FINISHED_PREMATURELY,
-  GAME_END,
+  GAME_END, // send back winner id
 };
 
 struct ByteT {
@@ -236,6 +236,12 @@ struct Message {
   case LOBBY_STATUS: {
     LobbyStatus *r = &m->data.LobbyStatus_obj;
     payload_len = gen_lobby_status_net_obj(p, r);
+  } break;
+  case GAME_END: {
+    // send the winner player id
+    int id = &m->data.Int;
+    write_u32(p, id);
+    payload_len += sizeof(int);
   } break;
   case CONNECT_ROOM:
   case ERROR:
@@ -409,6 +415,7 @@ struct Message {
     out->data.Boolean = (uint8_t)*p;
     p++;
   } break;
+  case GAME_END:
   case LOGIN_ID:
   case HERE_ID:
     out->data.Int = read_u32(p);
