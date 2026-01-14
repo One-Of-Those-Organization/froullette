@@ -188,6 +188,14 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         // TODO: finish this with screen too
       } break;
 
+      case GAME_FINISHED_PREMATURELY: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->room) gd->room->state = ROOM_ACTIVE;
+        gd->oplayer = {};
+      } break;
+
       case GAME_START: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
@@ -474,7 +482,8 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
                                           // generate them from the server.
       gd->lock_action =
           true; // TODO: wait some special response from the server to unlock
-                // the lock_action so you can do other action. (wait for turn change from the server to reset or not to reset this)
+                // the lock_action so you can do other action. (wait for turn
+                // change from the server to reset or not to reset this)
 
       n->used = true;
       Message msg = {};

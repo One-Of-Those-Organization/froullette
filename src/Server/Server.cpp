@@ -23,13 +23,6 @@ Room *find_free_room(Server *server) {
 static void timer_fn(void *arg) {
   uint8_t out[MAX_MESSAGE_BIN_SIZE];
   (void)arg;
-  /*
-     struct mg_mgr *mgr = (struct mg_mgr *) arg;
-     for (struct mg_connection *wc = mgr->conns; wc != NULL; wc = wc->next) {
-     if (wc->data[0] == 'W') {
-     }
-     }
-     */
   for (auto &r : created_room) {
     Player *p = r->players[0];
     Player *op = r->players[1];
@@ -243,6 +236,24 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             if (roomi >= 0)
               created_room.erase(created_room.begin() + roomi);
           }
+
+          // NOTE: if other player leave and the room is running auto change the room state
+          // since they now will play with ghsost if we continue.
+          if (r->player_len == 1 && r->state == RoomState::ROOM_RUNNING) {
+              int other_idx = idx ^ 1;
+              r->state = RoomState::ROOM_ACTIVE;
+              Player *op = r->players[other_idx];
+
+              Message newmsg = {};
+              newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
+              newmsg.response = MessageType::NONE;
+
+              uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
+              size_t n = generate_network_field(&newmsg, inside_out);
+              printf("Generated data with size: %zu\n", n);
+              mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
+          }
+
           reply.type = MessageType::NONE;
           reply.response = MessageType::EXIT_ROOM;
           snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "Done removed!");
@@ -334,7 +345,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               mg_ws_send(op->con, needle_out, needle_n, WEBSOCKET_OP_BINARY);
 
               return;
-              // break;
             }
           }
           reply.type = MessageType::READY_STATUS;
@@ -379,6 +389,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 }
 
 int main(int argc, char **argv) {
+  srand(time(0));
   static const char *ipflag = "-ip";
   static const char *portflag = "-port";
   static const int resolution = 100;

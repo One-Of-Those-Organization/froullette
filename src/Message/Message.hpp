@@ -91,6 +91,7 @@ enum MessageType {
                       // need new struct def. TODO: WORKING ON THIS
   GAME_PERIODIC,      // will be sended every n times for the update (is this
                       // really needed?)
+  GAME_FINISHED_PREMATURELY,
   GAME_END,
 };
 
@@ -262,9 +263,6 @@ struct Message {
 
     write_u16(&len_pos, (uint32_t)actual_payload);
     payload_len += 2 + actual_payload;
-  } break;
-  case TOGGLE_READY: { /* didnt need to send anything the server already know
-                          what to do. */
   } break;
   default:
     break;

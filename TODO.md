@@ -1,10 +1,8 @@
 # FOCUS
 - [ ] server handle `GAME_PLAYER_UPDATE`
 - [ ] client handle `GAME_PLAYER_UPDATE`
-- [ ] Init needle on the server
 
 # BACK BURNER
-- [ ] 1 player exit maka `ROOM_RUNNING` akan diganti.
 - [ ] The item and stuff
 - [ ] effect of the item and needle
 - [ ] Player set the turn by the server and client.
@@ -12,6 +10,8 @@
 - [ ] Item flow and spawn
 
 # FINISHED
+- [x] 1 player exit maka `ROOM_RUNNING` akan diganti.
+- [x] Init needle on the server
 - [x] Game update message
 - [x] Merge with ingame branch
 - [x] the server looping stuff
