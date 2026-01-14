@@ -346,7 +346,43 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             }
 
             if (all_used && r->state != ROOM_FINISHED) {
-              // TODO : Finish Round Reset Logic
+              printf("[Server.cpp line %d] All needles used, resetting needles for next round.\n", __LINE__);
+
+              // Clean old needles
+              r->needles.clear();
+
+              // Generate new needles
+              const int needle_count = 5;
+              const int live_needles = rand() % 3 + 1; // Random between 1 to 3 live needles
+
+              std::vector<uint8_t> needle_types;
+              for (int i = 0; i < live_needles; ++i) needle_types.push_back(1);
+              for (int i = 0; i < needle_count - live_needles; ++i) needle_types.push_back(0);
+
+              unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+              std::shuffle(needle_types.begin(), needle_types.end(), std::default_random_engine(seed));
+
+              // Send to both players
+              for (int i = 0; i < needle_count; ++i) {
+                _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
+                r->needles.push_back(needle);
+              }
+
+              // After reset needles now send to both players
+              Message needle_msg = {};
+              needle_msg.type = GAME_NEEDLE_DATA;
+              needle_msg.response = NONE;
+
+              std::vector<MinimalNeedle> mn;
+              for(auto &n : r->needles) mn.push_back({n.id, n.used});
+
+              needle_msg.data.Byte.len = sizeof(MinimalNeedle) * mn.size();
+              memcpy(needle_msg.data.Byte.data, mn.data(), needle_msg.data.Byte.len);
+
+              uint8_t out_reset[MAX_MESSAGE_BIN_SIZE];
+              size_t n_reset = generate_network_field(&needle_msg, out_reset);
+              mg_ws_send(p->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
+              mg_ws_send(op->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
             }
 
             // Send Game Start Update (Contain HP, etc)
