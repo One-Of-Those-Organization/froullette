@@ -265,10 +265,104 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                  "Cannot find the room!");
       } break;
       case GAME_PLAYER_UPDATE: {
-        // TODO: finish this
+        // Search for the room and player
+        uint32_t id = player_conmap[c];
+        Room *r = nullptr;
+        Player *p = nullptr;
+        Player *op = nullptr;
+
+        for (auto &ri : created_room) {
+          if (ri->state != ROOM_RUNNING) continue;
+          for (int x = 0; x < 2; x++) {
+            if (ri->players[x] && ri->players[x]->id == id) {
+              r = ri;
+              p = ri->players[x];
+              op = ri->players[x ^ 1];
+              break;
+            }
+          }
+          if (r) break;
+        }
+
+        if (!r || !p || !op) break;
+
+        // Read from Player State and from Server || Turn Logic
+        if (r->turn == PlayerState::PLAYER1 && p != r->players[0]) break; // Player 1 Turn
+        if (r->turn == PlayerState::PLAYER2 && p != r->players[1]) break; // Player 2 Turn
+
+        // Process Action
         switch (pd.data.action->type) {
-          case INJECT: {} break;
-          case USE_ITEM: {} break;
+          case INJECT: {
+            int needle_idx = pd.data.action->data.i32;
+
+            // Validate needle index
+            if (needle_idx < 0 || needle_idx >= (int)r->needles.size()) break; // Prevent out of index range
+            if (r->needles[needle_idx].used) break; // Break the needles that already used
+
+            // Update Needles
+            r->needles[needle_idx].used = true;
+            bool is_live = (r->needles[needle_idx].type == 1); // LIVE NEEDLES
+
+            // Broadcast to Clients about the needle update
+            {
+              Message needle_msg = {};
+              needle_msg.type = GAME_NEEDLE_DATA;
+              needle_msg.response = NONE;
+
+              std::vector<MinimalNeedle> minimal_needles;
+              for (auto &n : r->needles) minimal_needles.push_back({n.id, n.used});
+
+              needle_msg.data.Byte.len = sizeof(MinimalNeedle) * minimal_needles.size();
+              memcpy(needle_msg.data.Byte.data, minimal_needles.data(), needle_msg.data.Byte.len);
+
+              uint8_t out[MAX_MESSAGE_BIN_SIZE];
+              size_t n = generate_network_field(&needle_msg, out);
+              mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+              mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+            }
+
+            // Process Injection
+            if (is_live) {
+              p->health -= 1; // Give damage to self player
+              r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2 : PlayerState::PLAYER1;
+            } else {
+              // NOTE : For now skip turn only and not having more turn
+              r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2 : PlayerState::PLAYER1;
+            }
+
+            // Game Over State
+            if (p->health <= 0) {
+              r->state = ROOM_FINISHED;
+              // TODO : Finish Game Over State
+            }
+
+            // Check for Next Round
+            bool all_used = true;
+            for (auto &n : r->needles) {
+              if (!n.used) {
+                all_used = false;
+                break;
+              }
+            }
+
+            if (all_used && r->state != ROOM_FINISHED) {
+              // TODO : Finish Round Reset Logic
+            }
+
+            Message status_msg = {};
+            status_msg.type = GAME_START;
+            Player buffer[] = {*r->players[0], *r->players[1]};
+            status_msg.data.Byte.len = sizeof(Player) * 2;
+            memcpy(status_msg.data.Byte.data, buffer, sizeof(Player) * 2);
+
+            uint8_t out[MAX_MESSAGE_BIN_SIZE];
+            size_t n = generate_network_field(&status_msg, out);
+            mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+            mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+          } break;
+          case USE_ITEM: {
+            // TODO : Finish Use Item
+          } break;
         }
       } break;
       case TOGGLE_READY: {
