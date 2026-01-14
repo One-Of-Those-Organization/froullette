@@ -958,12 +958,12 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   Texture2D *cursor_text =
       engine->tm.load_texture("cursor", "./assets/cursor.png");
   Cursor *cr = new Cursor();
+  cr->rec = {};
+  cr->state =  state;
   cr->text = cursor_text;
   cr->cursor = &engine->bigcanvas_cursor;
   cr->draw_in_canvas = false;
   engine->om.add_object(cr, 9999);
-  // hide the real cursor
-  HideCursor();
 #endif
 }
 

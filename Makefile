@@ -1,6 +1,6 @@
 JOBS := $(shell nproc)
 
-all: client server
+all: client server web
 
 client:
 	cmake --build build -j$(JOBS)
@@ -19,3 +19,15 @@ server-run: server
 
 server-dbg: server
 	gf2 ./build/src/Server/froullete-server
+
+web-config: ./webbuild
+	source ./web/emsdk/emsdk_env.sh && \
+	emcmake cmake -S . -B webbuild -DEMSCRIPTEN=1
+
+web: web-config
+	source ./web/emsdk/emsdk_env.sh && \
+	cmake --build webbuild -j$(JOBS)
+
+web-run: web
+	source ./web/emsdk/emsdk_env.sh && \
+	emrun --no_browser --port 8080 webbuild/

@@ -239,8 +239,8 @@ struct Message {
   } break;
   case GAME_END: {
     // send the winner player id
-    int id = &m->data.Int;
-    write_u32(p, id);
+    int id = m->data.Int;
+    write_u32(&p, id);
     payload_len += sizeof(int);
   } break;
   case CONNECT_ROOM:

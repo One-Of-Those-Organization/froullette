@@ -306,6 +306,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 if (n.type == 1) {
                   p->health--;
                   n.used = false;
+                  // NOTE: just merger with `CoreGameplay` branch //
                   // TODO: notify the player that they got damaged. (maybe will be sended throught the `timer_fn`)
                   // TODO: notify the player that that needle is used. (maybe will be sended throught the `timer_fn`)
                   // TODO: the whole damaga mult items
@@ -367,7 +368,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply.data.Byte.len = sizeof(Player) * 2;
               memcpy(reply.data.Byte.data, buffer, reply.data.Byte.len);
 
-              // NOTE: send to other player too
+              // NOTE: player status
               uint8_t out[MAX_MESSAGE_BIN_SIZE];
               size_t n = generate_network_field(&reply, out);
               printf("Generated data with size: %zu\n", n);
