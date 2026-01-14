@@ -177,10 +177,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        gd->room->turn =
+        PlayerState state =
             (PlayerState)
                 pd.data.Boolean; // use smaller one bro it doesnt need to use
                                  // int because thats already 4 byte.
+
+        if (state == gd->room->turn) gd->lock_action = false;
+        gd->room->turn = state;
         TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
       } break;
 
@@ -478,11 +481,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 
       gd->action.type = GameActionType::INJECT;
       gd->action.data.i32 = n->shared_id;
-      gd->lock_action =
-          true; // TODO: wait some special response from the server to unlock
-                // the lock_action so you can do other action. (wait for turn
-                // change from the server to reset or not to reset this)
-
+      gd->lock_action = true;
       n->used = true;
       Message msg = {};
       msg.type = GAME_PLAYER_UPDATE;

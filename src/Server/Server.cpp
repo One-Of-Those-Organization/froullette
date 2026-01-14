@@ -237,21 +237,21 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               created_room.erase(created_room.begin() + roomi);
           }
 
-          // NOTE: if other player leave and the room is running auto change the room state
-          // since they now will play with ghsost if we continue.
+          // NOTE: if other player leave and the room is running auto change the
+          // room state since they now will play with ghsost if we continue.
           if (r->player_len == 1 && r->state == RoomState::ROOM_RUNNING) {
-              int other_idx = idx ^ 1;
-              r->state = RoomState::ROOM_ACTIVE;
-              Player *op = r->players[other_idx];
+            int other_idx = idx ^ 1;
+            r->state = RoomState::ROOM_ACTIVE;
+            Player *op = r->players[other_idx];
 
-              Message newmsg = {};
-              newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
-              newmsg.response = MessageType::NONE;
+            Message newmsg = {};
+            newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
+            newmsg.response = MessageType::NONE;
 
-              uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
-              size_t n = generate_network_field(&newmsg, inside_out);
-              printf("Generated data with size: %zu\n", n);
-              mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
+            uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
+            size_t n = generate_network_field(&newmsg, inside_out);
+            printf("Generated data with size: %zu\n", n);
+            mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
           }
 
           reply.type = MessageType::NONE;
@@ -266,11 +266,66 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
       } break;
       case GAME_PLAYER_UPDATE: {
         // TODO: finish this
-        switch (pd.data.action->type) {
-          case INJECT: {} break;
-          case USE_ITEM: {} break;
+        if (!player_conmap.count(c)) {
+          reply.type = MessageType::ERROR;
+          reply.response = MessageType::EXIT_ROOM;
+          snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                   "Please do GIVE_ID first to register/login.");
+          break;
         }
-      } break;
+        uint32_t id = player_conmap[c];
+        Room *r = nullptr;
+        Player *p = nullptr;
+        Player *op = nullptr;
+        for (size_t i = 0; i < created_room.size(); i++) {
+          Room *ri = created_room[i];
+          if (ri->player_len < 1 || ri->player_len > 2)
+            continue;
+          for (int x = 0; x < 2; x++) {
+            if (ri->players[x] && ri->players[x]->id == id) {
+              r = ri;
+              p = r->players[x];
+              op = r->players[x ^ 1];
+              break;
+            }
+          }
+        }
+        if (r) {
+          switch (pd.data.action->type) {
+          case INJECT: {
+            int id = pd.data.action->data.i32;
+            for (auto &n: r->needles) {
+              if (n.id == id) {
+                if (n.type == 1) {
+                  p->health--;
+                  n.used = false;
+                  // TODO: notify the player that they got damaged. (maybe will be sended throught the `timer_fn`)
+                  // TODO: notify the player that that needle is used. (maybe will be sended throught the `timer_fn`)
+                  // TODO: the whole damaga mult items
+                }
+                break;
+              }
+            }
+          } break;
+          case USE_ITEM: {
+            int id = pd.data.action->data.i32;
+            (void)id;
+            // TODO: finish implementing this
+          } break;
+          }
+          r->turn = (PlayerState)((uint8_t)(r->turn) ^ 1);
+        }
+        reply.type = MessageType::GAME_TURN_UPDATE;
+        reply.response = MessageType::GAME_PLAYER_UPDATE;
+        reply.data.Boolean = (uint8_t)r->turn;
+
+        uint8_t out[MAX_MESSAGE_BIN_SIZE];
+        size_t n = generate_network_field(&reply, out);
+        printf("Generated data with size: %zu\n", n);
+        mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+        mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+        return;
+      };
       case TOGGLE_READY: {
         Room *r = nullptr;
         Player *p = nullptr;
@@ -329,7 +384,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               std::vector<MinimalNeedle> mn;
               mn.reserve(needle_count);
 
-              // NOTE: plaese sync the id with the client right now it is since the 2 of them use 0..4
+              // NOTE: plaese sync the id with the client right now it is since
+              // the 2 of them use 0..4
               for (int i = 0; i < needle_count; ++i) {
                 _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
                 r->needles.push_back(needle);
