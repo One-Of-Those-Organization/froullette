@@ -349,6 +349,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               // TODO : Finish Round Reset Logic
             }
 
+            // Send Game Start Update (Contain HP, etc)
             Message status_msg = {};
             status_msg.type = GAME_START;
             Player buffer[] = {*r->players[0], *r->players[1]};
@@ -359,6 +360,16 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             size_t n = generate_network_field(&status_msg, out);
             mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
             mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+
+            // Send Turn Update
+            Message turn_msg = {};
+            turn_msg.type = GAME_TURN_UPDATE;
+            turn_msg.response = NONE;
+            turn_msg.data.Boolean = (uint8_t)r->turn;
+
+            size_t n_turn = generate_network_field(&turn_msg, out);
+            mg_ws_send(p->con, out, n_turn, WEBSOCKET_OP_BINARY);
+            mg_ws_send(op->con, out, n_turn, WEBSOCKET_OP_BINARY);
           } break;
           case USE_ITEM: {
             // TODO : Finish Use Item

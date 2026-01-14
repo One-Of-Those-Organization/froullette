@@ -200,12 +200,16 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (gd->room)
-          gd->room->state = ROOM_RUNNING;
+        if (gd->room) gd->room->state = ROOM_RUNNING;
+
         Player *parr = (Player *)pd.data.Byte.data;
+
         if (parr[0].id == gd->player.id) {
           gd->player = parr[0];
           gd->oplayer = parr[1];
+        } else {
+          gd->player = parr[1];
+          gd->oplayer = parr[0];
         }
       } break;
       case GAME_NEEDLE_DATA: {
@@ -358,6 +362,59 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   GameState state = GameState::INGAME;
   KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
   GameData *gd = (GameData *)engine->additional_data;
+
+  // NOTE : I use 5 hp because the init needles is 5 for now
+  // Player 1 HP Text (Later Change to Brain) Left Bottom
+  Text *hp_p1 = cText(engine, state, "HP: 5", 32, GREEN, {20, wsize.y - 100});
+  hp_p1->draw_in_canvas = false;
+  engine->om.add_object(hp_p1, (*z)++);
+
+  // Player 2 HP Text (Later Change to Brain) Right Upper
+  Text *hp_p2 = cText(engine, state, "HP: 5", 32, RED, {wsize.x - 200, 20});
+  hp_p2->draw_in_canvas = false;
+  engine->om.add_object(hp_p2, (*z)++);
+
+  // Turn Indicator Middle Upper
+  Text *turn_txt = cText(engine, state, "Waiting...", 48, YELLOW, {0,50});
+  turn_txt->draw_in_canvas = false;
+  engine->om.add_object(turn_txt, (*z)++);
+
+  // Update Indicator
+  Script *turn_update = new Script();
+  turn_update->state = state;
+  turn_update->callback = [hp_p1, hp_p2, turn_txt, gd, engine]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+    hp_p1->text = "HP: " + std::to_string(gd->player.health);
+    hp_p2->text = "Enemy HP: " + std::to_string(gd->oplayer.health);
+
+    // Check which player's turn it is
+    bool is_player_turn = (gd->player.turn == gd->room->turn);
+    if (gd->player.health <= 0) {
+      turn_txt->text = "You Lose!"; turn_txt->text_color = RED;
+      gd->lock_action = true;
+    } else if (gd->oplayer.health <= 0) {
+      turn_txt->text = "You Win!"; turn_txt->text_color = GREEN;
+      gd->lock_action = true;
+    } else {
+      if (is_player_turn) {
+        turn_txt->text = "Your Turn!";
+        turn_txt->text_color = GREEN;
+        gd->lock_action = false;
+      } else {
+        turn_txt->text = "Enemy's Turn!";
+        turn_txt->text_color = RED;
+        gd->lock_action = true;
+      }
+    }
+
+    // Center the turn text
+    Vector2 len = turn_txt->calculate_len();
+    turn_txt->rec.x = (engine->window_size.x - len.x) / 2.0f;
+  };
+
+  engine->om.add_object(turn_update, (*z)++);
 
   if (!kh)
     TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
