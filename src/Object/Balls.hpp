@@ -5,6 +5,7 @@
 
 class Balls : public Object {
 public:
+  void *engine;
   Vector2 speed;
   Balls() {};
   virtual ~Balls() = default;

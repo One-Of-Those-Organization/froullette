@@ -10,12 +10,10 @@ public:
   Texture2D *text;
   bool show;
   GameState state;
-  void *engine;
   bool draw_in_canvas = true;
   Color color;
 
   Object() {
-    this->engine = nullptr;
     this->text = nullptr;
     this->show = true;
     this->state = GameState::ALL;

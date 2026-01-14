@@ -15,5 +15,5 @@ struct Player {
   mg_connection *con;
 #endif // _SERVER
   bool ready;
-  PlayerState turn; // TODO: apply this to all the stuff that create player.
+  PlayerState turn;
 };

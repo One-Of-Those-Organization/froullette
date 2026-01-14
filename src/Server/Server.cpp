@@ -3,6 +3,10 @@
 #include "Server.hpp"
 #include "../Message/Message.hpp"
 #include "../Shared/Helper.hpp"
+#include <algorithm>
+#include <chrono>
+#include <random>
+#include <vector>
 
 static std::unordered_map<mg_connection *, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
@@ -249,6 +253,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                  "Cannot find the room!");
       } break;
+      case GAME_PLAYER_UPDATE: {
+        // stuff
+      } break;
       case TOGGLE_READY: {
         Room *r = nullptr;
         Player *p = nullptr;
@@ -287,9 +294,47 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               uint8_t out[MAX_MESSAGE_BIN_SIZE];
               size_t n = generate_network_field(&reply, out);
               printf("Generated data with size: %zu\n", n);
+              mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
               mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
 
-              break;
+              // TODO: make this configurable from the outside
+              const int needle_count = 5;
+              const int live_needles = 2;
+              std::vector<uint8_t> needle_types;
+              for (int i = 0; i < live_needles; ++i)
+                needle_types.push_back(1);
+              for (int i = 0; i < needle_count - live_needles; ++i)
+                needle_types.push_back(0);
+
+              unsigned seed =
+                  std::chrono::system_clock::now().time_since_epoch().count();
+              std::shuffle(needle_types.begin(), needle_types.end(),
+                           std::default_random_engine(seed));
+
+              std::vector<MinimalNeedle> mn;
+              mn.reserve(needle_count);
+
+              for (int i = 0; i < needle_count; ++i) {
+                _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
+                r->needles.push_back(needle);
+                mn.push_back({needle.id, needle.used});
+              }
+
+              Message needle_msg = {};
+              needle_msg.type = GAME_NEEDLE_DATA;
+              needle_msg.response = NONE;
+              needle_msg.data.Byte.len = sizeof(MinimalNeedle) * needle_count;
+              memcpy(needle_msg.data.Byte.data, r->needles.data(),
+                     needle_msg.data.Byte.len);
+
+              uint8_t needle_out[MAX_MESSAGE_BIN_SIZE];
+              size_t needle_n = generate_network_field(&needle_msg, needle_out);
+              printf("Generated data with size: %zu\n", needle_n);
+              mg_ws_send(p->con, needle_out, needle_n, WEBSOCKET_OP_BINARY);
+              mg_ws_send(op->con, needle_out, needle_n, WEBSOCKET_OP_BINARY);
+
+              return;
+              // break;
             }
           }
           reply.type = MessageType::READY_STATUS;
@@ -317,7 +362,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
     break;
   case MG_EV_CLOSE:
     printf("[SERVER] Connection closed: %p\n", c);
-    // TODO: cleanup their room too.
+    // TODO: cleanup their room if no one there.
     // NOTE: we dont need to cleanup the big player array right since they
     // should beable to login
     if (player_conmap.count(c)) {

@@ -4,6 +4,7 @@
 - [ ] Init needle on the server
 
 # BACK BURNER
+- [ ] 1 player exit maka `ROOM_RUNNING` akan diganti.
 - [ ] The item and stuff
 - [ ] effect of the item and needle
 - [ ] Player set the turn by the server and client.

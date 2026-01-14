@@ -40,10 +40,10 @@ enum LobbyStatusField : uint8_t {
   LSF_READY = 2,
 };
 
-enum NeedleField : uint8_t {
-  NF_ID = 1,
-  NF_TYPE = 2,
-};
+// enum NeedleField : uint8_t {
+//   NF_ID = 1,
+//   NF_TYPE = 2,
+// };
 
 enum RoomField : uint8_t {
   RF_ID = 1,
@@ -84,6 +84,7 @@ enum MessageType {
 
   LOBBY_STATUS,
 
+  GAME_NEEDLE_DATA,
   GAME_TURN_UPDATE,   // send the turn update after player done
                       // GAME_PLAYER_UPDATE
   GAME_PLAYER_UPDATE, // send what player do what action they take it will
@@ -220,6 +221,12 @@ struct Message {
     GameAction *ga = m->data.action;
     payload_len = gen_game_action_net_obj(p, ga);
     p += payload_len;
+  } break;
+  case GAME_NEEDLE_DATA: {
+    write_u16(&p, m->data.Byte.len); payload_len += 2;
+    memcpy(p, m->data.Byte.data, m->data.Byte.len);
+    p += m->data.Byte.len;
+    payload_len += m->data.Byte.len;
   } break;
   case READY_STATUS: {
     *p++ = (uint8_t)m->data.Boolean;
@@ -392,39 +399,13 @@ struct Message {
       }
       p += flen;
     }
-    /*
-
-    while (p < end) {
-      uint8_t f = *p++;
-      uint16_t flen = read_u16(p);
-      p += 2;
-
-      switch (f) {
-      case PF_ID:
-        player[idx].id = read_u32(p);
-        break;
-      case PF_HEALTH:
-        player[idx].health = *p;
-        break;
-      case PF_READY:
-        if (flen != 1)
-          return false;
-        player[idx].ready = *p;
-        break;
-      case PF_TURN:
-        if (flen != 1)
-          return false;
-        player[idx].turn = *(PlayerState *)p;
-        break;
-      }
-      p += flen;
-      fields_parsed++;
-      if (fields_parsed >= 4) {
-        idx++;
-        fields_parsed = 0;
-      }
-    }
-    */
+  } break;
+  case GAME_NEEDLE_DATA: {
+    out->data.Byte.len = read_u16(p); p += 2;
+    if (out->data.Byte.len > sizeof(out->data.Byte.data))
+      return false;
+    memcpy(out->data.Byte.data, p, out->data.Byte.len);
+    p += out->data.Byte.len;
   } break;
   case READY_STATUS: {
     out->data.Boolean = (uint8_t)*p;

@@ -1,7 +1,10 @@
 #pragma once
 
 #include "../Game/PlayerState.hpp"
+#include "../Shared/MinimalNeedle.hpp"
 #include "Player.hpp"
+#include <stdlib.h>
+#include <vector>
 
 // Hardlimit for now too lazy...
 // it can be implemented using da(dynamic array) but the time is just too close.
@@ -22,9 +25,12 @@ struct Room {
   uint8_t player_len;
   RoomState state;
   PlayerState turn;
+#ifdef _SERVER
+  std::vector<_MinimalNeedle> needles;
+#endif
 };
 
-int get_room_player_empty(Room *room) {
+static inline int get_room_player_empty(Room *room) {
   for (size_t i = 0; i < 2; i++) {
     if (room->players[i] == nullptr) {
       return i;

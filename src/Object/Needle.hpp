@@ -20,7 +20,6 @@ public:
   Vector2 *curpos = nullptr;
   Vector2 offset = {};
   Rectangle max_rec = {};
-  Rectangle _tooltip_rec = {};
   bool used = false;
   int shared_id;
   std::function<void(Needle *)> callback;

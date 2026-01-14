@@ -51,6 +51,7 @@ struct GameData {
   LobbyStatus ls;
   GameAction action;
   bool lock_action = false;
+  NeedleContainer *needle_container;
 };
 
 #ifdef DEBUG_ROOM_
@@ -183,12 +184,6 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
       } break;
 
-        // NOTE: this handled by the server this msg have no meaning on the
-        // client
-        //       the client just need to send the update not receive them.
-        // case GAME_PLAYER_UPDATE: {
-        // } break;
-
       case GAME_END: {
         // TODO: finish this with screen too
       } break;
@@ -203,6 +198,25 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         if (parr[0].id == gd->player.id) {
           gd->player = parr[0];
           gd->oplayer = parr[1];
+        }
+      } break;
+      case GAME_NEEDLE_DATA: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->needle_container) {
+          MinimalNeedle *needles_info = (MinimalNeedle *)pd.data.Byte.data;
+          size_t count = pd.data.Byte.len / sizeof(MinimalNeedle);
+          if (count == gd->needle_container->needles.size()) {
+            for (size_t i = 0; i < count; ++i) {
+              for (Needle *n : gd->needle_container->needles) {
+                if (n->shared_id == needles_info[i].id) {
+                  n->used = (uint8_t)needles_info[i].used;
+                  break;
+                }
+              }
+            }
+          }
         }
       } break;
       default:
@@ -392,6 +406,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   engine->om.add_object(desk, (*z)++);
 
   auto ns = new NeedleContainer(&engine->om);
+  gd->needle_container = ns;
   engine->om.add_object(ns, (*z)++);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(200);
@@ -443,13 +458,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->dragged_qq = &gd->dragged_obj_qq;
     needle->rec = current_pos;
     needle->curpos = &engine->canvas_cursor;
-    needle->type = rand_range(0, 1) == 1
-                       ? NeedleType::NT_LIVE
-                       : NeedleType::NT_BLANK; // TODO: will be moved to the
-                                               // server later.
+    needle->type = NeedleType::NT_BLANK;
     needle->state = state;
     needle->used = false;
-    needle->callback = [needle, gd](Needle *n) {
+    needle->callback = [gd](Needle *n) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -462,7 +474,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
                                           // generate them from the server.
       gd->lock_action =
           true; // TODO: wait some special response from the server to unlock
-                // the lock_action so you can do other action.
+                // the lock_action so you can do other action. (wait for turn change from the server to reset or not to reset this)
 
       n->used = true;
       Message msg = {};
@@ -959,6 +971,7 @@ static void gameInit(ArsEng *engine) {
   gd->ls = {1, {false, false}};
   gd->text_buffer = new std::string();
   gd->text_buffer_displayed = false;
+  gd->needle_container = nullptr;
 #ifndef __EMSCRIPTEN__
   gd->_net = std::thread([gd]() {
     if (gd && gd->client) {
