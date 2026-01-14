@@ -375,34 +375,96 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
   GameData *gd = (GameData *)engine->additional_data;
 
-  // NOTE : I use 5 hp because the init needles is 5 for now
-  // Player 1 HP Text (Later Change to Brain) Left Bottom
-  Text *hp_p1 = cText(engine, state, "HP: 5", 32, GREEN, {20, sh - 100});
-  hp_p1->draw_in_canvas = false;
-  engine->om.add_object(hp_p1, (*z)++);
+  // Load Active Brain and Dead Brain Textures
+  Texture2D *tex_brain_ok = engine->tm.load_texture("brain_tex", "./assets/brain.png");
+  Texture2D *tex_brain_die = engine->tm.load_texture("brain_die_tex", "./assets/dieeBrain.png");
 
-  // Player 2 HP Text (Later Change to Brain) Right Upper
-  Text *hp_p2 = cText(engine, state, "HP: 5", 32, RED, {sw - 250, 20});
-  hp_p2->draw_in_canvas = false;
-  engine->om.add_object(hp_p2, (*z)++);
+  // Brain Player 1 Left Bottom
+  std::vector<Object*> p1_brains;
+  HBox *hb_p1 = new HBox();
+  hb_p1->state = state;
+  hb_p1->padding = 5;
+  hb_p1->rec = {20, sh - 90, 0, 0};
+  hb_p1->draw_in_canvas = false;
+
+  // NOTE : Please Change This to use actual player health later
+  for(int i=0; i<5; i++) {
+    Object *b = new Object();
+    b->state = state;
+    b->text = tex_brain_ok;
+
+    float x_pos = 20 + (i * 70);
+    b->rec = {x_pos, sh - 90, 64, 64};
+
+    b->draw_in_canvas = false;
+
+    hb_p1->add_child(b);
+    engine->om.add_object(b, (*z)++);
+    p1_brains.push_back(b);
+  }
+  engine->om.add_object(hb_p1, (*z)++);
+
+  // Brain Player 2 Right Upper
+  std::vector<Object*> p2_brains;
+  HBox *hb_p2 = new HBox();
+  hb_p2->state = state;
+  hb_p2->draw_in_canvas = false;
+
+  float p2_start_x = sw - (5 * 70) - 20;
+
+  // NOTE : Please Change This to use actual player health later
+  for(int i=0; i<5; i++) {
+    Object *b = new Object();
+    b->state = state;
+    b->text = tex_brain_ok;
+
+    float x_pos = p2_start_x + (i * 70);
+    b->rec = {x_pos, 20, 64, 64};
+
+    hb_p2->add_child(b);
+    engine->om.add_object(b, (*z)++);
+    p2_brains.push_back(b);
+  }
+  engine->om.add_object(hb_p2, (*z)++);
+
+  // NOTE : Please Change This to use actual player health later
+  // // Player 1 HP Text (Later Change to Brain) Left Bottom
+  // Text *hp_p1 = cText(engine, state, "HP: 5", 32, GREEN, {20, sh - 100});
+  // hp_p1->draw_in_canvas = false;
+  // engine->om.add_object(hp_p1, (*z)++);
+  //
+  // // Player 2 HP Text (Later Change to Brain) Right Upper
+  // Text *hp_p2 = cText(engine, state, "HP: 5", 32, RED, {sw - 250, 20});
+  // hp_p2->draw_in_canvas = false;
+  // engine->om.add_object(hp_p2, (*z)++);
 
   // Turn Indicator Middle Upper
   Text *turn_txt = cText(engine, state, "Waiting...", 48, YELLOW, {0,50});
   turn_txt->draw_in_canvas = false;
   engine->om.add_object(turn_txt, (*z)++);
 
-  // Update Indicator
+  // Script Updater
   Script *turn_update = new Script();
   turn_update->state = state;
-  turn_update->callback = [hp_p1, hp_p2, turn_txt, gd, engine, sw]() {
+  turn_update->callback = [p1_brains, p2_brains, turn_txt, gd, sw, tex_brain_die, tex_brain_ok]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
 
+    // Safety check if room null or not so it doesn't segfault
     if (!gd->room) return;
 
-    hp_p1->text = "HP: " + std::to_string(gd->player.health);
-    hp_p2->text = "Enemy HP: " + std::to_string(gd->oplayer.health);
+    // Update Visual Brain Player 1
+    for(int i=0; i < (int)p1_brains.size(); i++) {
+      if (i < gd->player.health) p1_brains[i]->text = tex_brain_ok; // Hidup
+      else p1_brains[i]->text = tex_brain_die; // Mati
+    }
+
+    // Update Visual Brain Player 2
+    for(int i=0; i < (int)p2_brains.size(); i++) {
+      if (i < gd->oplayer.health) p2_brains[i]->text = tex_brain_ok;
+      else p2_brains[i]->text = tex_brain_die;
+    }
 
     // Check which player's turn it is
     bool is_player_turn = (gd->player.turn == gd->room->turn);
