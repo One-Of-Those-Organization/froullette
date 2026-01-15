@@ -259,22 +259,6 @@ struct Message {
     payload_len += 2 + str_len;
     break;
   }
-  case GAME_START: {
-    uint8_t *len_pos = p;
-    p += 2;
-
-    Player *players = (Player *)m->data.Byte.data;
-    size_t actual_payload = 0;
-    actual_payload += gen_player_net_obj(p, &players[0]);
-    p += actual_payload;
-
-    size_t p2_len = gen_player_net_obj(p, &players[1]);
-    p += p2_len;
-    actual_payload += p2_len;
-
-    write_u16(&len_pos, (uint32_t)actual_payload);
-    payload_len += 2 + actual_payload;
-  } break;
   default:
     break;
   }
@@ -377,44 +361,6 @@ struct Message {
         break;
       }
       p += flen;
-    }
-  } break;
-  case GAME_START: {
-    out->data.Byte.len = read_u16(p);
-    p += 2;
-    Player *player = (Player *)out->data.Byte.data;
-    int idx = 0;
-    int fields_parsed = 0;
-
-    while (p < end) {
-      uint8_t f = *p++;
-      uint16_t flen = read_u16(p);
-      p += 2;
-
-      switch (f) {
-      case PF_ID:
-        player[idx].id = read_u32(p);
-        break;
-      case PF_HEALTH:
-        player[idx].health = *p;
-        break;
-      case PF_READY:
-        if (flen != 1)
-          return false;
-        player[idx].ready = *p;
-        break;
-      case PF_TURN:
-        if (flen != 1)
-          return false;
-        player[idx].turn = *(PlayerState *)p;
-        break;
-      }
-      p += flen;
-      fields_parsed++;
-      if (fields_parsed >= 4) {
-        idx++;
-        fields_parsed = 0;
-      }
     }
   } break;
   case GAME_TURN_UPDATE: {

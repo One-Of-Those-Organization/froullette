@@ -50,7 +50,7 @@ struct GameData {
   std::queue<int> dragged_obj_qq; // queue for dragged_obj
   LobbyStatus ls;
   GameAction action;
-  bool lock_action = false;
+  bool lock_action;
   NeedleContainer *needle_container;
 };
 
@@ -173,6 +173,15 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         *gd->text_buffer = pd.data.String;
       } break;
 
+      case PLAYER_INFO: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        memcpy(pd.data.Player_obj, &gd->oplayer, sizeof(Player));
+        delete pd.data.Player_obj;
+        gd->player.turn = (PlayerState)((int)gd->oplayer.turn == 1 ? 0 : 1);
+      } break;
+
       case GAME_TURN_UPDATE: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
@@ -182,8 +191,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
                 pd.data.Boolean; // use smaller one bro it doesnt need to use
                                  // int because thats already 4 byte.
 
-        if (state == gd->room->turn)
-          gd->lock_action = false;
+        if (state == gd->room->turn) gd->lock_action = false;
+        else gd->lock_action = true;
         gd->room->turn = state;
         TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
       } break;
@@ -207,11 +216,6 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #endif
         if (gd->room)
           gd->room->state = ROOM_RUNNING;
-        Player *parr = (Player *)pd.data.Byte.data;
-        if (parr[0].id == gd->player.id) {
-          gd->player = parr[0];
-          gd->oplayer = parr[1];
-        }
       } break;
       case GAME_NEEDLE_DATA: {
 #ifndef __EMSCRIPTEN__
@@ -981,6 +985,7 @@ static void gameInit(ArsEng *engine) {
   gd->text_buffer_displayed = false;
   gd->needle_container = nullptr;
   gd->action = {};
+  gd->lock_action = false;
 #ifndef __EMSCRIPTEN__
   gd->_net = std::thread([gd]() {
     if (gd && gd->client) {
