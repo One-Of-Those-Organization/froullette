@@ -40,11 +40,6 @@ enum LobbyStatusField : uint8_t {
   LSF_READY = 2,
 };
 
-// enum NeedleField : uint8_t {
-//   NF_ID = 1,
-//   NF_TYPE = 2,
-// };
-
 enum RoomField : uint8_t {
   RF_ID = 1,
   RF_PLAYER_COUNT = 2,
@@ -83,6 +78,7 @@ enum MessageType {
   GAME_START,
 
   LOBBY_STATUS,
+  PLAYER_INFO,
 
   GAME_NEEDLE_DATA,
   GAME_TURN_UPDATE,   // send the turn update after player done
@@ -121,7 +117,7 @@ struct Message {
   uint8_t *p = buffer;
 
   *p++ = GAF_ACTION;
-  write_u16(&p, sizeof(char));
+  write_u16(&p, 1);
   *p++ = (uint8_t)action->type;
 
   *p++ = GAF_DATA;
@@ -219,12 +215,17 @@ struct Message {
     p += payload_len;
   } break;
   case GAME_TURN_UPDATE: {
+    uint8_t b = m->data.Boolean;
+    *p++ = b;
+  } break;
+  case GAME_PLAYER_UPDATE: {
     GameAction *ga = m->data.action;
     payload_len = gen_game_action_net_obj(p, ga);
     p += payload_len;
   } break;
   case GAME_NEEDLE_DATA: {
-    write_u16(&p, m->data.Byte.len); payload_len += 2;
+    write_u16(&p, m->data.Byte.len);
+    payload_len += 2;
     memcpy(p, m->data.Byte.data, m->data.Byte.len);
     p += m->data.Byte.len;
     payload_len += m->data.Byte.len;
@@ -236,6 +237,10 @@ struct Message {
   case LOBBY_STATUS: {
     LobbyStatus *r = &m->data.LobbyStatus_obj;
     payload_len = gen_lobby_status_net_obj(p, r);
+  } break;
+  case PLAYER_INFO: {
+    Player *player = m->data.Player_obj;
+    payload_len = gen_player_net_obj(p, player);
   } break;
   case GAME_END: {
     // send the winner player id
@@ -345,6 +350,35 @@ struct Message {
       p += flen;
     }
   } break;
+  case PLAYER_INFO: {
+    out->data.Player_obj = new Player;
+    Player *player = out->data.Player_obj;
+    while (p < end) {
+      uint8_t f = *p++;
+      uint16_t flen = read_u16(p);
+      p += 2;
+
+      switch (f) {
+      case PF_ID:
+        player->id = read_u32(p);
+        break;
+      case PF_HEALTH:
+        player->health = *p;
+        break;
+      case PF_READY:
+        if (flen != 1)
+          return false;
+        player->ready = *p;
+        break;
+      case PF_TURN:
+        if (flen != 1)
+          return false;
+        player->turn = *(PlayerState *)p;
+        break;
+      }
+      p += flen;
+    }
+  } break;
   case GAME_START: {
     out->data.Byte.len = read_u16(p);
     p += 2;
@@ -384,28 +418,30 @@ struct Message {
     }
   } break;
   case GAME_TURN_UPDATE: {
-    out->data.Byte.len = read_u16(p);
-    p += 2;
+    out->data.Boolean = *p;
+  } break;
+  case GAME_PLAYER_UPDATE: {
+    out->data.action = new GameAction;
     GameAction *action = out->data.action;
-
     while (p < end) {
       uint8_t f = *p++;
       uint16_t flen = read_u16(p);
       p += 2;
 
       switch (f) {
-        case GAF_ACTION: {
-          action->type = (GameActionType)*p;
-        } break;
-        case GAF_DATA: {
-          action->data.i32 = read_u32(p);
-        } break;
+      case GAF_ACTION: {
+        action->type = (GameActionType)*p;
+      } break;
+      case GAF_DATA: {
+        action->data.i32 = read_u32(p);
+      } break;
       }
       p += flen;
     }
   } break;
   case GAME_NEEDLE_DATA: {
-    out->data.Byte.len = read_u16(p); p += 2;
+    out->data.Byte.len = read_u16(p);
+    p += 2;
     if (out->data.Byte.len > sizeof(out->data.Byte.data))
       return false;
     memcpy(out->data.Byte.data, p, out->data.Byte.len);

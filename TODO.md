@@ -1,11 +1,13 @@
 # FOCUS
-- [ ] Server        :handle `GAME_PLAYER_UPDATE`
+- [x] Server        : handle `GAME_PLAYER_UPDATE` (half done)
 
 # BACK BURNER
-- [ ] Base          :The item and stuff
-- [ ] Base          :effect of the item and needle
-- [ ] Client        :Display Player health, Player turn
-- [ ] Client&Server :Item flow and spawn
+- [ ] Base          : The item and stuff
+- [ ] Base          : effect of the item and needle
+- [ ] Client        : Display Player health, Player turn (done on other branch)
+- [ ] Client&Server : Item flow and spawn
+- [ ] Android       : Compile to android using raymob
+- [ ] Client&Server : websocket always ping every 5 secs.
 
 # FINISHED
 - [x] Player set the turn by the server and client.

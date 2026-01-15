@@ -3,9 +3,8 @@
 #include "Object.hpp"
 
 class Items : public Object {
-  const char *name;
-
 public:
+  const char *name;
   Items(const char *item_name) : Object(), name(item_name) {};
   virtual ~Items() = default;
   void render() override {

@@ -182,7 +182,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
                 pd.data.Boolean; // use smaller one bro it doesnt need to use
                                  // int because thats already 4 byte.
 
-        if (state == gd->room->turn) gd->lock_action = false;
+        if (state == gd->room->turn)
+          gd->lock_action = false;
         gd->room->turn = state;
         TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
       } break;
@@ -195,7 +196,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (gd->room) gd->room->state = ROOM_ACTIVE;
+        if (gd->room)
+          gd->room->state = ROOM_ACTIVE;
         gd->oplayer = {};
       } break;
 
@@ -471,18 +473,18 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->curpos = &engine->canvas_cursor;
     needle->type = NeedleType::NT_BLANK;
     needle->state = state;
-    needle->used = true; // NOTE: default set to true so it only rendered when the server give it a go.
+    needle->used = true; // NOTE: default set to true so it only rendered when
+                         // the server give it a go.
     needle->callback = [gd](Needle *n) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-      if (gd->room->turn != gd->player.turn && gd->lock_action)
-        return;
+      if (gd->room->turn != gd->player.turn) return;
+      if (gd->lock_action) return;
 
       gd->action.type = GameActionType::INJECT;
       gd->action.data.i32 = n->shared_id;
       gd->lock_action = true;
-      n->used = true;
       Message msg = {};
       msg.type = GAME_PLAYER_UPDATE;
       msg.response = NONE;
@@ -959,7 +961,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
       engine->tm.load_texture("cursor", "./assets/cursor.png");
   Cursor *cr = new Cursor();
   cr->rec = {};
-  cr->state =  state;
+  cr->state = state;
   cr->text = cursor_text;
   cr->cursor = &engine->bigcanvas_cursor;
   cr->draw_in_canvas = false;
@@ -978,6 +980,7 @@ static void gameInit(ArsEng *engine) {
   gd->text_buffer = new std::string();
   gd->text_buffer_displayed = false;
   gd->needle_container = nullptr;
+  gd->action = {};
 #ifndef __EMSCRIPTEN__
   gd->_net = std::thread([gd]() {
     if (gd && gd->client) {

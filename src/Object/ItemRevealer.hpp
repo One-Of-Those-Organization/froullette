@@ -4,10 +4,9 @@
 #include "Items.hpp"
 
 class ItemRevealer : public Items {
+public:
   std::vector<int> needles_id;
   PlayerState *pstate;
-
-public:
   ItemRevealer() : Items("Revealer") {};
   virtual ~ItemRevealer() = default;
   virtual void callback() override {
