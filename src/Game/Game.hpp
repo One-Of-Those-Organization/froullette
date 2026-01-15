@@ -177,11 +177,18 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        memcpy(pd.data.Player_obj, &gd->oplayer, sizeof(Player));
+        memcpy(&gd->oplayer, pd.data.Player_obj, sizeof(Player));
         delete pd.data.Player_obj;
         gd->player.turn = (PlayerState)((int)gd->oplayer.turn == 1 ? 0 : 1);
       } break;
 
+      case EXIT_ROOM: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        delete gd->room;
+        gd->room = nullptr;
+      } break;
       case GAME_TURN_UPDATE: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
@@ -191,10 +198,13 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
                 pd.data.Boolean; // use smaller one bro it doesnt need to use
                                  // int because thats already 4 byte.
 
-        if (state == gd->room->turn) gd->lock_action = false;
-        else gd->lock_action = true;
+        if (state == gd->player.turn) {
+          gd->lock_action = false;
+        } else {
+          gd->lock_action = true;
+        }
         gd->room->turn = state;
-        TraceLog(LOG_INFO, "NET: Turn Update received: %d", pd.data.Int);
+        TraceLog(LOG_INFO, "NET: Turn Update received: %d", (int)state);
       } break;
 
       case GAME_END: {
@@ -214,8 +224,14 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (gd->room)
+        if (gd->room) {
           gd->room->state = ROOM_RUNNING;
+          if (gd->room->turn == PlayerState::PLAYER1) {
+            gd->player.turn = PlayerState::PLAYER1;
+          } else {
+            gd->player.turn = PlayerState::PLAYER2;
+          }
+        }
       } break;
       case GAME_NEEDLE_DATA: {
 #ifndef __EMSCRIPTEN__
@@ -224,13 +240,11 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         if (gd->needle_container) {
           MinimalNeedle *needles_info = (MinimalNeedle *)pd.data.Byte.data;
           size_t count = pd.data.Byte.len / sizeof(MinimalNeedle);
-          if (count == gd->needle_container->needles.size()) {
-            for (size_t i = 0; i < count; ++i) {
-              for (Needle *n : gd->needle_container->needles) {
-                if (n->shared_id == needles_info[i].id) {
-                  n->used = (uint8_t)needles_info[i].used;
-                  break;
-                }
+          for (size_t i = 0; i < count; ++i) {
+            for (Needle *n : gd->needle_container->needles) {
+              if (n->shared_id == needles_info[i].id) {
+                n->used = (uint8_t)needles_info[i].used;
+                break;
               }
             }
           }
@@ -917,6 +931,11 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
         has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME |
                                     GameState::FINISHED)) {
       GameState target = GameState::PLAYMENU;
+      engine->request_change_state(target);
+      return;
+    }
+    if (gd->room && gd->room->state == ROOM_ACTIVE && engine->state == GameState::INGAME) {
+      GameState target = GameState::ROOMMENU;
       engine->request_change_state(target);
       return;
     }

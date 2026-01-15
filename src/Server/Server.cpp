@@ -11,6 +11,13 @@
 static std::unordered_map<mg_connection *, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
 
+static inline size_t ws_send(struct mg_connection *c, Message *msg) {
+  uint8_t out[MAX_MESSAGE_BIN_SIZE];
+  size_t n = generate_network_field(msg, out);
+  printf("Generated data with size: %zu\n", n);
+  return mg_ws_send(c, out, n, WEBSOCKET_OP_BINARY);
+}
+
 Room *find_free_room(Server *server) {
   for (size_t i = 0; i < MAX_ROOM_COUNT; i++) {
     if (server->rooms[i].state == ROOM_FREE) {
@@ -21,7 +28,6 @@ Room *find_free_room(Server *server) {
 }
 
 static void timer_fn(void *arg) {
-  uint8_t out[MAX_MESSAGE_BIN_SIZE];
   (void)arg;
   for (auto &r : created_room) {
     Player *p = r->players[0];
@@ -34,11 +40,8 @@ static void timer_fn(void *arg) {
       msg.type = LOBBY_STATUS;
       msg.response = NONE;
       msg.data.LobbyStatus_obj = {r->player_len, {p->ready, op->ready}};
-      memset(out, 0, MAX_MESSAGE_BIN_SIZE);
-      size_t n = generate_network_field(&msg, out);
-      printf("Generated data with size: %zu\n", n);
-      if (p->con)  mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
-      if (op->con) mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+      if (p->con)  ws_send(p->con, &msg);
+      if (op->con) ws_send(op->con, &msg);
     }
     /*
     else if (r->state == ROOM_RUNNING) {
@@ -248,26 +251,18 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               created_room.erase(created_room.begin() + roomi);
           }
 
-          // NOTE: if other player leave and the room is running auto change the
-          // room state since they now will play with ghsost if we continue.
           if (r->player_len == 1 && r->state == RoomState::ROOM_RUNNING) {
-            int other_idx = idx ^ 1;
             r->state = RoomState::ROOM_ACTIVE;
-            Player *op = r->players[other_idx];
+            Player *op = r->players[idx ^ 1];
 
             Message newmsg = {};
             newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
             newmsg.response = MessageType::NONE;
-
-            uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
-            size_t n = generate_network_field(&newmsg, inside_out);
-            printf("Generated data with size: %zu\n", n);
-            if (op->con) mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
+            if (op->con) ws_send(op->con, &newmsg);
           }
 
-          reply.type = MessageType::NONE;
+          reply.type = MessageType::EXIT_ROOM;
           reply.response = MessageType::EXIT_ROOM;
-          snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE, "Done removed!");
           break;
         }
         reply.type = MessageType::ERROR;
@@ -284,16 +279,17 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                    "Please do GIVE_ID first to register/login.");
           break;
         }
+
         uint32_t id = player_conmap[c];
         Room *r = nullptr;
         Player *p = nullptr;
         Player *op = nullptr;
         bool done = false;
+
+        // Find room and players
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
           if (ri->player_len < 2) continue;
-          if (ri->player_len < 1 || ri->player_len > 2)
-            continue;
           for (int x = 0; x < 2; x++) {
             if (ri->players[x] && ri->players[x]->id == id) {
               r = ri;
@@ -303,71 +299,79 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               break;
             }
           }
-          if (done)
-            break;
+          if (done) break;
         }
-        if (r) {
-          switch (pd.data.action->type) {
-          case INJECT: {
-            int id = pd.data.action->data.i32;
-            for (auto &n : r->needles) {
-              if (n.id == id) {
-                if (n.type == 1) {
-                  // TODO: the whole damaga mult items
-                  p->health--;
-                  n.used = false;
 
-                  // TODO: test this
-                  uint8_t out[MAX_MESSAGE_BIN_SIZE];
+        // If we can't find a valid room/players, send error and bail
+        if (!r || !p || !op) {
+          reply.type = MessageType::ERROR;
+          reply.response = MessageType::GAME_PLAYER_UPDATE;
+          snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                   "Cannot find the room or opponent.");
+          break;
+        }
 
-                  // send player
-                  reply.type = PLAYER_INFO;
-                  reply.response = GAME_PLAYER_UPDATE;
-                  reply.data.Player_obj = op;
-                  size_t len = generate_network_field(&reply, out);
-                  printf("Generated data with size: %zu\n", len);
-                  if (p->con)  mg_ws_send(p->con, out, len, WEBSOCKET_OP_BINARY);
+        bool action_processed = false;
 
-                  reply.data.Player_obj = p;
-                  len = generate_network_field(&reply, out);
-                  if (op->con) mg_ws_send(op->con, out, len, WEBSOCKET_OP_BINARY);
+        switch (pd.data.action->type) {
+        case INJECT: {
+          int nid = pd.data.action->data.i32;
+          for (auto &n : r->needles) {
+            if (n.id == nid) {
+              if (n.used) break; // Already used, ignore
 
-                  // send Needle
-                  memset(out, 0, MAX_MESSAGE_BIN_SIZE);
-                  reply = {};
-                  MinimalNeedle mn = { n.id, n.used };
-                  reply.type = GAME_NEEDLE_DATA;
-                  reply.response = GAME_PLAYER_UPDATE;
-                  reply.data.Byte.len = sizeof(MinimalNeedle);
-                  memcpy(reply.data.Byte.data, &mn,
-                         reply.data.Byte.len);
-
-                  len = generate_network_field(&reply, out);
-                  printf("Generated data with size: %zu\n", len);
-                  if (p->con)  mg_ws_send(p->con, out, len, WEBSOCKET_OP_BINARY);
-                  if (op->con) mg_ws_send(op->con, out, len, WEBSOCKET_OP_BINARY);
-                }
-                break;
+              n.used = true;
+              if (n.type == 1) {
+                p->health--;
               }
-            }
-          } break;
-          case USE_ITEM: {
-            int id = pd.data.action->data.i32;
-            (void)id;
-            // TODO: finish implementing this
-          } break;
-          }
-          r->turn = (PlayerState)((int)r->turn == 1 ? 0 : 1);
-        }
-        reply.type = MessageType::GAME_TURN_UPDATE;
-        reply.response = MessageType::GAME_PLAYER_UPDATE;
-        reply.data.Boolean = (uint8_t)r->turn;
 
-        uint8_t out[MAX_MESSAGE_BIN_SIZE];
-        size_t n = generate_network_field(&reply, out);
-        printf("Generated data with size: %zu\n", n);
-        if (p->con)  mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
-        if (op->con) mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+              uint8_t out[MAX_MESSAGE_BIN_SIZE];
+
+              // send opponent info to me
+              reply.type = PLAYER_INFO;
+              reply.response = GAME_PLAYER_UPDATE;
+              reply.data.Player_obj = op;
+              if (p->con) ws_send(p->con, &reply);
+
+              // send my info to opponent
+              reply.data.Player_obj = p;
+              if (op->con) ws_send(op->con, &reply);
+
+              // send Needle state to both
+              memset(out, 0, MAX_MESSAGE_BIN_SIZE);
+              reply = {};
+              MinimalNeedle mn = {n.id, n.used};
+              reply.type = GAME_NEEDLE_DATA;
+              reply.response = GAME_PLAYER_UPDATE;
+              reply.data.Byte.len = sizeof(MinimalNeedle);
+              memcpy(reply.data.Byte.data, &mn, reply.data.Byte.len);
+              if (p->con) ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
+
+              action_processed = true;
+              break;
+            }
+          }
+        } break;
+        case USE_ITEM: {
+          int nid = pd.data.action->data.i32;
+          (void)nid;
+          // TODO: implement
+          action_processed = false;
+        } break;
+        }
+
+        // Only flip turn + broadcast turn update if an action actually happened
+        if (action_processed) {
+          r->turn = (PlayerState)((int)r->turn == 1 ? 0 : 1);
+          reply.type = MessageType::GAME_TURN_UPDATE;
+          reply.response = MessageType::GAME_PLAYER_UPDATE;
+          reply.data.Boolean = (uint8_t)r->turn;
+
+          if (p->con)  ws_send(p->con, &reply);
+          if (op->con) ws_send(op->con, &reply);
+        }
+
         return;
       };
       case TOGGLE_READY: {
@@ -404,37 +408,26 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply.type = MessageType::GAME_START;
               reply.response = MessageType::TOGGLE_READY;
 
-              uint8_t out[MAX_MESSAGE_BIN_SIZE] = {};
-              size_t n = generate_network_field(&reply, out);
-              printf("Generated data with size: %zu\n", n);
-              if (p->con)  mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
-              if (op->con) mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+              if (p->con)  ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
 
               // NOTE: player status
-              memset(out, 0, MAX_MESSAGE_BIN_SIZE);
               reply = {};
               reply.type = MessageType::PLAYER_INFO;
               reply.response = MessageType::TOGGLE_READY;
-
               reply.data.Player_obj = p;
-              n = generate_network_field(&reply, out);
-              printf("Generated data with size: %zu\n", n);
-              if (p->con)  mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+              if (p->con)  ws_send(op->con, &reply);
 
               reply.data.Player_obj = op;
-              n = generate_network_field(&reply, out);
-              if (op->con) mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+              if (op->con) ws_send(p->con, &reply);
 
               // NOTE: Room turn
-              memset(out, 0, MAX_MESSAGE_BIN_SIZE);
               reply = {};
               reply.type = MessageType::GAME_TURN_UPDATE;
               reply.response = MessageType::TOGGLE_READY;
               reply.data.Boolean = (uint8_t)r->turn;
-              n = generate_network_field(&reply, out);
-              printf("Generated data with size: %zu\n", n);
-              if (p->con)  mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
-              if (op->con) mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+              if (p->con)  ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
 
               // TODO: make this configurable from the outside
               const int needle_count = 5;
@@ -452,6 +445,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
               std::vector<MinimalNeedle> mn;
               mn.reserve(needle_count);
+              r->needles.clear();
 
               // NOTE: plaese sync the id with the client right now it is since
               // the 2 of them use 0..4
@@ -467,12 +461,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               needle_msg.data.Byte.len = sizeof(MinimalNeedle) * needle_count;
               memcpy(needle_msg.data.Byte.data, r->needles.data(),
                      needle_msg.data.Byte.len);
-
-              uint8_t needle_out[MAX_MESSAGE_BIN_SIZE];
-              size_t needle_n = generate_network_field(&needle_msg, needle_out);
-              printf("Generated data with size: %zu\n", needle_n);
-              if (p->con)  mg_ws_send(p->con, needle_out, needle_n, WEBSOCKET_OP_BINARY);
-              if (op->con) mg_ws_send(op->con, needle_out, needle_n, WEBSOCKET_OP_BINARY);
+              if (p->con)  ws_send(p->con, &needle_msg);
+              if (op->con) ws_send(op->con, &needle_msg);
 
               return;
             }
@@ -490,11 +480,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
       default: {
       } break;
       }
-
-      uint8_t out[MAX_MESSAGE_BIN_SIZE];
-      size_t n = generate_network_field(&reply, out);
-      printf("Generated data with size: %zu\n", n);
-      mg_ws_send(c, out, n, WEBSOCKET_OP_BINARY);
+      ws_send(c, &reply);
     }
   } break;
   case MG_EV_OPEN:

@@ -1,5 +1,7 @@
 JOBS := $(shell nproc)
 
+native: client server
+
 all: client server web
 
 client:
@@ -19,6 +21,9 @@ server-run: server
 
 server-dbg: server
 	gf2 ./build/src/Server/froullete-server
+
+server-gdb: server
+	gdb ./build/src/Server/froullete-server
 
 web-config: ./webbuild
 	source ./web/emsdk/emsdk_env.sh && \
