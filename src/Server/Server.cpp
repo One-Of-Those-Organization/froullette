@@ -237,21 +237,21 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               created_room.erase(created_room.begin() + roomi);
           }
 
-          // NOTE: if other player leave and the room is running auto change the room state
-          // since they now will play with ghsost if we continue.
+          // NOTE: if other player leave and the room is running auto change the
+          // room state since they now will play with ghsost if we continue.
           if (r->player_len == 1 && r->state == RoomState::ROOM_RUNNING) {
-              int other_idx = idx ^ 1;
-              r->state = RoomState::ROOM_ACTIVE;
-              Player *op = r->players[other_idx];
+            int other_idx = idx ^ 1;
+            r->state = RoomState::ROOM_ACTIVE;
+            Player *op = r->players[other_idx];
 
-              Message newmsg = {};
-              newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
-              newmsg.response = MessageType::NONE;
+            Message newmsg = {};
+            newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
+            newmsg.response = MessageType::NONE;
 
-              uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
-              size_t n = generate_network_field(&newmsg, inside_out);
-              printf("Generated data with size: %zu\n", n);
-              mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
+            uint8_t inside_out[MAX_MESSAGE_BIN_SIZE];
+            size_t n = generate_network_field(&newmsg, inside_out);
+            printf("Generated data with size: %zu\n", n);
+            mg_ws_send(op->con, inside_out, n, WEBSOCKET_OP_BINARY);
           }
 
           reply.type = MessageType::NONE;
@@ -272,7 +272,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         Player *op = nullptr;
 
         for (auto &ri : created_room) {
-          if (ri->state != ROOM_RUNNING) continue;
+          if (ri->state != ROOM_RUNNING)
+            continue;
           for (int x = 0; x < 2; x++) {
             if (ri->players[x] && ri->players[x]->id == id) {
               r = ri;
@@ -281,140 +282,160 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               break;
             }
           }
-          if (r) break;
+          if (r)
+            break;
         }
 
-        if (!r || !p || !op) break;
+        if (!r || !p || !op)
+          break;
 
         // Read from Player State and from Server || Turn Logic
-        if (r->turn == PlayerState::PLAYER1 && p != r->players[0]) break; // Player 1 Turn
-        if (r->turn == PlayerState::PLAYER2 && p != r->players[1]) break; // Player 2 Turn
+        if (r->turn == PlayerState::PLAYER1 && p != r->players[0])
+          break; // Player 1 Turn
+        if (r->turn == PlayerState::PLAYER2 && p != r->players[1])
+          break; // Player 2 Turn
 
         // Process Action
         switch (pd.data.action->type) {
-          case INJECT: {
-            int needle_idx = pd.data.action->data.i32;
+        case INJECT: {
+          int needle_idx = pd.data.action->data.i32;
 
-            // Validate needle index
-            if (needle_idx < 0 || needle_idx >= (int)r->needles.size()) break; // Prevent out of index range
-            if (r->needles[needle_idx].used) break; // Break the needles that already used
+          // Validate needle index
+          if (needle_idx < 0 || needle_idx >= (int)r->needles.size())
+            break; // Prevent out of index range
+          if (r->needles[needle_idx].used)
+            break; // Break the needles that already used
 
-            // Update Needles
-            r->needles[needle_idx].used = true;
-            bool is_live = (r->needles[needle_idx].type == 1); // LIVE NEEDLES
+          // Update Needles
+          r->needles[needle_idx].used = true;
+          bool is_live = (r->needles[needle_idx].type == 1); // LIVE NEEDLES
 
-            // Broadcast to Clients about the needle update
-            {
-              Message needle_msg = {};
-              needle_msg.type = GAME_NEEDLE_DATA;
-              needle_msg.response = NONE;
+          // Broadcast to Clients about the needle update
+          {
+            Message needle_msg = {};
+            needle_msg.type = GAME_NEEDLE_DATA;
+            needle_msg.response = NONE;
 
-              std::vector<MinimalNeedle> minimal_needles;
-              for (auto &n : r->needles) minimal_needles.push_back({n.id, n.used});
+            std::vector<MinimalNeedle> minimal_needles;
+            for (auto &n : r->needles)
+              minimal_needles.push_back({n.id, n.used});
 
-              needle_msg.data.Byte.len = sizeof(MinimalNeedle) * minimal_needles.size();
-              memcpy(needle_msg.data.Byte.data, minimal_needles.data(), needle_msg.data.Byte.len);
-
-              uint8_t out[MAX_MESSAGE_BIN_SIZE];
-              size_t n = generate_network_field(&needle_msg, out);
-              mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
-              mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
-            }
-
-            // Process Injection
-            if (is_live) {
-              p->health -= 1; // Give damage to self player
-              r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2 : PlayerState::PLAYER1;
-            } else {
-              // NOTE : For now skip turn only and not having more turn
-              r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2 : PlayerState::PLAYER1;
-            }
-
-            // Game Over State
-            if (p->health <= 0) {
-              r->state = ROOM_FINISHED;
-              // TODO : Finish Game Over State
-            }
-
-            // Check for Next Round
-            bool all_used = true;
-            for (auto &n : r->needles) {
-              if (!n.used) {
-                all_used = false;
-                break;
-              }
-            }
-
-            if (all_used && r->state != ROOM_FINISHED) {
-              printf("[Server.cpp line %d] All needles used, resetting needles for next round.\n", __LINE__);
-
-              if (!p || !op) {
-                printf("[SERVER] Error: Player missing during reset!\n");
-                break;
-              }
-
-              // Clean old needles
-              r->needles.clear();
-
-              // Generate new needles
-              const int needle_count = 5;
-              const int live_needles = rand() % 3 + 1; // Random between 1 to 3 live needles
-
-              std::vector<uint8_t> needle_types;
-              for (int i = 0; i < live_needles; ++i) needle_types.push_back(1);
-              for (int i = 0; i < needle_count - live_needles; ++i) needle_types.push_back(0);
-
-              unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-              std::shuffle(needle_types.begin(), needle_types.end(), std::default_random_engine(seed));
-
-              // Send to both players
-              for (int i = 0; i < needle_count; ++i) {
-                _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
-                r->needles.push_back(needle);
-              }
-
-              // After reset needles now send to both players
-              Message needle_msg = {};
-              needle_msg.type = GAME_NEEDLE_DATA;
-              needle_msg.response = NONE;
-
-              std::vector<MinimalNeedle> mn;
-              for(auto &n : r->needles) mn.push_back({n.id, n.used});
-
-              needle_msg.data.Byte.len = sizeof(MinimalNeedle) * mn.size();
-              memcpy(needle_msg.data.Byte.data, mn.data(), needle_msg.data.Byte.len);
-
-              uint8_t out_reset[MAX_MESSAGE_BIN_SIZE];
-              size_t n_reset = generate_network_field(&needle_msg, out_reset);
-              mg_ws_send(p->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
-              mg_ws_send(op->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
-            }
-
-            // Send Game Start Update (Contain HP, etc)
-            Message status_msg = {};
-            status_msg.type = GAME_START;
-            Player buffer[] = {*r->players[0], *r->players[1]};
-            status_msg.data.Byte.len = sizeof(Player) * 2;
-            memcpy(status_msg.data.Byte.data, buffer, sizeof(Player) * 2);
+            needle_msg.data.Byte.len =
+                sizeof(MinimalNeedle) * minimal_needles.size();
+            memcpy(needle_msg.data.Byte.data, minimal_needles.data(),
+                   needle_msg.data.Byte.len);
 
             uint8_t out[MAX_MESSAGE_BIN_SIZE];
-            size_t n = generate_network_field(&status_msg, out);
+            size_t n = generate_network_field(&needle_msg, out);
             mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
             mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+          }
 
-            // Send Turn Update
-            Message turn_msg = {};
-            turn_msg.type = GAME_TURN_UPDATE;
-            turn_msg.response = NONE;
-            turn_msg.data.Boolean = (uint8_t)r->turn;
+          // Process Injection
+          if (is_live) {
+            p->health -= 1; // Give damage to self player
+            r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2
+                                                        : PlayerState::PLAYER1;
+          } else {
+            // NOTE : For now skip turn only and not having more turn
+            r->turn = (r->turn == PlayerState::PLAYER1) ? PlayerState::PLAYER2
+                                                        : PlayerState::PLAYER1;
+          }
 
-            size_t n_turn = generate_network_field(&turn_msg, out);
-            mg_ws_send(p->con, out, n_turn, WEBSOCKET_OP_BINARY);
-            mg_ws_send(op->con, out, n_turn, WEBSOCKET_OP_BINARY);
-          } break;
-          case USE_ITEM: {
-            // TODO : Finish Use Item
-          } break;
+          // Game Over State
+          if (p->health <= 0) {
+            r->state = ROOM_FINISHED;
+            // TODO : Finish Game Over State
+          }
+
+          // Check for Next Round
+          bool all_used = true;
+          for (auto &n : r->needles) {
+            if (!n.used) {
+              all_used = false;
+              break;
+            }
+          }
+
+          if (all_used && r->state != ROOM_FINISHED) {
+            printf("[Server.cpp line %d] All needles used, resetting needles "
+                   "for next round.\n",
+                   __LINE__);
+
+            if (!p || !op) {
+              printf("[SERVER] Error: Player missing during reset!\n");
+              break;
+            }
+
+            // Clean old needles
+            r->needles.clear();
+
+            // Generate new needles
+            const int needle_count = 5;
+            const int live_needles =
+                rand() % 3 + 1; // Random between 1 to 3 live needles
+
+            std::vector<uint8_t> needle_types;
+            for (int i = 0; i < live_needles; ++i)
+              needle_types.push_back(1);
+            for (int i = 0; i < needle_count - live_needles; ++i)
+              needle_types.push_back(0);
+
+            unsigned seed =
+                std::chrono::system_clock::now().time_since_epoch().count();
+            std::shuffle(needle_types.begin(), needle_types.end(),
+                         std::default_random_engine(seed));
+
+            // Send to both players
+            for (int i = 0; i < needle_count; ++i) {
+              _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
+              r->needles.push_back(needle);
+            }
+
+            // After reset needles now send to both players
+            Message needle_msg = {};
+            needle_msg.type = GAME_NEEDLE_DATA;
+            needle_msg.response = NONE;
+
+            std::vector<MinimalNeedle> mn;
+            for (auto &n : r->needles)
+              mn.push_back({n.id, n.used});
+
+            needle_msg.data.Byte.len = sizeof(MinimalNeedle) * mn.size();
+            memcpy(needle_msg.data.Byte.data, mn.data(),
+                   needle_msg.data.Byte.len);
+
+            uint8_t out_reset[MAX_MESSAGE_BIN_SIZE];
+            size_t n_reset = generate_network_field(&needle_msg, out_reset);
+            mg_ws_send(p->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
+            mg_ws_send(op->con, out_reset, n_reset, WEBSOCKET_OP_BINARY);
+          }
+
+          // Send Game Start Update (Contain HP, etc)
+          Message status_msg = {};
+          status_msg.type = GAME_START;
+          Player buffer[] = {*r->players[0], *r->players[1]};
+          status_msg.data.Byte.len = sizeof(Player) * 2;
+          memcpy(status_msg.data.Byte.data, buffer, sizeof(Player) * 2);
+
+          uint8_t out[MAX_MESSAGE_BIN_SIZE];
+          size_t n = generate_network_field(&status_msg, out);
+          mg_ws_send(p->con, out, n, WEBSOCKET_OP_BINARY);
+          mg_ws_send(op->con, out, n, WEBSOCKET_OP_BINARY);
+
+          // Send Turn Update
+          Message turn_msg = {};
+          turn_msg.type = GAME_TURN_UPDATE;
+          turn_msg.response = NONE;
+          turn_msg.data.Boolean = (uint8_t)r->turn;
+
+          size_t n_turn = generate_network_field(&turn_msg, out);
+          mg_ws_send(p->con, out, n_turn, WEBSOCKET_OP_BINARY);
+          mg_ws_send(op->con, out, n_turn, WEBSOCKET_OP_BINARY);
+        } break;
+        case USE_ITEM: {
+          // TODO : Finish Use Item
+        } break;
         }
       } break;
       case TOGGLE_READY: {
@@ -475,7 +496,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               std::vector<MinimalNeedle> mn;
               mn.reserve(needle_count);
 
-              // NOTE: plaese sync the id with the client right now it is since the 2 of them use 0..4
+              // NOTE: plaese sync the id with the client right now it is since
+              // the 2 of them use 0..4
               for (int i = 0; i < needle_count; ++i) {
                 _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
                 r->needles.push_back(needle);

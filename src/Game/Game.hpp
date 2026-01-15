@@ -192,7 +192,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (gd->room) gd->room->state = ROOM_ACTIVE;
+        if (gd->room)
+          gd->room->state = ROOM_ACTIVE;
         gd->oplayer = {};
       } break;
 
@@ -200,7 +201,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        if (gd->room) gd->room->state = ROOM_RUNNING;
+        if (gd->room)
+          gd->room->state = ROOM_RUNNING;
 
         Player *parr = (Player *)pd.data.Byte.data;
 
@@ -376,11 +378,13 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   GameData *gd = (GameData *)engine->additional_data;
 
   // Load Active Brain and Dead Brain Textures
-  Texture2D *tex_brain_ok = engine->tm.load_texture("brain_tex", "./assets/brain.png");
-  Texture2D *tex_brain_die = engine->tm.load_texture("brain_die_tex", "./assets/dieeBrain.png");
+  Texture2D *tex_brain_ok =
+      engine->tm.load_texture("brain_tex", "./assets/brain.png");
+  Texture2D *tex_brain_die =
+      engine->tm.load_texture("brain_die_tex", "./assets/dieeBrain.png");
 
   // Brain Player 1 Left Bottom
-  std::vector<Object*> p1_brains;
+  std::vector<Object *> p1_brains;
   HBox *hb_p1 = new HBox();
   hb_p1->state = state;
   hb_p1->padding = 5;
@@ -388,7 +392,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   hb_p1->draw_in_canvas = false;
 
   // NOTE : Please Change This to use actual player health later
-  for(int i=0; i<5; i++) {
+  for (int i = 0; i < 5; i++) {
     Object *b = new Object();
     b->state = state;
     b->text = tex_brain_ok;
@@ -405,7 +409,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   engine->om.add_object(hb_p1, (*z)++);
 
   // Brain Player 2 Right Upper
-  std::vector<Object*> p2_brains;
+  std::vector<Object *> p2_brains;
   HBox *hb_p2 = new HBox();
   hb_p2->state = state;
   hb_p2->draw_in_canvas = false;
@@ -413,7 +417,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   float p2_start_x = sw - (5 * 70) - 20;
 
   // NOTE : Please Change This to use actual player health later
-  for(int i=0; i<5; i++) {
+  for (int i = 0; i < 5; i++) {
     Object *b = new Object();
     b->state = state;
     b->text = tex_brain_ok;
@@ -439,40 +443,48 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   // engine->om.add_object(hp_p2, (*z)++);
 
   // Turn Indicator Middle Upper
-  Text *turn_txt = cText(engine, state, "Waiting...", 48, YELLOW, {0,50});
+  Text *turn_txt = cText(engine, state, "Waiting...", 48, YELLOW, {0, 50});
   turn_txt->draw_in_canvas = false;
   engine->om.add_object(turn_txt, (*z)++);
 
   // Script Updater
   Script *turn_update = new Script();
   turn_update->state = state;
-  turn_update->callback = [p1_brains, p2_brains, turn_txt, gd, sw, tex_brain_die, tex_brain_ok]() {
+  turn_update->callback = [p1_brains, p2_brains, turn_txt, gd, sw,
+                           tex_brain_die, tex_brain_ok]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
 
     // Safety check if room null or not so it doesn't segfault
-    if (!gd->room) return;
+    if (!gd->room)
+      return;
 
     // Update Visual Brain Player 1
-    for(int i=0; i < (int)p1_brains.size(); i++) {
-      if (i < gd->player.health) p1_brains[i]->text = tex_brain_ok; // Hidup
-      else p1_brains[i]->text = tex_brain_die; // Mati
+    for (int i = 0; i < (int)p1_brains.size(); i++) {
+      if (i < gd->player.health)
+        p1_brains[i]->text = tex_brain_ok; // Hidup
+      else
+        p1_brains[i]->text = tex_brain_die; // Mati
     }
 
     // Update Visual Brain Player 2
-    for(int i=0; i < (int)p2_brains.size(); i++) {
-      if (i < gd->oplayer.health) p2_brains[i]->text = tex_brain_ok;
-      else p2_brains[i]->text = tex_brain_die;
+    for (int i = 0; i < (int)p2_brains.size(); i++) {
+      if (i < gd->oplayer.health)
+        p2_brains[i]->text = tex_brain_ok;
+      else
+        p2_brains[i]->text = tex_brain_die;
     }
 
     // Check which player's turn it is
     bool is_player_turn = (gd->player.turn == gd->room->turn);
     if (gd->player.health <= 0) {
-      turn_txt->text = "You Lose!"; turn_txt->text_color = RED;
+      turn_txt->text = "You Lose!";
+      turn_txt->text_color = RED;
       gd->lock_action = true;
     } else if (gd->oplayer.health <= 0) {
-      turn_txt->text = "You Win!"; turn_txt->text_color = GREEN;
+      turn_txt->text = "You Win!";
+      turn_txt->text_color = GREEN;
       gd->lock_action = true;
     } else {
       if (is_player_turn) {
@@ -602,7 +614,8 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->curpos = &engine->canvas_cursor;
     needle->type = NeedleType::NT_BLANK;
     needle->state = state;
-    needle->used = true; // NOTE: default set to true so it only rendered when the server give it a go.
+    needle->used = true; // NOTE: default set to true so it only rendered when
+                         // the server give it a go.
     needle->callback = [gd](Needle *n) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
@@ -1094,7 +1107,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
       engine->tm.load_texture("cursor", "./assets/cursor.png");
   Cursor *cr = new Cursor();
   cr->rec = {};
-  cr->state =  state;
+  cr->state = state;
   cr->text = cursor_text;
   cr->cursor = &engine->bigcanvas_cursor;
   cr->draw_in_canvas = false;
