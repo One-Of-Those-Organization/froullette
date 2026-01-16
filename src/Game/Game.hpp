@@ -193,11 +193,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        PlayerState state =
-            (PlayerState)
-                pd.data.Boolean; // use smaller one bro it doesnt need to use
-                                 // int because thats already 4 byte.
-
+        PlayerState state = (PlayerState) pd.data.Int;
         if (state == gd->player.turn) {
           gd->lock_action = false;
         } else {
@@ -385,7 +381,18 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   if (!kh)
     TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
   else {
-    kh->add_new(KEY_Q, state, [engine]() { engine->revert_state(); });
+    kh->add_new(KEY_Q, state, [engine, gd]() {
+      Message msg = {};
+      msg.type = EXIT_ROOM;
+      msg.response = NONE;
+      gd->client->send(msg);
+      if (gd->room) {
+        delete gd->room;
+        gd->room = nullptr; // NOTE: IDK if this is the best approach
+        // but yeah...
+      }
+      engine->request_change_state(GameState::ROOMMENU);
+    });
   }
 
   int text_size = 32;
@@ -622,6 +629,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
+  gd->url_buffer = "127.0.0.1:8000";
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
                  state, {wsize.x / 2.0f, title1->rec.y + title1->rec.height});
@@ -797,7 +805,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         gd->room = nullptr; // NOTE: IDK if this is the best approach
                             // but yeah...
       }
-      engine->revert_state();
+      engine->request_change_state(GameState::PLAYMENU);
     });
   }
 
@@ -998,6 +1006,7 @@ static void gameInit(ArsEng *engine) {
   gd->client = new Client();
   gd->client->callback = client_handler;
   gd->player = {};
+  gd->oplayer = {};
   gd->room = nullptr;
   gd->ls = {1, {false, false}};
   gd->text_buffer = new std::string();

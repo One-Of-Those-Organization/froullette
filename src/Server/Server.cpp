@@ -270,7 +270,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                  "Cannot find the room!");
       } break;
-      // TODO: finish this
       case GAME_PLAYER_UPDATE: {
         if (!player_conmap.count(c)) {
           reply.type = MessageType::ERROR;
@@ -312,40 +311,24 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         }
 
         bool action_processed = false;
-
-        switch (pd.data.action->type) {
-        case INJECT: {
-          int nid = pd.data.action->data.i32;
-          for (auto &n : r->needles) {
+        GameAction action = {};
+        memcpy(&action, pd.data.action, sizeof(GameAction));
+        delete pd.data.action; // dont want to bother with this...
+        switch (action.type) {
+        case GameActionType::INJECT: {
+          int nid = action.data.i32;
+          for (auto &n: r->needles) {
             if (n.id == nid) {
-              if (n.used) break; // Already used, ignore
-
+              if (n.used) break;
               n.used = true;
-              if (n.type == 1) {
-                p->health--;
-              }
 
-              uint8_t out[MAX_MESSAGE_BIN_SIZE];
-
-              // send opponent info to me
-              reply.type = PLAYER_INFO;
-              reply.response = GAME_PLAYER_UPDATE;
-              reply.data.Player_obj = op;
-              if (p->con) ws_send(p->con, &reply);
-
-              // send my info to opponent
-              reply.data.Player_obj = p;
-              if (op->con) ws_send(op->con, &reply);
-
-              // send Needle state to both
-              memset(out, 0, MAX_MESSAGE_BIN_SIZE);
               reply = {};
               MinimalNeedle mn = {n.id, n.used};
               reply.type = GAME_NEEDLE_DATA;
               reply.response = GAME_PLAYER_UPDATE;
               reply.data.Byte.len = sizeof(MinimalNeedle);
               memcpy(reply.data.Byte.data, &mn, reply.data.Byte.len);
-              if (p->con) ws_send(p->con, &reply);
+              if (p->con)  ws_send(p->con, &reply);
               if (op->con) ws_send(op->con, &reply);
 
               action_processed = true;
@@ -353,27 +336,68 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             }
           }
         } break;
-        case USE_ITEM: {
-          int nid = pd.data.action->data.i32;
-          (void)nid;
-          // TODO: implement
-          action_processed = false;
+        case GameActionType::USE_ITEM: {
+          // TODO: finish this
         } break;
         }
+        // switch (pd.data.action->type) {
+        // case INJECT: {
+        //   int nid = pd.data.action->data.i32;
+        //   for (auto &n : r->needles) {
+        //     if (n.id == nid) {
+        //       if (n.used) break; // Already used, ignore
 
-        // Only flip turn + broadcast turn update if an action actually happened
+        //       n.used = true;
+        //       if (n.type == 1) {
+        //         p->health--;
+        //       }
+
+        //       uint8_t out[MAX_MESSAGE_BIN_SIZE];
+
+        //       // send opponent info to me
+        //       reply.type = PLAYER_INFO;
+        //       reply.response = GAME_PLAYER_UPDATE;
+        //       reply.data.Player_obj = op;
+        //       if (p->con) ws_send(p->con, &reply);
+
+        //       // send my info to opponent
+        //       reply.data.Player_obj = p;
+        //       if (op->con) ws_send(op->con, &reply);
+
+        //       // send Needle state to both
+        //       memset(out, 0, MAX_MESSAGE_BIN_SIZE);
+        //       reply = {};
+        //       MinimalNeedle mn = {n.id, n.used};
+        //       reply.type = GAME_NEEDLE_DATA;
+        //       reply.response = GAME_PLAYER_UPDATE;
+        //       reply.data.Byte.len = sizeof(MinimalNeedle);
+        //       memcpy(reply.data.Byte.data, &mn, reply.data.Byte.len);
+        //       if (p->con) ws_send(p->con, &reply);
+        //       if (op->con) ws_send(op->con, &reply);
+
+        //       action_processed = true;
+        //       break;
+        //     }
+        //   }
+        // } break;
+        // case USE_ITEM: {
+        //   int nid = pd.data.action->data.i32;
+        //   (void)nid;
+        //   // TODO: implement
+        //   action_processed = false;
+        // } break;
+        // }
+
         if (action_processed) {
           r->turn = (PlayerState)((int)r->turn == 1 ? 0 : 1);
           reply.type = MessageType::GAME_TURN_UPDATE;
           reply.response = MessageType::GAME_PLAYER_UPDATE;
-          reply.data.Boolean = (uint8_t)r->turn;
-
+          reply.data.Int = (int)r->turn;
           if (p->con)  ws_send(p->con, &reply);
           if (op->con) ws_send(op->con, &reply);
         }
-
         return;
-      };
+      } break;
       case TOGGLE_READY: {
         Room *r = nullptr;
         Player *p = nullptr;
@@ -425,7 +449,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply = {};
               reply.type = MessageType::GAME_TURN_UPDATE;
               reply.response = MessageType::TOGGLE_READY;
-              reply.data.Boolean = (uint8_t)r->turn;
+              reply.data.Int = (int)r->turn;
               if (p->con)  ws_send(p->con, &reply);
               if (op->con) ws_send(op->con, &reply);
 
@@ -510,7 +534,7 @@ int main(int argc, char **argv) {
   srand(time(0));
   static const char *ipflag = "-ip";
   static const char *portflag = "-port";
-  static const int resolution = 100;
+  static const int resolution = 200;
 
   bool error = false;
   std::string ip = "0.0.0.0";

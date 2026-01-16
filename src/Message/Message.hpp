@@ -85,8 +85,6 @@ enum MessageType {
                       // GAME_PLAYER_UPDATE
   GAME_PLAYER_UPDATE, // send what player do what action they take it will
                       // need new struct def. TODO: WORKING ON THIS
-  GAME_PERIODIC,      // will be sended every n times for the update (is this
-                      // really needed?)
   GAME_FINISHED_PREMATURELY,
   GAME_END, // send back winner id
 };
@@ -215,8 +213,8 @@ struct Message {
     p += payload_len;
   } break;
   case GAME_TURN_UPDATE: {
-    uint8_t b = m->data.Boolean;
-    *p++ = b;
+    write_u32(&p, m->data.Int);
+    payload_len += 4;
   } break;
   case GAME_PLAYER_UPDATE: {
     GameAction *ga = m->data.action;
@@ -335,7 +333,7 @@ struct Message {
     }
   } break;
   case PLAYER_INFO: {
-    out->data.Player_obj = new Player;
+    out->data.Player_obj = new Player; // NOTE: dont forget to free bro.
     Player *player = out->data.Player_obj;
     while (p < end) {
       uint8_t f = *p++;
@@ -363,9 +361,6 @@ struct Message {
       p += flen;
     }
   } break;
-  case GAME_TURN_UPDATE: {
-    out->data.Boolean = *p;
-  } break;
   case GAME_PLAYER_UPDATE: {
     out->data.action = new GameAction;
     GameAction *action = out->data.action;
@@ -392,6 +387,10 @@ struct Message {
       return false;
     memcpy(out->data.Byte.data, p, out->data.Byte.len);
     p += out->data.Byte.len;
+  } break;
+  case GAME_TURN_UPDATE: {
+    out->data.Int = read_u32(p);
+    p += sizeof(uint32_t);
   } break;
   case READY_STATUS: {
     out->data.Boolean = (uint8_t)*p;
