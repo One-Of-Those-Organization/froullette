@@ -39,7 +39,6 @@ struct GameData {
   Player player;
   Player oplayer;
   int round_counter = 1;
-  // NOTE: game_ended handled by the room pointer my guy
 
   std::string url_buffer;
   std::string buffer;
@@ -52,6 +51,7 @@ struct GameData {
   GameAction action;
   bool lock_action;
   NeedleContainer *needle_container;
+  int winner_id;
 };
 
 #ifdef DEBUG_ROOM_
@@ -90,7 +90,7 @@ static void debug_mode(ArsEng *engine, GameData *gd) {
 
   // Instant Throw to Ingame for Testing
   engine->request_change_state(GameState::INGAME);
-  -
+
 }
 #endif // DEBUG_ROOM_
 
@@ -177,9 +177,15 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        memcpy(&gd->oplayer, pd.data.Player_obj, sizeof(Player));
+        char name[3] = "EN";
+        Player *target = &gd->oplayer;
+        if (pd.data.Player_obj->id == gd->player.id) {
+          target = &gd->player;
+          strcpy(name, "ME");
+        }
+        TraceLog(LOG_INFO, "Get %s player info with the content: id(%d), hp(%d)", name, pd.data.Player_obj->id, pd.data.Player_obj->health);
+        memcpy(target, pd.data.Player_obj, sizeof(Player));
         delete pd.data.Player_obj;
-        gd->player.turn = (PlayerState)((int)gd->oplayer.turn == 1 ? 0 : 1);
       } break;
 
       case EXIT_ROOM: {
@@ -204,7 +210,11 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
       } break;
 
       case GAME_END: {
-        // TODO: finish this with screen too
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        gd->winner_id = pd.data.Int;
+        gd->room->state = ROOM_FINISHED;
       } break;
 
       case GAME_FINISHED_PREMATURELY: {
@@ -280,10 +290,6 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
   default:
     break;
   }
-}
-
-static inline int rand_range(int min, int max) {
-  return min + rand() % (max - min + 1);
 }
 
 static bool start_connection(ArsEng *engine) {
@@ -519,9 +525,76 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
   }
-  // TODO: put the whole health thing (use the brain texture right)
   // TODO: the whole all_used needle stuff should be put here with diff script
   // or timer object.
+
+  Vector2 bigcanvas_size = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+
+  Color text_color = WHITE;
+  text_size = 64;
+  Text *tturn = cText(engine, state, "Your Turn", text_size, text_color, {0, 0});
+  Vector2 tturn_len = tturn->calculate_len();
+  tturn->rec.x = (bigcanvas_size.x - tturn_len.x) / 2.0f;
+  tturn->rec.y = (bigcanvas_size.y - (padding + tturn_len.y));
+  tturn->show = false;
+  engine->om.add_object(tturn, (*z)++);
+
+  size_t icon_size = 64;
+  padding = 1;
+  HBox *hbox = new HBox();
+  hbox->state = state;
+  hbox->rec.width = (icon_size * MAX_PLAYER_HEALTH);
+  hbox->rec.height = icon_size + padding;
+  hbox->rec.x = (bigcanvas_size.x - hbox->rec.width) / 2.0f;
+  hbox->rec.y = tturn->rec.y - (icon_size + padding);
+  hbox->padding = padding;
+
+  hbox->al = Alignment::CENTER;
+  hbox->draw_in_canvas = false;
+  engine->om.add_object(hbox, (*z)++);
+
+  Texture *braintxt = engine->tm.load_texture("brain", "./assets/brain.png");
+  if (!braintxt) {
+    TraceLog(LOG_INFO, "Failed to load the brain texture somethis is wrong.");
+    return;
+  };
+  Object *all_brain[5] = {};
+
+  for (int i = 0; i < MAX_PLAYER_HEALTH; i++) {
+    Object *obrain = new Object();
+    obrain->text = braintxt;
+    obrain->rec = {0, 0, (float)icon_size, (float)icon_size};
+    obrain->state = state;
+    obrain->show = true;
+    obrain->color = WHITE;
+    obrain->draw_in_canvas = false;
+    engine->om.add_object(obrain, (*z)++);
+    hbox->add_child(obrain);
+    hbox->position_child();
+    all_brain[i] = obrain;
+  }
+  hbox->position_child();
+
+  Script *ingame_sc = new Script();
+  ingame_sc->state = state;
+  ingame_sc->callback = [gd, tturn, all_brain, hbox]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+    if (gd->room && gd->room->turn == gd->player.turn) {
+      tturn->show = true;
+    } else {
+      tturn->show = false;
+    }
+    int i = 0;
+    for (Object *brain: all_brain) {
+      bool stuff = false;
+      if (i++ < gd->player.health) stuff = true;
+      brain->show = stuff;
+      hbox->position_child();
+    }
+  };
+  engine->om.add_object(ingame_sc, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -611,7 +684,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   else {
     kh->add_new(KEY_Q, state, [engine]() {
       if (engine->active < 0)
-        engine->revert_state();
+        engine->request_change_state(GameState::MENU);
     });
   }
   GameData *gd = (GameData *)engine->additional_data;
@@ -1014,6 +1087,7 @@ static void gameInit(ArsEng *engine) {
   gd->needle_container = nullptr;
   gd->action = {};
   gd->lock_action = false;
+  gd->winner_id = -1;
 #ifndef __EMSCRIPTEN__
   gd->_net = std::thread([gd]() {
     if (gd && gd->client) {

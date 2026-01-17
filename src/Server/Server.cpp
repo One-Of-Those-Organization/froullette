@@ -43,13 +43,6 @@ static void timer_fn(void *arg) {
       if (p->con)  ws_send(p->con, &msg);
       if (op->con) ws_send(op->con, &msg);
     }
-    /*
-    else if (r->state == ROOM_RUNNING) {
-      Message msg = {};
-      msg.type = GAME_PERIODIC;
-      msg.response = NONE;
-    }
-    */
   }
 }
 
@@ -105,6 +98,12 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         ++server->ccount;
       } break;
       case CREATE_ROOM: {
+        if (player_conmap.count(c) <= 0) {
+          reply.type = MessageType::ERROR;
+          reply.response = MessageType::CREATE_ROOM;
+          snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                   "Please do GIVE_ID first to register/login.");
+        };
         uint32_t id = player_conmap[c];
         bool found = false;
         for (auto &r : created_room) {
@@ -124,8 +123,14 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           reply.response = MessageType::CREATE_ROOM;
           snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                    "Already in room cannot make a new room.");
+          break;
         }
 
+        Player *p = &server->players[id];
+        if (p) {
+          p->health = MAX_PLAYER_HEALTH;
+          p->ready = false;
+        }
         Room *r = find_free_room(server);
         if (!r) {
           reply.type = MessageType::ERROR;
@@ -198,7 +203,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           } else {
             int slot = get_room_player_empty(selroom);
             if (slot != -1) {
-              selroom->players[slot] = &server->players[my_id];
+              Player *player = &server->players[my_id];
+              player->health = MAX_PLAYER_HEALTH;
+              player->ready = false;
+              selroom->players[slot] = player;
               selroom->player_len++;
 
               reply.type = MessageType::HERE_ROOM;
@@ -236,6 +244,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               idx = x;
               roomi = i;
               done = true;
+              Player *player = ri->players[x];
+              player->health = MAX_PLAYER_HEALTH;
+              player->ready = false;
               break;
             }
           }
@@ -247,6 +258,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           r->player_len--;
           if (r->player_len <= 0) {
             *r = Room{};
+            r->state = ROOM_FREE;
             if (roomi >= 0)
               created_room.erase(created_room.begin() + roomi);
           }
@@ -288,7 +300,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         // Find room and players
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
-          if (ri->player_len < 2) continue;
+          if (ri->state != ROOM_RUNNING && ri->player_len < 2) continue;
           for (int x = 0; x < 2; x++) {
             if (ri->players[x] && ri->players[x]->id == id) {
               r = ri;
@@ -317,10 +329,36 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         switch (action.type) {
         case GameActionType::INJECT: {
           int nid = action.data.i32;
+          // TODO: generate new needle stuff when the needle all used up.
           for (auto &n: r->needles) {
             if (n.id == nid) {
               if (n.used) break;
               n.used = true;
+              if (n.type == 1) {
+                p->health--;
+                if (p->health <= 0) {
+                  // NOTE: you are losing son.
+                  r->state = ROOM_ACTIVE;
+                  reply = {};
+                  reply.type = GAME_END;
+                  reply.response = GAME_PLAYER_UPDATE;
+                  reply.data.Int = op->id;
+                  if (p->con)  ws_send(p->con, &reply);
+                  if (op->con) ws_send(op->con, &reply);
+                  return;
+                  }
+              }
+
+              reply = {};
+              reply.type = PLAYER_INFO;
+              reply.response = GAME_PLAYER_UPDATE;
+              reply.data.Player_obj = op;
+              if (p->con) ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
+
+              reply.data.Player_obj = p;
+              if (p->con) ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
 
               reply = {};
               MinimalNeedle mn = {n.id, n.used};
@@ -340,54 +378,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           // TODO: finish this
         } break;
         }
-        // switch (pd.data.action->type) {
-        // case INJECT: {
-        //   int nid = pd.data.action->data.i32;
-        //   for (auto &n : r->needles) {
-        //     if (n.id == nid) {
-        //       if (n.used) break; // Already used, ignore
-
-        //       n.used = true;
-        //       if (n.type == 1) {
-        //         p->health--;
-        //       }
-
-        //       uint8_t out[MAX_MESSAGE_BIN_SIZE];
-
-        //       // send opponent info to me
-        //       reply.type = PLAYER_INFO;
-        //       reply.response = GAME_PLAYER_UPDATE;
-        //       reply.data.Player_obj = op;
-        //       if (p->con) ws_send(p->con, &reply);
-
-        //       // send my info to opponent
-        //       reply.data.Player_obj = p;
-        //       if (op->con) ws_send(op->con, &reply);
-
-        //       // send Needle state to both
-        //       memset(out, 0, MAX_MESSAGE_BIN_SIZE);
-        //       reply = {};
-        //       MinimalNeedle mn = {n.id, n.used};
-        //       reply.type = GAME_NEEDLE_DATA;
-        //       reply.response = GAME_PLAYER_UPDATE;
-        //       reply.data.Byte.len = sizeof(MinimalNeedle);
-        //       memcpy(reply.data.Byte.data, &mn, reply.data.Byte.len);
-        //       if (p->con) ws_send(p->con, &reply);
-        //       if (op->con) ws_send(op->con, &reply);
-
-        //       action_processed = true;
-        //       break;
-        //     }
-        //   }
-        // } break;
-        // case USE_ITEM: {
-        //   int nid = pd.data.action->data.i32;
-        //   (void)nid;
-        //   // TODO: implement
-        //   action_processed = false;
-        // } break;
-        // }
-
         if (action_processed) {
           r->turn = (PlayerState)((int)r->turn == 1 ? 0 : 1);
           reply.type = MessageType::GAME_TURN_UPDATE;
@@ -405,6 +395,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         uint32_t id = player_conmap[c];
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
+          if (ri->state != ROOM_ACTIVE) continue;
           for (int x = 0; x < 2; x++) {
             if (!ri->players[x])
               continue;
@@ -423,6 +414,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         }
         if (r && p) {
           p->ready = !p->ready; // Toggle ready state
+          p->health = MAX_PLAYER_HEALTH;
           if (op) {
             if (op->ready && p->ready) {
               p->turn = PlayerState::PLAYER1;
@@ -441,9 +433,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply.response = MessageType::TOGGLE_READY;
               reply.data.Player_obj = p;
               if (p->con)  ws_send(op->con, &reply);
+              if (op->con) ws_send(p->con, &reply);
 
               reply.data.Player_obj = op;
-              if (op->con) ws_send(p->con, &reply);
+              if (p->con)  ws_send(p->con, &reply);
+              if (op->con) ws_send(op->con, &reply);
 
               // NOTE: Room turn
               reply = {};
@@ -455,7 +449,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
               // TODO: make this configurable from the outside
               const int needle_count = 5;
-              const int live_needles = 2;
+              const int live_needles = 4;
               std::vector<uint8_t> needle_types;
               for (int i = 0; i < live_needles; ++i)
                 needle_types.push_back(1);

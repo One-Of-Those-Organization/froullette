@@ -12,7 +12,7 @@ static const int used_char_len = strlen(used_char);
   snprintf(strbuffer, HELPER_BUFFER_SIZE, fomat, __VA_ARGS__)
 
 // NOTE: Assume the buffer len is the len.
-bool _generate_random_id(size_t len, char *buffer) {
+static inline bool _generate_random_id(size_t len, char *buffer) {
   if (len <= 0 || !buffer)
     return false;
   for (size_t i = 0; i < len; i++) {
@@ -21,11 +21,15 @@ bool _generate_random_id(size_t len, char *buffer) {
   return true;
 }
 
-char *generate_random_id(size_t len) {
+static inline char *generate_random_id(size_t len) {
   srand(time(NULL));
   if (len <= 0 && len >= HELPER_BUFFER_SIZE)
     return nullptr;
   if (_generate_random_id(len, strbuffer))
     return strbuffer;
   return nullptr;
+}
+
+static inline int rand_range(int min, int max) {
+  return min + rand() % (max - min + 1);
 }
