@@ -449,7 +449,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
               // TODO: make this configurable from the outside
               const int needle_count = 5;
-              const int live_needles = 4;
+              const int live_needles = rand_range(1, 4);
               std::vector<uint8_t> needle_types;
               for (int i = 0; i < live_needles; ++i)
                 needle_types.push_back(1);

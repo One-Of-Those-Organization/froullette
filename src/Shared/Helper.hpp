@@ -31,5 +31,5 @@ static inline char *generate_random_id(size_t len) {
 }
 
 static inline int rand_range(int min, int max) {
-  return min + rand() % (max - min + 1);
+  return (rand() % (max - min + 1)) + min;
 }
