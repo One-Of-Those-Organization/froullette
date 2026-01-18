@@ -2,6 +2,8 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
+// TODO: make the needle pos shared between all the client (if all done)
+
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -53,45 +55,6 @@ struct GameData {
   NeedleContainer *needle_container;
   int winner_id;
 };
-
-#ifdef DEBUG_ROOM_
-static void debug_mode(ArsEng *engine, GameData *gd) {
-#ifndef __EMSCRIPTEN__
-  std::lock_guard<std::mutex> lock(gd->mutex);
-#endif
-
-  if (!gd->room) {
-    gd->room = new Room();
-    gd->room->state = ROOM_RUNNING;
-  }
-
-  // Dummy Room Setup Steps:
-  strcpy(gd->room->id, "DEBUG");
-  gd->room->state = ROOM_RUNNING;        // Update State
-  gd->room->turn = PlayerState::PLAYER1; // Player 1 Start First
-  gd->room->player_len = 2;              // 2 Players
-
-  // Dummy GameData Setup Steps:
-  gd->player.id = 100;
-  gd->player.ready = true;
-  gd->pstate = PlayerState::PLAYER1;
-
-  // Setup Player 1 and Player 2 Data
-  gd->player1.id = 100;
-  gd->player1.health = 4;
-  gd->player2.id = 200;
-  gd->player2.health = 4;
-
-  // Input the players into the room
-  gd->room->players[0] = &gd->player1;
-  gd->room->players[1] = &gd->player2;
-
-  TraceLog(LOG_INFO, "DEBUG: Dummy Room Created via 'T' Key");
-
-  // Instant Throw to Ingame for Testing
-  engine->request_change_state(GameState::INGAME);
-}
-#endif // DEBUG_ROOM_
 
 static void client_handler(mg_connection *c, int ev, void *ev_data) {
   GameData *gd = (GameData *)c->fn_data;
@@ -603,14 +566,14 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   Vector2 wsize = {(float)engine->bigcanvas.texture.width,
                    (float)engine->bigcanvas.texture.height};
 
-#ifdef DEBUG_ROOM_
+#ifdef DEBUG_
   KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
   if (kh) {
     GameData *gd = (GameData *)engine->additional_data;
-    kh->add_new(KEY_T, GameState::MENU,
-                [engine, gd]() { debug_mode(engine, gd); });
+    kh->add_new(KEY_W, GameState::MENU,
+                [engine, gd]() { engine->request_change_state(GameState::FINISHED); });
   }
-#endif // DEBUG_ROOM_
+#endif
   (void)kh_id;
   GameState state = GameState::MENU;
   size_t title_size = 64;
@@ -987,6 +950,72 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   tu_timer->start_timer();
 }
 
+// TODO: working on this
+static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
+  Vector2 wsize = {(float)engine->bigcanvas.texture.width,
+                   (float)engine->bigcanvas.texture.height};
+  KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
+  GameState state = GameState::FINISHED;
+  GameData *gd = (GameData *)engine->additional_data;
+
+  if (!kh)
+    TraceLog(LOG_INFO, "Failed to register keybinding to the ingame state");
+  else {
+    kh->add_new(KEY_Q, state, [engine, gd]() {
+      engine->request_change_state(GameState::ROOMMENU);
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+      gd->winner_id = -1;
+    });
+  }
+
+  size_t title_size = 64;
+  Color title_color = WHITE;
+
+  Text *title1 = cText(engine, state, "Game Finished", title_size, title_color, {0, 0});
+  Vector2 title1_len = title1->calculate_len();
+  title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
+  title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
+  engine->om.add_object(title1, (*z)++);
+
+  Text *title2 =
+      cText(engine, state, "YOU SOME", title_size, title_color, {0, 0});
+  Vector2 title2_len = title2->calculate_len();
+  title2->rec.x = (wsize.x - title2_len.x) / 2.0f;
+  title2->rec.y = (wsize.y / 2.0f);
+  engine->om.add_object(title2, (*z)++);
+
+  Script *sc = new Script();
+  sc->state = state;
+  sc->callback = [title2, gd]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+    char buff[5] = " WIN";
+    if (gd->winner_id < 0) return;
+    if ((uint32_t) gd->winner_id != gd->player.id) strcpy(buff, "LOSE");
+    const char *stuff = TextFormat("YOU %s", buff);
+    title2->text = stuff;
+  };
+  engine->om.add_object(sc, (*z)++);
+
+  int text_size = 32;
+  int padding = 20;
+  Button *btn1 =
+    cButton(engine, "Continue", text_size, padding, state, {0, 0}, [engine, gd]() {
+      engine->request_change_state(GameState::ROOMMENU);
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+      gd->winner_id = -1;
+    });
+  btn1->calculate_rec();
+  btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
+  btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
+  engine->om.add_object(btn1, (*z)++);
+}
+
 static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   Vector2 wsize = {(float)engine->bigcanvas.texture.width,
                    (float)engine->bigcanvas.texture.height};
@@ -1009,7 +1038,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
       return;
     }
 
-#ifndef DEBUG_ROOM_
+#ifndef DEBUG_
     if (!gd->room && gd->player.id == 0 &&
         has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME |
                                     GameState::FINISHED)) {
@@ -1030,8 +1059,8 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
     }
 #endif
     if (gd->room && gd->room->state == ROOM_FINISHED) {
-      engine->request_change_state(GameState::FINISHED);
       gd->room->state = ROOM_ACTIVE;
+      engine->request_change_state(GameState::FINISHED);
     }
   };
   engine->om.add_object(sc, (*z)++);
@@ -1063,7 +1092,6 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   ttimer->start_timer();
 
 #ifndef MOBILE
-  // make cursor
   Texture2D *cursor_text =
       engine->tm.load_texture("cursor", "./assets/cursor.png");
   Cursor *cr = new Cursor();
@@ -1115,6 +1143,7 @@ static void gameInit(ArsEng *engine) {
   initPlayMenu(engine, kh_id, &z);
   initInGame(engine, kh_id, &z);
   initRoomMenu(engine, kh_id, &z);
+  initFinishMenu(engine, kh_id, &z);
 }
 
 static void gameDeinit(ArsEng *engine) {

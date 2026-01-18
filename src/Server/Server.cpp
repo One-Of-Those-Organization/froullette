@@ -379,6 +379,16 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                     ws_send(p->con, &reply);
                   if (op->con)
                     ws_send(op->con, &reply);
+
+                  p->ready = false;
+                  op->ready = false;
+                  reply.type = MessageType::READY_STATUS;
+                  reply.response = MessageType::TOGGLE_READY;
+                  reply.data.Boolean = (uint8_t)p->ready;
+                  ws_send(p->con, &reply);
+
+                  reply.data.Boolean = (uint8_t)op->ready;
+                  ws_send(op->con, &reply);
                   return;
                 }
               }
