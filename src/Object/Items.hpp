@@ -2,10 +2,7 @@
 
 #include "Object.hpp"
 
-enum ItemType {
-  BOOSTER,
-  REVEALER
-};
+enum ItemType { BOOSTER, REVEALER };
 
 class Items : public Object {
 public:

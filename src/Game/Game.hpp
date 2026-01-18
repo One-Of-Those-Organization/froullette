@@ -214,7 +214,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
             for (Needle *n : gd->needle_container->needles) {
               if (n->shared_id == needles_info[i].id) {
                 n->used = (uint8_t)needles_info[i].used;
-                // TODO: reset the pos. maybe only active player can move around and synced.
+                // TODO: reset the pos. maybe only active player can move around
+                // and synced.
                 break;
               }
             }
@@ -556,7 +557,8 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     for (Object *brain : all_brain) {
       if (i++ < gd->player.health)
         brain->color = WHITE;
-      else brain->color = BLACK;
+      else
+        brain->color = BLACK;
     }
   };
   engine->om.add_object(ingame_sc, (*z)++);
@@ -570,8 +572,9 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   KeyHandler *kh = (KeyHandler *)engine->om.get_object(kh_id);
   if (kh) {
     GameData *gd = (GameData *)engine->additional_data;
-    kh->add_new(KEY_W, GameState::MENU,
-                [engine, gd]() { engine->request_change_state(GameState::FINISHED); });
+    kh->add_new(KEY_W, GameState::MENU, [engine, gd]() {
+      engine->request_change_state(GameState::FINISHED);
+    });
   }
 #endif
   (void)kh_id;
@@ -973,7 +976,8 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
   size_t title_size = 64;
   Color title_color = WHITE;
 
-  Text *title1 = cText(engine, state, "Game Finished", title_size, title_color, {0, 0});
+  Text *title1 =
+      cText(engine, state, "Game Finished", title_size, title_color, {0, 0});
   Vector2 title1_len = title1->calculate_len();
   title1->rec.x = (wsize.x - title1_len.x) / 2.0f;
   title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
@@ -993,8 +997,10 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
     char buff[5] = " WIN";
-    if (gd->winner_id < 0) return;
-    if ((uint32_t) gd->winner_id != gd->player.id) strcpy(buff, "LOSE");
+    if (gd->winner_id < 0)
+      return;
+    if ((uint32_t)gd->winner_id != gd->player.id)
+      strcpy(buff, "LOSE");
     const char *stuff = TextFormat("YOU %s", buff);
     title2->text = stuff;
   };
@@ -1002,14 +1008,14 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
 
   int text_size = 32;
   int padding = 20;
-  Button *btn1 =
-    cButton(engine, "Continue", text_size, padding, state, {0, 0}, [engine, gd]() {
-      engine->request_change_state(GameState::ROOMMENU);
+  Button *btn1 = cButton(engine, "Continue", text_size, padding, state, {0, 0},
+                         [engine, gd]() {
+                           engine->request_change_state(GameState::ROOMMENU);
 #ifndef __EMSCRIPTEN__
-      std::lock_guard<std::mutex> lock(gd->mutex);
+                           std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-      gd->winner_id = -1;
-    });
+                           gd->winner_id = -1;
+                         });
   btn1->calculate_rec();
   btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
   btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);

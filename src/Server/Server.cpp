@@ -27,15 +27,15 @@ Room *find_free_room(Server *server) {
   return nullptr;
 }
 
-static std::vector<MinimalNeedle> initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
+static std::vector<MinimalNeedle>
+initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
   std::vector<uint8_t> needle_types;
   for (size_t i = 0; i < live_needles_count; ++i)
     needle_types.push_back(1);
   for (size_t i = 0; i < needle_count - live_needles_count; ++i)
     needle_types.push_back(0);
 
-  unsigned seed =
-    std::chrono::system_clock::now().time_since_epoch().count();
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::shuffle(needle_types.begin(), needle_types.end(),
                std::default_random_engine(seed));
 
@@ -395,14 +395,16 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
               // NOTE: generate the new needle when all used up.
               int used_counter = 0;
-              for (const auto &n: r->needles) {
-                if (n.used) ++used_counter;
+              for (const auto &n : r->needles) {
+                if (n.used)
+                  ++used_counter;
               }
               if (used_counter >= 5) {
                 const int needle_count = 5;
                 const int live_needles = rand_range(1, 4);
 
-                std::vector<MinimalNeedle> mn = initialize_needle(needle_count, live_needles, r);
+                std::vector<MinimalNeedle> mn =
+                    initialize_needle(needle_count, live_needles, r);
 
                 Message needle_msg = {};
                 needle_msg.type = GAME_NEEDLE_DATA;
@@ -535,7 +537,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               const int needle_count = 5;
               const int live_needles = rand_range(1, 4);
 
-              std::vector<MinimalNeedle> mn = initialize_needle(needle_count, live_needles, r);
+              std::vector<MinimalNeedle> mn =
+                  initialize_needle(needle_count, live_needles, r);
 
               Message needle_msg = {};
               needle_msg.type = GAME_NEEDLE_DATA;
