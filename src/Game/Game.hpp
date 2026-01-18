@@ -251,6 +251,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
             for (Needle *n : gd->needle_container->needles) {
               if (n->shared_id == needles_info[i].id) {
                 n->used = (uint8_t)needles_info[i].used;
+                // TODO: reset the pos. maybe only active player can move around and synced.
                 break;
               }
             }
@@ -528,9 +529,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
   }
-  // TODO: the whole all_used needle stuff should be put here with diff script
-  // or timer object.
-
   Vector2 bigcanvas_size = {(float)engine->bigcanvas.texture.width,
                             (float)engine->bigcanvas.texture.height};
 

@@ -360,12 +360,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         switch (action.type) {
         case GameActionType::INJECT: {
           int nid = action.data.i32;
-          int used_counter = 0;
-          // TODO: generate new needle stuff when the needle all used up.
           for (auto &n : r->needles) {
             if (n.id == nid) {
               if (n.used) {
-                used_counter++;
                 break;
               }
               n.used = true;
@@ -386,6 +383,11 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 }
               }
 
+              // NOTE: generate the new needle when all used up.
+              int used_counter = 0;
+              for (const auto &n: r->needles) {
+                if (n.used) ++used_counter;
+              }
               if (used_counter >= 5) {
                 const int needle_count = 5;
                 const int live_needles = rand_range(1, 4);
@@ -398,6 +400,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 needle_msg.data.Byte.len = sizeof(MinimalNeedle) * needle_count;
                 memcpy(needle_msg.data.Byte.data, r->needles.data(),
                        needle_msg.data.Byte.len);
+
                 if (p->con)
                   ws_send(p->con, &needle_msg);
                 if (op->con)
