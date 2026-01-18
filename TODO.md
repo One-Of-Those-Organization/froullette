@@ -1,11 +1,11 @@
 # FOCUS
-- [x] Server        : handle `GAME_PLAYER_UPDATE` (rewrite)
+- [ ] Base          : The item
+- [ ] Base          : effect of the item
+- [ ] Client&Server : Item flow and spawn
 
 # BACK BURNER
-- [ ] Base          : The item
-- [ ] Base          : effect of the item and needle
-- [ ] Client&Server : Item flow and spawn
 - [ ] Android       : Compile to android using raymob
+- [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
 
 # FINISHED
 - [x] Client        : Handle game end

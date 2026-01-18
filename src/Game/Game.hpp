@@ -148,7 +148,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         TraceLog(LOG_INFO,
                  "Get %s player info with the content: id(%d), hp(%d)", name,
                  pd.data.Player_obj->id, pd.data.Player_obj->health);
-        memcpy(target, pd.data.Player_obj, sizeof(Player));
+        *target = *pd.data.Player_obj;
         delete pd.data.Player_obj;
       } break;
 
