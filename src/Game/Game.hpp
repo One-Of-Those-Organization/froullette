@@ -571,7 +571,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     obrain->rec = {0, 0, (float)icon_size, (float)icon_size};
     obrain->state = state;
     obrain->show = true;
-    obrain->color = WHITE;
+    obrain->color = BLACK;
     obrain->draw_in_canvas = false;
     engine->om.add_object(obrain, (*z)++);
     hbox->add_child(obrain);
@@ -593,11 +593,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     }
     int i = 0;
     for (Object *brain : all_brain) {
-      bool stuff = false;
       if (i++ < gd->player.health)
-        stuff = true;
-      brain->show = stuff;
-      hbox->position_child();
+        brain->color = WHITE;
+      else brain->color = BLACK;
     }
   };
   engine->om.add_object(ingame_sc, (*z)++);
