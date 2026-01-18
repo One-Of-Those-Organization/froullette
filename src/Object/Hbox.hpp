@@ -22,7 +22,8 @@ public:
   void position_child() {
     float total_content_width = 0;
     for (const auto &c : this->child) {
-      if (!c->show) continue;
+      if (!c->show)
+        continue;
       total_content_width += c->rec.width + (padding * 2);
     }
 
@@ -41,7 +42,8 @@ public:
     }
 
     for (auto &c : this->child) {
-      if (!c->show) continue;
+      if (!c->show)
+        continue;
       c->rec.x = offset + padding;
       c->rec.y = rec.y;
       offset = c->rec.x + c->rec.width + padding;

@@ -27,6 +27,32 @@ Room *find_free_room(Server *server) {
   return nullptr;
 }
 
+static std::vector<MinimalNeedle> initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
+  std::vector<uint8_t> needle_types;
+  for (size_t i = 0; i < live_needles_count; ++i)
+    needle_types.push_back(1);
+  for (size_t i = 0; i < needle_count - live_needles_count; ++i)
+    needle_types.push_back(0);
+
+  unsigned seed =
+    std::chrono::system_clock::now().time_since_epoch().count();
+  std::shuffle(needle_types.begin(), needle_types.end(),
+               std::default_random_engine(seed));
+
+  std::vector<MinimalNeedle> mn;
+  mn.reserve(needle_count);
+  r->needles.clear();
+
+  // NOTE: plaese sync the id with the client right now it is since
+  // the 2 of them use 0..4
+  for (size_t i = 0; i < needle_count; ++i) {
+    _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
+    r->needles.push_back(needle);
+    mn.push_back({needle.id, needle.used});
+  }
+  return mn;
+}
+
 static void timer_fn(void *arg) {
   (void)arg;
   for (auto &r : created_room) {
@@ -40,8 +66,10 @@ static void timer_fn(void *arg) {
       msg.type = LOBBY_STATUS;
       msg.response = NONE;
       msg.data.LobbyStatus_obj = {r->player_len, {p->ready, op->ready}};
-      if (p->con)  ws_send(p->con, &msg);
-      if (op->con) ws_send(op->con, &msg);
+      if (p->con)
+        ws_send(p->con, &msg);
+      if (op->con)
+        ws_send(op->con, &msg);
     }
   }
 }
@@ -270,7 +298,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             Message newmsg = {};
             newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
             newmsg.response = MessageType::NONE;
-            if (op->con) ws_send(op->con, &newmsg);
+            if (op->con)
+              ws_send(op->con, &newmsg);
           }
 
           reply.type = MessageType::EXIT_ROOM;
@@ -300,7 +329,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         // Find room and players
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
-          if (ri->state != ROOM_RUNNING && ri->player_len < 2) continue;
+          if (ri->state != ROOM_RUNNING && ri->player_len < 2)
+            continue;
           for (int x = 0; x < 2; x++) {
             if (ri->players[x] && ri->players[x]->id == id) {
               r = ri;
@@ -310,7 +340,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               break;
             }
           }
-          if (done) break;
+          if (done)
+            break;
         }
 
         // If we can't find a valid room/players, send error and bail
@@ -329,10 +360,14 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         switch (action.type) {
         case GameActionType::INJECT: {
           int nid = action.data.i32;
+          int used_counter = 0;
           // TODO: generate new needle stuff when the needle all used up.
-          for (auto &n: r->needles) {
+          for (auto &n : r->needles) {
             if (n.id == nid) {
-              if (n.used) break;
+              if (n.used) {
+                used_counter++;
+                break;
+              }
               n.used = true;
               if (n.type == 1) {
                 p->health--;
@@ -343,22 +378,46 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   reply.type = GAME_END;
                   reply.response = GAME_PLAYER_UPDATE;
                   reply.data.Int = op->id;
-                  if (p->con)  ws_send(p->con, &reply);
-                  if (op->con) ws_send(op->con, &reply);
+                  if (p->con)
+                    ws_send(p->con, &reply);
+                  if (op->con)
+                    ws_send(op->con, &reply);
                   return;
-                  }
+                }
+              }
+
+              if (used_counter >= 5) {
+                const int needle_count = 5;
+                const int live_needles = rand_range(1, 4);
+
+                std::vector<MinimalNeedle> mn = initialize_needle(needle_count, live_needles, r);
+
+                Message needle_msg = {};
+                needle_msg.type = GAME_NEEDLE_DATA;
+                needle_msg.response = NONE;
+                needle_msg.data.Byte.len = sizeof(MinimalNeedle) * needle_count;
+                memcpy(needle_msg.data.Byte.data, r->needles.data(),
+                       needle_msg.data.Byte.len);
+                if (p->con)
+                  ws_send(p->con, &needle_msg);
+                if (op->con)
+                  ws_send(op->con, &needle_msg);
               }
 
               reply = {};
               reply.type = PLAYER_INFO;
               reply.response = GAME_PLAYER_UPDATE;
               reply.data.Player_obj = op;
-              if (p->con) ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
               reply.data.Player_obj = p;
-              if (p->con) ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
               reply = {};
               MinimalNeedle mn = {n.id, n.used};
@@ -366,8 +425,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply.response = GAME_PLAYER_UPDATE;
               reply.data.Byte.len = sizeof(MinimalNeedle);
               memcpy(reply.data.Byte.data, &mn, reply.data.Byte.len);
-              if (p->con)  ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
               action_processed = true;
               break;
@@ -383,8 +444,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           reply.type = MessageType::GAME_TURN_UPDATE;
           reply.response = MessageType::GAME_PLAYER_UPDATE;
           reply.data.Int = (int)r->turn;
-          if (p->con)  ws_send(p->con, &reply);
-          if (op->con) ws_send(op->con, &reply);
+          if (p->con)
+            ws_send(p->con, &reply);
+          if (op->con)
+            ws_send(op->con, &reply);
         }
         return;
       } break;
@@ -395,7 +458,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         uint32_t id = player_conmap[c];
         for (size_t i = 0; i < created_room.size(); i++) {
           Room *ri = created_room[i];
-          if (ri->state != ROOM_ACTIVE) continue;
+          if (ri->state != ROOM_ACTIVE)
+            continue;
           for (int x = 0; x < 2; x++) {
             if (!ri->players[x])
               continue;
@@ -424,54 +488,41 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               reply.type = MessageType::GAME_START;
               reply.response = MessageType::TOGGLE_READY;
 
-              if (p->con)  ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
               // NOTE: player status
               reply = {};
               reply.type = MessageType::PLAYER_INFO;
               reply.response = MessageType::TOGGLE_READY;
               reply.data.Player_obj = p;
-              if (p->con)  ws_send(op->con, &reply);
-              if (op->con) ws_send(p->con, &reply);
+              if (p->con)
+                ws_send(op->con, &reply);
+              if (op->con)
+                ws_send(p->con, &reply);
 
               reply.data.Player_obj = op;
-              if (p->con)  ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
               // NOTE: Room turn
               reply = {};
               reply.type = MessageType::GAME_TURN_UPDATE;
               reply.response = MessageType::TOGGLE_READY;
               reply.data.Int = (int)r->turn;
-              if (p->con)  ws_send(p->con, &reply);
-              if (op->con) ws_send(op->con, &reply);
+              if (p->con)
+                ws_send(p->con, &reply);
+              if (op->con)
+                ws_send(op->con, &reply);
 
-              // TODO: make this configurable from the outside
               const int needle_count = 5;
               const int live_needles = rand_range(1, 4);
-              std::vector<uint8_t> needle_types;
-              for (int i = 0; i < live_needles; ++i)
-                needle_types.push_back(1);
-              for (int i = 0; i < needle_count - live_needles; ++i)
-                needle_types.push_back(0);
 
-              unsigned seed =
-                  std::chrono::system_clock::now().time_since_epoch().count();
-              std::shuffle(needle_types.begin(), needle_types.end(),
-                           std::default_random_engine(seed));
-
-              std::vector<MinimalNeedle> mn;
-              mn.reserve(needle_count);
-              r->needles.clear();
-
-              // NOTE: plaese sync the id with the client right now it is since
-              // the 2 of them use 0..4
-              for (int i = 0; i < needle_count; ++i) {
-                _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
-                r->needles.push_back(needle);
-                mn.push_back({needle.id, needle.used});
-              }
+              std::vector<MinimalNeedle> mn = initialize_needle(needle_count, live_needles, r);
 
               Message needle_msg = {};
               needle_msg.type = GAME_NEEDLE_DATA;
@@ -479,8 +530,10 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               needle_msg.data.Byte.len = sizeof(MinimalNeedle) * needle_count;
               memcpy(needle_msg.data.Byte.data, r->needles.data(),
                      needle_msg.data.Byte.len);
-              if (p->con)  ws_send(p->con, &needle_msg);
-              if (op->con) ws_send(op->con, &needle_msg);
+              if (p->con)
+                ws_send(p->con, &needle_msg);
+              if (op->con)
+                ws_send(op->con, &needle_msg);
 
               return;
             }

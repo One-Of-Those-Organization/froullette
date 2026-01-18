@@ -90,7 +90,6 @@ static void debug_mode(ArsEng *engine, GameData *gd) {
 
   // Instant Throw to Ingame for Testing
   engine->request_change_state(GameState::INGAME);
-
 }
 #endif // DEBUG_ROOM_
 
@@ -183,7 +182,9 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           target = &gd->player;
           strcpy(name, "ME");
         }
-        TraceLog(LOG_INFO, "Get %s player info with the content: id(%d), hp(%d)", name, pd.data.Player_obj->id, pd.data.Player_obj->health);
+        TraceLog(LOG_INFO,
+                 "Get %s player info with the content: id(%d), hp(%d)", name,
+                 pd.data.Player_obj->id, pd.data.Player_obj->health);
         memcpy(target, pd.data.Player_obj, sizeof(Player));
         delete pd.data.Player_obj;
       } break;
@@ -199,7 +200,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        PlayerState state = (PlayerState) pd.data.Int;
+        PlayerState state = (PlayerState)pd.data.Int;
         if (state == gd->player.turn) {
           gd->lock_action = false;
         } else {
@@ -510,8 +511,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-      if (gd->room->turn != gd->player.turn) return;
-      if (gd->lock_action) return;
+      if (gd->room->turn != gd->player.turn)
+        return;
+      if (gd->lock_action)
+        return;
 
       gd->action.type = GameActionType::INJECT;
       gd->action.data.i32 = n->shared_id;
@@ -528,11 +531,13 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   // TODO: the whole all_used needle stuff should be put here with diff script
   // or timer object.
 
-  Vector2 bigcanvas_size = { (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height };
+  Vector2 bigcanvas_size = {(float)engine->bigcanvas.texture.width,
+                            (float)engine->bigcanvas.texture.height};
 
   Color text_color = WHITE;
   text_size = 64;
-  Text *tturn = cText(engine, state, "Your Turn", text_size, text_color, {0, 0});
+  Text *tturn =
+      cText(engine, state, "Your Turn", text_size, text_color, {0, 0});
   Vector2 tturn_len = tturn->calculate_len();
   tturn->rec.x = (bigcanvas_size.x - tturn_len.x) / 2.0f;
   tturn->rec.y = (bigcanvas_size.y - (padding + tturn_len.y));
@@ -587,9 +592,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       tturn->show = false;
     }
     int i = 0;
-    for (Object *brain: all_brain) {
+    for (Object *brain : all_brain) {
       bool stuff = false;
-      if (i++ < gd->player.health) stuff = true;
+      if (i++ < gd->player.health)
+        stuff = true;
       brain->show = stuff;
       hbox->position_child();
     }
@@ -1015,7 +1021,8 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
       engine->request_change_state(target);
       return;
     }
-    if (gd->room && gd->room->state == ROOM_ACTIVE && engine->state == GameState::INGAME) {
+    if (gd->room && gd->room->state == ROOM_ACTIVE &&
+        engine->state == GameState::INGAME) {
       GameState target = GameState::ROOMMENU;
       engine->request_change_state(target);
       return;
@@ -1090,6 +1097,7 @@ static void gameInit(ArsEng *engine) {
   gd->winner_id = -1;
 #ifndef __EMSCRIPTEN__
   gd->_net = std::thread([gd]() {
+    mg_log_level = MG_LL_ERROR;
     if (gd && gd->client) {
       gd->client->loop(100);
     }
