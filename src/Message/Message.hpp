@@ -80,6 +80,7 @@ enum MessageType {
   LOBBY_STATUS,
   PLAYER_INFO,
 
+  GAME_REVEALED_ITEMS,
   GAME_ITEMS_INFO,
   GAME_NEEDLE_DATA,
   GAME_TURN_UPDATE,   // send the turn update after player done
@@ -203,6 +204,7 @@ struct Message {
   size_t payload_len = 0;
   switch (m->type) {
   case LOGIN_ID:
+  case GAME_REVEALED_ITEMS:
   case HERE_ID: {
     write_u32(&p, m->data.Int);
     payload_len = 4;
@@ -398,6 +400,7 @@ struct Message {
     out->data.Boolean = (uint8_t)*p;
     p++;
   } break;
+  case GAME_REVEALED_ITEMS:
   case GAME_END:
   case LOGIN_ID:
   case HERE_ID:

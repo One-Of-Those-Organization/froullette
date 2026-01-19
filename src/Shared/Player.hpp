@@ -12,11 +12,18 @@
 #include "../mongoose.h"
 #endif // _SERVER
 
+struct PlayerEffect {
+  int type; // use item type
+  int data; // id or mult
+  bool used;
+};
+
 struct Player {
   uint32_t id;
   uint8_t health;
 #ifdef _SERVER
   mg_connection *con;
+  PlayerEffect pe;
 #endif // _SERVER
   bool ready;
   PlayerState turn;

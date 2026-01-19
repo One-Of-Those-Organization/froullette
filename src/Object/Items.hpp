@@ -24,6 +24,10 @@ public:
     } else {
       show = true;
     }
+    switch (this->type) {
+    case BOOSTER: { this->text = this->dtext[0]; } break;
+    case REVEALER: { this->text = this->dtext[1]; } break;
+    }
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
 #ifdef MOBILE

@@ -118,6 +118,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             .id = server->ccount,
             .health = MAX_PLAYER_HEALTH,
             .con = c,
+            .pe = { .type = 3, .data = 0, .used = false },
             .ready = false,
             .turn = PlayerState::PLAYER1, // NOTE: update this on room
                                           // enter.
@@ -368,7 +369,14 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               }
               n.used = true;
               if (n.type == 1) {
-                p->health--;
+                bool used_booster = (p->pe.type == 0 && !p->pe.used);
+                int count = used_booster ? 1 * p->pe.data : 1;
+                if (used_booster) {
+                  // NOTE: reset the booster items 1 time use
+                  p->pe.used = true;
+                  p->pe.type = 3;
+                }
+                p->health -= count;
                 if (p->health <= 0) {
                   // NOTE: you are losing son.
                   r->state = ROOM_ACTIVE;
@@ -401,11 +409,41 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   ++used_counter;
               }
               if (used_counter >= 5) {
+                for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+                  if (p->items[a].used) {
+                    p->items[a] = {
+                      .shared_id = a,
+                      .type = rand_range(0, 1),
+                      .used = false,
+                    };
+                  }
+                }
+
+                for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+                  if (op->items[a].used) {
+                    op->items[a] = {
+                      .shared_id = a,
+                      .type = rand_range(0, 1),
+                      .used = false,
+                    };
+                  }
+                }
+                reply = {};
+                reply.type = GAME_ITEMS_INFO;
+                reply.response = NONE;
+
+                reply.data.Byte.len = sizeof(MinimalItems) * PLAYER_MAX_ITEMS_COUNT;
+                memcpy(reply.data.Byte.data, p->items, reply.data.Byte.len);
+                ws_send(p->con, &reply);
+
+                memcpy(reply.data.Byte.data, op->items, reply.data.Byte.len);
+                ws_send(op->con, &reply);
+
                 const int needle_count = 5;
                 const int live_needles = rand_range(1, 4);
 
                 std::vector<MinimalNeedle> mn =
-                    initialize_needle(needle_count, live_needles, r);
+                  initialize_needle(needle_count, live_needles, r);
 
                 Message needle_msg = {};
                 needle_msg.type = GAME_NEEDLE_DATA;
@@ -452,7 +490,65 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           }
         } break;
         case GameActionType::USE_ITEM: {
-          // TODO: finish this
+          MinimalItems *mn = nullptr;
+          for (auto &it: p->items) {
+            if (it.shared_id == pd.data.Int) {
+              if (it.used) {
+                reply.type = MessageType::ERROR;
+                reply.response = MessageType::GAME_PLAYER_UPDATE;
+                snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                         "Items with that id already used.");
+                ws_send(p->con, &reply);
+                return;
+              }
+              it.used = true;
+              mn = &it;
+              break;
+            }
+          }
+          if (!mn) {
+            reply.type = MessageType::ERROR;
+            reply.response = MessageType::GAME_PLAYER_UPDATE;
+            snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                     "Items with that id doesn't exist.");
+            ws_send(p->con, &reply);
+            return;
+          }
+
+          mn->used = true;
+          reply.type = GAME_ITEMS_INFO;
+          reply.response = GAME_TURN_UPDATE;
+          reply.data.Byte.len = sizeof(MinimalItems) * PLAYER_MAX_ITEMS_COUNT;
+          memcpy(reply.data.Byte.data, p->items, reply.data.Byte.len);
+          ws_send(p->con, &reply);
+
+          reply = {};
+          switch (mn->type) {
+          case 0: { // booster
+            p->pe = {
+              .type = 0,
+              .data = 2,
+              .used = false,
+            };
+          } break;
+          case 1: { // revealer
+            _MinimalNeedle *n = nullptr;
+            for (size_t a = 0; a < r->needles.size(); a++) {
+              n = &r->needles[a];
+              if (n && n->type == 1 && !n->used) {
+                break;
+              }
+            }
+            if (n) {
+              reply.type = GAME_REVEALED_ITEMS;
+              reply.response = NONE;
+              reply.data.Int = n->id;
+              ws_send(p->con, &reply);
+              return;
+            }
+          } break;
+          default: break;
+          }
         } break;
         }
         if (action_processed) {
@@ -536,7 +632,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 ws_send(op->con, &reply);
 
               // NOTE: items
-              for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+              for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
                 p->items[a] = {
                   .shared_id = a,
                   .type = rand_range(0, 1),
@@ -544,7 +640,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 };
               }
 
-              for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+              for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
                 op->items[a] = {
                   .shared_id = a,
                   .type = rand_range(0, 1),

@@ -214,7 +214,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         for (size_t i = 0; i < count; ++i) {
           gd->player.items[i] = items[i];
         }
-        //TODO
+        //TODO: finish the mapping
       } break;
       case GAME_NEEDLE_DATA: {
 #ifndef __EMSCRIPTEN__
@@ -556,6 +556,19 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   hbox->position_child();
 
   // create the items object that will be reusable
+  HBox *item_box = new HBox();
+  engine->om.add_object(item_box, (*z)++);
+  item_box->state = state;
+  item_box->rec.width = (icon_size * MAX_PLAYER_HEALTH);
+  item_box->rec.height = icon_size + padding;
+  item_box->rec.x = bigcanvas_size.x - item_box->rec.width;
+  item_box->rec.y = tturn->rec.y - (icon_size + padding);
+  item_box->padding = padding;
+
+  item_box->al = Alignment::RIGHT;
+  item_box->draw_in_canvas = false;
+  engine->om.add_object(item_box, (*z)++);
+
   Texture *revealer_txt = engine->tm.load_texture("revealer", "./assets/FormReveal.png");
   Texture *deadpil_txt = engine->tm.load_texture("deadpil", "./assets/Death_Pil.png");
   for (int i = 0; i < PLAYER_MAX_ITEMS_COUNT; i++) {
@@ -565,11 +578,15 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->color = WHITE;
     it->draw_in_canvas = false;
     it->rec = {0,0, (float)icon_size, (float)icon_size};
-    it->dtext[0] = revealer_txt;
-    it->dtext[1] = deadpil_txt;
+    it->dtext[1] = revealer_txt;
+    it->dtext[0] = deadpil_txt;
+    it->callback = []() { /* TODO: send request to the backend */ };
     engine->om.add_object(it, (*z)++);
+    item_box->add_child(it);
+    item_box->position_child();
     gd->items.push_back(it);
   }
+  // TODO: have a script that watch or to use the callback from the net thread straight up.
 
   Script *ingame_sc = new Script();
   ingame_sc->state = state;
