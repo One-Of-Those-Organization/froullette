@@ -1,22 +1,29 @@
 #pragma once
 
 #include "Object.hpp"
+#include <functional>
 
 enum ItemType { BOOSTER = 0 , REVEALER = 1 };
 
 class Items : public Object {
 public:
-  int shared_id;
+  Texture *dtext[2];
+  uint64_t shared_id;
   ItemType type;
   Vector2 *curpos;
+  bool used = false;
   bool _hovered;
   std::function<void()> callback = nullptr;
-  Items(ItemType type, int id) : Object(), type(type), shared_id(id) {};
+  Items(ItemType type, int id) : Object(), shared_id(id), type(type) {};
   virtual ~Items() = default;
   void logic(float dt) override {
     (void)dt;
-    if (!curpos)
+    if (!curpos && this->used) {
+      show = false;
       return;
+    } else {
+      show = true;
+    }
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
 #ifdef MOBILE

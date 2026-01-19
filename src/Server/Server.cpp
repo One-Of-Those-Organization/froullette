@@ -8,7 +8,6 @@
 #include <random>
 #include <vector>
 
-static uint64_t usefull_counter = 0;
 static std::unordered_map<mg_connection *, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
 
@@ -538,31 +537,29 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
               // NOTE: items
               for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
-                MinimalItems mi = {
-                  .shared_id = usefull_counter++,
+                p->items[a] = {
+                  .shared_id = a,
                   .type = rand_range(0, 1),
-                  .callback = []() { /* TODO: for now dont do anything */ },
+                  .used = false,
                 };
-                p->items[a] = mi;
               }
 
               for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
-                MinimalItems mi = {
-                  .shared_id = usefull_counter++,
+                op->items[a] = {
+                  .shared_id = a,
                   .type = rand_range(0, 1),
-                  .callback = []() { /* TODO: for now dont do anything */ },
+                  .used = false,
                 };
-                op->items[a] = mi;
               }
               reply = {};
               reply.type = GAME_ITEMS_INFO;
               reply.response = NONE;
 
-              reply.data.Byte.len = sizeof(p->items);
-              memcpy(reply.data.Byte.data, p->items, sizeof(p->items));
+              reply.data.Byte.len = sizeof(MinimalItems) * PLAYER_MAX_ITEMS_COUNT;
+              memcpy(reply.data.Byte.data, p->items, reply.data.Byte.len);
               ws_send(p->con, &reply);
 
-              memcpy(reply.data.Byte.data, op->items, sizeof(op->items));
+              memcpy(reply.data.Byte.data, op->items, reply.data.Byte.len);
               ws_send(op->con, &reply);
 
               // NOTE: needle

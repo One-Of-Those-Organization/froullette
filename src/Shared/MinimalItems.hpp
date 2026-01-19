@@ -1,10 +1,8 @@
 #pragma once
-#include <functional>
+#include <cstdint>
 
 struct MinimalItems {
-  int shared_id; // so we can map to the object version
+  uint64_t shared_id; // so we can map to the object version
   int type;      // use ItemType
-#ifdef _SERVER
-  std::function<void()> callback;
-#endif
+  bool used;
 };

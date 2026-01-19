@@ -17,6 +17,7 @@
 #include "../Object/Text.hpp"
 #include "../Object/TextInput.hpp"
 #include "../Object/Timer.hpp"
+#include "../Object/Items.hpp"
 #include "../Shared/LobbyStatus.hpp"
 #include "../Shared/Player.hpp"
 #include "../Shared/Room.hpp"
@@ -45,7 +46,7 @@ struct GameData {
   std::string url_buffer;
   std::string buffer;
 
-  std::string *text_buffer;
+  std::string text_buffer;
   bool text_buffer_displayed;
 
   std::queue<int> dragged_obj_qq; // queue for dragged_obj
@@ -53,6 +54,7 @@ struct GameData {
   GameAction action;
   bool lock_action;
   NeedleContainer *needle_container;
+  std::vector<Items*> items; // sync this with gd->player.items (MinimalItems)
   int winner_id;
 };
 
@@ -123,7 +125,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #endif
         TraceLog(LOG_INFO, "NET: Error: %s", pd.data.String);
         gd->text_buffer_displayed = false;
-        *gd->text_buffer = pd.data.String;
+        gd->text_buffer = pd.data.String;
       } break;
       case OK:
       case NONE: {
@@ -132,7 +134,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #endif
         TraceLog(LOG_INFO, "NET: Info: %s", pd.data.String);
         gd->text_buffer_displayed = false;
-        *gd->text_buffer = pd.data.String;
+        gd->text_buffer = pd.data.String;
       } break;
 
       case PLAYER_INFO: {
@@ -156,7 +158,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
-        delete gd->room;
+        if (gd->room) delete gd->room;
         gd->room = nullptr;
       } break;
       case GAME_TURN_UPDATE: {
@@ -203,6 +205,17 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           }
         }
       } break;
+      case GAME_ITEMS_INFO: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        MinimalItems *items = (MinimalItems *)pd.data.Byte.data;
+        size_t count = pd.data.Byte.len / sizeof(MinimalItems);
+        for (size_t i = 0; i < count; ++i) {
+          gd->player.items[i] = items[i];
+        }
+        //TODO
+      } break;
       case GAME_NEEDLE_DATA: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
@@ -237,7 +250,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
     const char *fm = TextFormat("NET: Error: %s", (char *)ev_data);
     TraceLog(LOG_ERROR, "%s", fm);
     gd->text_buffer_displayed = false;
-    *gd->text_buffer = fm;
+    gd->text_buffer = fm;
   } break;
   case MG_EV_CLOSE: {
 #ifndef __EMSCRIPTEN__
@@ -270,7 +283,7 @@ static bool start_connection(ArsEng *engine) {
     const char *fm = "NET: Failed to connect to the specified server";
     TraceLog(LOG_INFO, "%s", fm);
     gd->text_buffer_displayed = false;
-    *gd->text_buffer = fm;
+    gd->text_buffer = fm;
     return false;
   }
   Message msg = {};
@@ -541,6 +554,22 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     all_brain[i] = obrain;
   }
   hbox->position_child();
+
+  // create the items object that will be reusable
+  Texture *revealer_txt = engine->tm.load_texture("revealer", "./assets/FormReveal.png");
+  Texture *deadpil_txt = engine->tm.load_texture("deadpil", "./assets/Death_Pil.png");
+  for (int i = 0; i < PLAYER_MAX_ITEMS_COUNT; i++) {
+    Items *it = new Items(BOOSTER, i);
+    it->state = state;
+    it->used = false;
+    it->color = WHITE;
+    it->draw_in_canvas = false;
+    it->rec = {0,0, (float)icon_size, (float)icon_size};
+    it->dtext[0] = revealer_txt;
+    it->dtext[1] = deadpil_txt;
+    engine->om.add_object(it, (*z)++);
+    gd->items.push_back(it);
+  }
 
   Script *ingame_sc = new Script();
   ingame_sc->state = state;
@@ -953,7 +982,6 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   tu_timer->start_timer();
 }
 
-// TODO: working on this
 static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
   Vector2 wsize = {(float)engine->bigcanvas.texture.width,
                    (float)engine->bigcanvas.texture.height};
@@ -1074,7 +1102,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   int text_size = 32;
   Color text_color = RED;
   Text *t = cText(engine, state, std::string(), text_size, text_color, {0, 0});
-  t->btext = gd->text_buffer;
+  t->btext = &gd->text_buffer;
   t->rec.y = wsize.y - text_size;
   t->show = false;
   engine->om.add_object(t, (*z)++);
@@ -1110,7 +1138,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
 #endif
 }
 
-static void gameInit(ArsEng *engine) {
+[[maybe_unused]] static void gameInit(ArsEng *engine) {
   GameData *gd = new GameData();
   gd->round_needle_count = 5;
   gd->client = new Client();
@@ -1119,7 +1147,7 @@ static void gameInit(ArsEng *engine) {
   gd->oplayer = {};
   gd->room = nullptr;
   gd->ls = {1, {false, false}};
-  gd->text_buffer = new std::string();
+  gd->text_buffer = std::string();
   gd->text_buffer_displayed = false;
   gd->needle_container = nullptr;
   gd->action = {};
@@ -1152,7 +1180,7 @@ static void gameInit(ArsEng *engine) {
   initFinishMenu(engine, kh_id, &z);
 }
 
-static void gameDeinit(ArsEng *engine) {
+[[maybe_unused]] static void gameDeinit(ArsEng *engine) {
   GameData *gd = (GameData *)engine->additional_data;
   if (gd) {
     if (gd->client) {
@@ -1165,7 +1193,6 @@ static void gameDeinit(ArsEng *engine) {
       // that thread to exit.
 #endif
     delete gd->client;
-    delete gd->text_buffer;
     delete gd;
   }
 }
