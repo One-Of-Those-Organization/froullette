@@ -22,7 +22,3 @@ struct Player {
   PlayerState turn;
   MinimalItems items[PLAYER_MAX_ITEMS_COUNT];
 };
-
-static inline void player_empty_item(Player *p) {
-  memset(p->items, 0, sizeof(MinimalItems) * PLAYER_MAX_ITEMS_COUNT);
-}

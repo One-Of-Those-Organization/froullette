@@ -107,8 +107,6 @@ struct Message {
     ByteT Byte; // what type of the data can be seen from the MessageType
     LobbyStatus LobbyStatus_obj;
     GameAction *action;
-    MinimalItems items[PLAYER_MAX_ITEMS_COUNT];
-    // add more
   } data;
 };
 

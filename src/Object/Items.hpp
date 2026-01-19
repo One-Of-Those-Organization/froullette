@@ -2,7 +2,7 @@
 
 #include "Object.hpp"
 
-enum ItemType { BOOSTER, REVEALER };
+enum ItemType { BOOSTER = 0 , REVEALER = 1 };
 
 class Items : public Object {
 public:

@@ -4,7 +4,7 @@
 struct MinimalItems {
   int shared_id; // so we can map to the object version
   int type;      // use ItemType
-#ifdef SERVER_
+#ifdef _SERVER
   std::function<void()> callback;
 #endif
 };

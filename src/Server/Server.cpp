@@ -8,6 +8,7 @@
 #include <random>
 #include <vector>
 
+static uint64_t usefull_counter = 0;
 static std::unordered_map<mg_connection *, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
 
@@ -123,7 +124,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                                           // enter.
             .items = {},
         };
-        player_empty_item(&server->players[server->ccount]);
         player_conmap[c] = server->ccount;
         ++server->ccount;
       } break;
@@ -469,7 +469,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         return;
       } break;
       case TOGGLE_READY: {
-        //TODO: generate the item here and send that using byte with the following message GAME_ITEMS_INFO
         Room *r = nullptr;
         Player *p = nullptr;
         Player *op = nullptr;
@@ -537,6 +536,36 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               if (op->con)
                 ws_send(op->con, &reply);
 
+              // NOTE: items
+              for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+                MinimalItems mi = {
+                  .shared_id = usefull_counter++,
+                  .type = rand_range(0, 1),
+                  .callback = []() { /* TODO: for now dont do anything */ },
+                };
+                p->items[a] = mi;
+              }
+
+              for (size_t a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
+                MinimalItems mi = {
+                  .shared_id = usefull_counter++,
+                  .type = rand_range(0, 1),
+                  .callback = []() { /* TODO: for now dont do anything */ },
+                };
+                op->items[a] = mi;
+              }
+              reply = {};
+              reply.type = GAME_ITEMS_INFO;
+              reply.response = NONE;
+
+              reply.data.Byte.len = sizeof(p->items);
+              memcpy(reply.data.Byte.data, p->items, sizeof(p->items));
+              ws_send(p->con, &reply);
+
+              memcpy(reply.data.Byte.data, op->items, sizeof(op->items));
+              ws_send(op->con, &reply);
+
+              // NOTE: needle
               const int needle_count = 5;
               const int live_needles = rand_range(1, 4);
 
