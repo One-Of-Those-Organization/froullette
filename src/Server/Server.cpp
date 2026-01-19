@@ -374,7 +374,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 if (used_booster) {
                   // NOTE: reset the booster items 1 time use
                   p->pe.used = true;
-                  p->pe.type = 3;
                 }
                 p->health -= count;
                 if (p->health <= 0) {
@@ -409,6 +408,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   ++used_counter;
               }
               if (used_counter >= 5) {
+                // NOTE: right now it will be filled again until full but if want to add only once
+                // we can add break.
                 for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
                   if (p->items[a].used) {
                     p->items[a] = {
@@ -534,17 +535,23 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           case 1: { // revealer
             _MinimalNeedle *n = nullptr;
             for (size_t a = 0; a < r->needles.size(); a++) {
-              n = &r->needles[a];
-              if (n && n->type == 1 && !n->used) {
+              _MinimalNeedle *in = &r->needles[a];
+              if (in && in->type == 1 && !in->used) {
+                n = in;
                 break;
               }
             }
             if (n) {
               reply.type = GAME_REVEALED_ITEMS;
-              reply.response = NONE;
-              reply.data.Int = n->id;
+              reply.response = GAME_PLAYER_UPDATE;
+              reply.data.Int = n->id; // the needle with this id is live guys
               ws_send(p->con, &reply);
               return;
+            } else {
+              reply.type = ERROR;
+              reply.response = GAME_PLAYER_UPDATE;
+              snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                       "Cannot found any live needles, there is something so wrong right now.");
             }
           } break;
           default: break;

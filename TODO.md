@@ -1,13 +1,15 @@
 # FOCUS
 - [ ] Base          : The item
-- [ ] Base          : effect of the item
-- [ ] Client&Server : Item flow and spawn
 
 # BACK BURNER
+- [ ] Client        : Sound
+- [ ] Client        : Shaders stuff to make it pretty
 - [ ] Android       : Compile to android using raymob
 - [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
 
 # FINISHED
+- [x] Client&Server : Item flow and spawn
+- [x] Base          : effect of the item
 - [x] Client        : Handle game end
 - [x] Base          : The needle
 - [x] Client        : Display Player health, Player turn (done on other branch)
