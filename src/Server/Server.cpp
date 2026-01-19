@@ -121,7 +121,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             .ready = false,
             .turn = PlayerState::PLAYER1, // NOTE: update this on room
                                           // enter.
+            .items = {},
         };
+        player_empty_item(&server->players[server->ccount]);
         player_conmap[c] = server->ccount;
         ++server->ccount;
       } break;
@@ -467,6 +469,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         return;
       } break;
       case TOGGLE_READY: {
+        //TODO: generate the item here and send that using byte with the following message GAME_ITEMS_INFO
         Room *r = nullptr;
         Player *p = nullptr;
         Player *op = nullptr;

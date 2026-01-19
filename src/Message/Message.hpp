@@ -80,6 +80,7 @@ enum MessageType {
   LOBBY_STATUS,
   PLAYER_INFO,
 
+  GAME_ITEMS_INFO,
   GAME_NEEDLE_DATA,
   GAME_TURN_UPDATE,   // send the turn update after player done
                       // GAME_PLAYER_UPDATE
@@ -106,6 +107,7 @@ struct Message {
     ByteT Byte; // what type of the data can be seen from the MessageType
     LobbyStatus LobbyStatus_obj;
     GameAction *action;
+    MinimalItems items[PLAYER_MAX_ITEMS_COUNT];
     // add more
   } data;
 };
@@ -221,6 +223,7 @@ struct Message {
     payload_len = gen_game_action_net_obj(p, ga);
     p += payload_len;
   } break;
+  case GAME_ITEMS_INFO:
   case GAME_NEEDLE_DATA: {
     write_u16(&p, m->data.Byte.len);
     payload_len += 2;
@@ -380,6 +383,7 @@ struct Message {
       p += flen;
     }
   } break;
+  case GAME_ITEMS_INFO:
   case GAME_NEEDLE_DATA: {
     out->data.Byte.len = read_u16(p);
     p += 2;
