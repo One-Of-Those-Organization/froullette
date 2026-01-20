@@ -563,12 +563,15 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   hbox->position_child();
 
   // create the items object that will be reusable
+  icon_size = 96;
+  padding = 10;
   HBox *item_box = new HBox();
   item_box->state = state;
   item_box->rec.width = (icon_size * MAX_PLAYER_HEALTH);
   item_box->rec.height = icon_size + padding;
-  item_box->rec.x = bigcanvas_size.x - item_box->rec.width;
-  item_box->rec.y = tturn->rec.y - (icon_size + padding);
+  item_box->rec.x = bigcanvas_size.x - item_box->rec.width - padding;
+  item_box->rec.y = bigcanvas_size.y - item_box->rec.height;
+  item_box->draw_in_canvas = false;
   item_box->padding = padding;
 
   item_box->al = Alignment::RIGHT;

@@ -1,5 +1,6 @@
 # FOCUS
 - [ ] Base          : The item
+- [ ] Base          : When leave the player counter didnt go down
 
 # BACK BURNER
 - [ ] Client        : Sound
