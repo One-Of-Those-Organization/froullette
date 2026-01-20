@@ -10,15 +10,15 @@ public:
   Texture *dtext[2];
   uint64_t shared_id;
   ItemType type;
-  Vector2 *curpos;
+  Vector2 *curpos = nullptr;
   bool used = false;
-  bool _hovered;
+  bool _hovered = false;
   std::function<void()> callback = nullptr;
   Items(ItemType type, int id) : Object(), shared_id(id), type(type) {};
   virtual ~Items() = default;
   void logic(float dt) override {
     (void)dt;
-    if (!curpos && this->used) {
+    if (!curpos || this->used) {
       show = false;
       return;
     } else {

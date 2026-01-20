@@ -213,8 +213,15 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         size_t count = pd.data.Byte.len / sizeof(MinimalItems);
         for (size_t i = 0; i < count; ++i) {
           gd->player.items[i] = items[i];
+          // NOTE: map to the object
+          for (auto &t: gd->items) {
+            if (t->shared_id == (uint64_t)items[i].shared_id) {
+              t->type = (ItemType) items[i].type;
+              t->used = items[i].used;
+              break;
+            }
+          }
         }
-        //TODO: finish the mapping
       } break;
       case GAME_NEEDLE_DATA: {
 #ifndef __EMSCRIPTEN__
@@ -557,7 +564,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 
   // create the items object that will be reusable
   HBox *item_box = new HBox();
-  engine->om.add_object(item_box, (*z)++);
   item_box->state = state;
   item_box->rec.width = (icon_size * MAX_PLAYER_HEALTH);
   item_box->rec.height = icon_size + padding;
@@ -573,6 +579,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   Texture *deadpil_txt = engine->tm.load_texture("deadpil", "./assets/Death_Pil.png");
   for (int i = 0; i < PLAYER_MAX_ITEMS_COUNT; i++) {
     Items *it = new Items(BOOSTER, i);
+    it->curpos = &engine->bigcanvas_cursor;
     it->state = state;
     it->used = false;
     it->color = WHITE;

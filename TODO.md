@@ -5,9 +5,9 @@
 - [ ] Client        : Sound
 - [ ] Client        : Shaders stuff to make it pretty
 - [ ] Android       : Compile to android using raymob
-- [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
 
 # FINISHED
+- [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
 - [x] Client&Server : Item flow and spawn
 - [x] Base          : effect of the item
 - [x] Client        : Handle game end
