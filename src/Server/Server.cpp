@@ -301,7 +301,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             Message newmsg = {};
             newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
             newmsg.response = MessageType::NONE;
-            if (op->con)
+            if (op && op->con)
               ws_send(op->con, &newmsg);
           }
 
@@ -708,9 +708,55 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
   case MG_EV_OPEN:
     printf("[SERVER] Connection opened:  %p\n", c);
     break;
-  case MG_EV_CLOSE:
+  case MG_EV_CLOSE: {
     printf("[SERVER] Connection closed: %p\n", c);
-    // TODO: cleanup their room if no one there.
+    uint32_t id = player_conmap[c];
+    Room *r = nullptr;
+    int idx = -1;
+    int roomi = -1;
+    bool done = false;
+    for (size_t i = 0; i < created_room.size(); i++) {
+      Room *ri = created_room[i];
+      if (ri->player_len < 1 || ri->player_len > 2)
+        continue;
+      for (int x = 0; x < 2; x++) {
+        if (ri->players[x] && ri->players[x]->id == id) {
+          r = ri;
+          idx = x;
+          roomi = i;
+          done = true;
+          Player *player = ri->players[x];
+          player->health = MAX_PLAYER_HEALTH;
+          player->ready = false;
+          break;
+        }
+      }
+      if (done)
+        break;
+    }
+    if (r) {
+      r->players[idx] = nullptr;
+      r->player_len--;
+      if (r->player_len <= 0) {
+        *r = Room{};
+        r->state = ROOM_FREE;
+        if (roomi >= 0)
+          created_room.erase(created_room.begin() + roomi);
+      }
+
+      if (r->player_len == 1 && r->state == RoomState::ROOM_RUNNING) {
+        r->state = RoomState::ROOM_ACTIVE;
+        Player *op = r->players[idx ^ 1];
+
+        Message newmsg = {};
+        newmsg.type = MessageType::GAME_FINISHED_PREMATURELY;
+        newmsg.response = MessageType::NONE;
+        if (op && op->con)
+          ws_send(op->con, &newmsg);
+      }
+      return;
+    }
+
     // NOTE: we dont need to cleanup the big player array right since they
     // should beable to login
     if (player_conmap.count(c)) {
@@ -718,7 +764,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
       server->players[id].con = nullptr;
       player_conmap.erase(c);
     }
-    break;
+  } break;
   case MG_EV_ERROR:
     printf("[SERVER] Error: %s\n", (char *)ev_data);
     break;
