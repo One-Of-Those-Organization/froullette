@@ -8,6 +8,8 @@
 #include <random>
 #include <vector>
 
+#define brp asm("int3")
+
 static std::unordered_map<mg_connection *, uint32_t> player_conmap = {};
 static std::vector<Room *> created_room = {};
 
@@ -58,17 +60,16 @@ static void timer_fn(void *arg) {
   for (auto &r : created_room) {
     Player *p = r->players[0];
     Player *op = r->players[1];
-    if (!p || !op)
-      continue; // if only 1 available continue to the next room skip the
-                // current one, take only the room with 2 valid player
     if (r->state == ROOM_ACTIVE) {
       Message msg = {};
       msg.type = LOBBY_STATUS;
       msg.response = NONE;
-      msg.data.LobbyStatus_obj = {r->player_len, {p->ready, op->ready}};
-      if (p->con)
+      bool pready = (p)   ? p->ready  : false;
+      bool opready = (op) ? op->ready : false;
+      msg.data.LobbyStatus_obj = {r->player_len, {pready, opready}};
+      if (p && p->con)
         ws_send(p->con, &msg);
-      if (op->con)
+      if (op && op->con)
         ws_send(op->con, &msg);
     }
   }
@@ -361,7 +362,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         delete pd.data.action; // dont want to bother with this...
         switch (action.type) {
         case GameActionType::INJECT: {
-          int nid = action.data.i32;
+          int nid = action.data;
           for (auto &n : r->needles) {
             if (n.id == nid) {
               if (n.used) {
@@ -492,8 +493,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         } break;
         case GameActionType::USE_ITEM: {
           MinimalItems *mn = nullptr;
+          printf("get the id args: %d\n", action.data);
           for (auto &it: p->items) {
-            if (it.shared_id == pd.data.Int) {
+            if (it.shared_id == action.data) {
               if (it.used) {
                 reply.type = MessageType::ERROR;
                 reply.response = MessageType::GAME_PLAYER_UPDATE;
@@ -553,6 +555,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
                        "Cannot found any live needles, there is something so wrong right now.");
             }
+            // NOTE: dont need to do `action_processed = true` because we dont want to flip the turn
           } break;
           default: break;
           }

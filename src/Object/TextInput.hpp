@@ -3,6 +3,10 @@
 #include "Object.hpp"
 #include <string>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 class TextInput : public Object {
 public:
   Vector2 *curpos = nullptr;
@@ -57,6 +61,30 @@ public:
 #endif
       {
         *this->active_id = this->id;
+
+#if defined(MOBILE) && defined(__EMSCRIPTEN__)
+        // EM_ASM allows inline JavaScript.
+        // We create a hidden textarea and focus it to trigger the mobile keyboard.
+        EM_ASM({
+            var inputId = 'raylib-hidden-input';
+            var input = document.getElementById(inputId);
+
+            if (!input) {
+                input = document.createElement('textarea');
+                input.id = inputId;
+                input.style.position = 'absolute';
+                input.style.opacity = '0';
+                input.style.top = '-10000px';
+                input.style.left = '-10000px';
+                // Prevent zooming on focus by setting font size > 16px
+                input.style.fontSize = '16px';
+                document.body.appendChild(input);
+            }
+
+            input.focus();
+            input.click(); // Sometimes needed for specific mobile browsers
+        });
+#endif
       }
     } else
       this->_hovered = false;
@@ -72,6 +100,13 @@ public:
       }
       if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
         *this->active_id = -1;
+#if defined(MOBILE) && defined(__EMSCRIPTEN__)
+        // Blur the input to hide keyboard when done
+        EM_ASM({
+            var input = document.getElementById('raylib-hidden-input');
+            if (input) input.blur();
+        });
+#endif
       }
     }
   }

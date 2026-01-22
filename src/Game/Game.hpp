@@ -215,7 +215,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           gd->player.items[i] = items[i];
           // NOTE: map to the object
           for (auto &t: gd->items) {
-            if (t->shared_id == (uint64_t)items[i].shared_id) {
+            if (t->shared_id == items[i].shared_id) {
               t->type = (ItemType) items[i].type;
               t->used = items[i].used;
               break;
@@ -502,7 +502,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         return;
 
       gd->action.type = GameActionType::INJECT;
-      gd->action.data.i32 = n->shared_id;
+      gd->action.data = n->shared_id;
       gd->lock_action = true;
       Message msg = {};
       msg.type = GAME_PLAYER_UPDATE;
@@ -590,13 +590,24 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
-    it->callback = []() { /* TODO: send request to the backend */ };
+    it->callback = [it, gd, i]() {
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+      gd->action.type = GameActionType::USE_ITEM;
+      gd->action.data = i;
+      gd->lock_action = true;
+      Message msg = {};
+      msg.type = GAME_PLAYER_UPDATE;
+      msg.response = NONE;
+      msg.data.action = &gd->action;
+      gd->client->send(msg);
+    };
     engine->om.add_object(it, (*z)++);
     item_box->add_child(it);
     item_box->position_child();
     gd->items.push_back(it);
   }
-  // TODO: have a script that watch or to use the callback from the net thread straight up.
 
   Script *ingame_sc = new Script();
   ingame_sc->state = state;

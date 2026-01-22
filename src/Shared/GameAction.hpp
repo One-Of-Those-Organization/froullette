@@ -9,7 +9,5 @@ enum GameActionType : uint8_t {
 
 struct GameAction {
   GameActionType type;
-  union {
-    int i32;
-  } data;
+  int data;
 };

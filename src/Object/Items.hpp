@@ -8,7 +8,7 @@ enum ItemType { BOOSTER = 0 , REVEALER = 1 };
 class Items : public Object {
 public:
   Texture *dtext[2];
-  uint64_t shared_id;
+  int shared_id;
   ItemType type;
   Vector2 *curpos = nullptr;
   bool used = false;

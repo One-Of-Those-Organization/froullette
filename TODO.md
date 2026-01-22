@@ -1,13 +1,14 @@
 # FOCUS
-- [ ] Base          : The item
-- [ ] Base          : When leave the player counter didnt go down
-
-# BACK BURNER
+- [ ] Server&Client : when leaving the other player is not disconnected
+- [ ] Android       : Compile to android using raymob
 - [ ] Client        : Sound
 - [ ] Client        : Shaders stuff to make it pretty
-- [ ] Android       : Compile to android using raymob
+
+# BACK BURNER
 
 # FINISHED
+- [x] Base          : The item
+- [x] Base          : When leave the player counter didnt go down
 - [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
 - [x] Client&Server : Item flow and spawn
 - [x] Base          : effect of the item

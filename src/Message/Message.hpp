@@ -120,8 +120,8 @@ struct Message {
   *p++ = (uint8_t)action->type;
 
   *p++ = GAF_DATA;
-  write_u16(&p, sizeof(int));
-  write_u32(&p, action->data.i32);
+  write_u16(&p, 4);
+  write_u32(&p, action->data);
 
   return (size_t)(p - buffer);
 }
@@ -377,7 +377,7 @@ struct Message {
         action->type = (GameActionType)*p;
       } break;
       case GAF_DATA: {
-        action->data.i32 = read_u32(p);
+        action->data = read_u32(p);
       } break;
       }
       p += flen;
