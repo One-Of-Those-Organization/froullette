@@ -32,6 +32,8 @@ set(FILE_IN
     src/Object/Object.cpp
     src/Shader/ShadersManager.cpp
     src/Texture/TextureManager.cpp
+    src/Sound/SoundManager.cpp
+    src/Sound/ManagedSound.cpp
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")

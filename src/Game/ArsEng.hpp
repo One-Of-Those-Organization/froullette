@@ -2,6 +2,7 @@
 
 #include "../Object/ObjectManager.hpp"
 #include "../Shader/ShadersManager.hpp"
+#include "../Sound/SoundManager.hpp"
 #include "../Texture/TextureManager.hpp"
 #include <raylib.h>
 
@@ -28,6 +29,9 @@ public:
   RenderTexture2D bigcanvas;
   ObjectManager om;
   ShadersManager sm;
+  SoundManager som;
+  Music *music = nullptr;
+  std::vector<Music> musics;
   TextureManager tm;
   GameState state;
   GameState oldstate;
@@ -129,6 +133,7 @@ public:
   }
 
   void update(float dt) {
+    if (this->music) UpdateMusicStream(*this->music);
 #ifdef MOBILE
     this->cursor = GetTouchPosition();
 #else

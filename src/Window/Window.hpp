@@ -16,6 +16,7 @@ public:
   Window(Vector2 size, uint32_t fps, const char *name)
       : size(size), oldsize(size), fps(fps), name(name) {
     InitWindow(size.x, size.y, name);
+    InitAudioDevice();
     SetTargetFPS(fps);
 
     engine = new ArsEng(size);
@@ -25,6 +26,7 @@ public:
 
   ~Window() {
     gameDeinit(this->engine);
+    CloseAudioDevice();
     CloseWindow();
     delete engine;
   };

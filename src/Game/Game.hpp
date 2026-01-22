@@ -28,6 +28,8 @@
 #include <queue>
 #include <thread>
 
+#define VOLUME_NORMAL 1.0f
+
 struct GameData {
 #ifndef __EMSCRIPTEN__
   std::mutex mutex;
@@ -702,6 +704,11 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 #else
   (void)exit_icon;
 #endif
+
+  engine->musics.push_back(LoadMusicStream("assets/eerie-dark-ambience-for-tension-and-suspense-303395.mp3"));
+  engine->music = &engine->musics[0];
+  PlayMusicStream(*engine->music);
+  SetMusicVolume(*engine->music, VOLUME_NORMAL);
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
@@ -1219,6 +1226,10 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
 }
 
 [[maybe_unused]] static void gameDeinit(ArsEng *engine) {
+  engine->music = nullptr;
+  for (auto &m: engine->musics) {
+    UnloadMusicStream(m);
+  }
   GameData *gd = (GameData *)engine->additional_data;
   if (gd) {
     if (gd->client) {

@@ -1,7 +1,7 @@
 #ifndef SOUND_MANAGER_H_
 #define SOUND_MANAGER_H_
 
-#include "../ManagedSound/ManagedSound.hpp"
+#include "../Sound/ManagedSound.hpp"
 
 #include <raylib.h>
 #include <vector>

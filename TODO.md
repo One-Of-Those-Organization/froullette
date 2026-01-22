@@ -1,12 +1,13 @@
 # FOCUS
-- [ ] Server&Client : when leaving the other player is not disconnected
-- [ ] Android       : Compile to android using raymob
-- [ ] Client        : Sound
+- [ ] Client        : Sound (background sound done)
 - [ ] Client        : Shaders stuff to make it pretty
 
 # BACK BURNER
+- [ ] Client        : Android fix the html for it right now its so broken..
+- [x] Android       : Compile to android using raymob
 
 # FINISHED
+- [x] Server&Client : when leaving the other player is not disconnected
 - [x] Base          : The item
 - [x] Base          : When leave the player counter didnt go down
 - [x] Server        : handle `GAME_PLAYER_UPDATE` (need to wait for item to be done)
