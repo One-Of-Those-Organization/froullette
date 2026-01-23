@@ -116,9 +116,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         gd->ls.count = pd.data.LobbyStatus_obj.count;
-        memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready,
-               2); // ready index 0 is the current client.
-        gd->player.ready = gd->ls.ready[0];
+        memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready, 2);
       } break;
 
       case READY_STATUS: {

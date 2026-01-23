@@ -124,6 +124,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             .turn = PlayerState::PLAYER1, // NOTE: update this on room
                                           // enter.
             .items = {},
+            ._last_ph = MAX_PLAYER_HEALTH,
         };
         player_conmap[c] = server->ccount;
         ++server->ccount;
@@ -406,6 +407,15 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   reply.data.Boolean = (uint8_t)op->ready;
                   ws_send(op->con, &reply);
                   return;
+                }
+              } else {
+                if (p->health < MAX_PLAYER_HEALTH) {
+                  bool used_booster = (p->pe.type == 0 && !p->pe.used);
+                  if (used_booster) {
+                    // NOTE: reset the booster items 1 time use
+                    p->pe.used = true;
+                  }
+                  p->health = p->health + 1;
                 }
               }
 
