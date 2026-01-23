@@ -1,12 +1,13 @@
 # FOCUS
-- [x] Client        : Sound (background sound done)
+- [x] Client        : Sound (background sound done, button done)
 - [ ] Client        : Sound fix on web(if possible) 
 - [ ] Client        : Shaders stuff to make it pretty
+- [ ] Client&Server : Item regeneration broken
 
 # BACK BURNER
-- [ ] Client        : Android fix the html for it right now its so broken..
 
 # FINISHED
+- [x] Client        : Android fix the html for it right now its so broken..
 - [x] Android       : Compile to android using raymob
 - [x] Server&Client : when leaving the other player is not disconnected
 - [x] Base          : The item

@@ -157,6 +157,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         delete pd.data.Player_obj;
       } break;
 
+      case GAME_REVEALED_ITEMS: {
+        TraceLog(LOG_INFO, "Needle with %d id is live.", pd.data.Int);
+     } break;
+
       case EXIT_ROOM: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
@@ -595,13 +599,12 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
-    it->callback = [gd, i]() {
+    it->callback = [it, gd, i]() {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
       gd->action.type = GameActionType::USE_ITEM;
       gd->action.data = i;
-      gd->lock_action = true;
       Message msg = {};
       msg.type = GAME_PLAYER_UPDATE;
       msg.response = NONE;
