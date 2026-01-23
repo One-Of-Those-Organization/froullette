@@ -26,8 +26,11 @@
 #include <queue>
 #include <thread>
 
+#define VERSION "1.0-alpha"
 #define VOLUME_NORMAL 1.0f
 #define VOLUME_SMALL 0.6f
+#undef WHITE
+#define WHITE GetColor(0xFAD5A5FF)
 
 struct GameData {
 #ifndef __EMSCRIPTEN__
@@ -57,6 +60,7 @@ struct GameData {
   NeedleContainer *needle_container;
   std::vector<Items*> items; // sync this with gd->player.items (MinimalItems)
   int winner_id;
+  ManagedSound *hurt_sound = nullptr;
 };
 
 static void client_handler(mg_connection *c, int ev, void *ev_data) {
@@ -96,12 +100,14 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         gd->player.id = pd.data.Int;
+        gd->player._last_ph = MAX_PLAYER_HEALTH;
         TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
       } break;
       case HERE_ROOM: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+        gd->player._last_ph = MAX_PLAYER_HEALTH;
         gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
         TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
       } break;
@@ -112,6 +118,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         gd->ls.count = pd.data.LobbyStatus_obj.count;
         memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready,
                2); // ready index 0 is the current client.
+        gd->player.ready = gd->ls.ready[0];
       } break;
 
       case READY_STATUS: {
@@ -148,11 +155,19 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           target = &gd->player;
           strcpy(name, "ME");
         }
+        uint8_t old_hp = target->_last_ph;
         TraceLog(LOG_INFO,
                  "Get %s player info with the content: id(%d), hp(%d)", name,
                  pd.data.Player_obj->id, pd.data.Player_obj->health);
         *target = *pd.data.Player_obj;
         delete pd.data.Player_obj;
+        target->_last_ph = old_hp;
+        TraceLog(LOG_INFO, "the last hp: %d and the current one: %d", target->_last_ph, target->health);
+        if (target->_last_ph > target->health && target->id == gd->player.id) {
+          TraceLog(LOG_INFO, "here");
+          if (gd->hurt_sound) gd->hurt_sound->play_sound();
+          target->_last_ph = target->health;
+        }
       } break;
 
       case GAME_REVEALED_ITEMS: {
@@ -322,10 +337,11 @@ static TextInput *cTextInput(ArsEng *engine, const char *placeholder,
   ti->curpos = &engine->bigcanvas_cursor;
   ti->padding = padding;
   ti->draw_in_canvas = false;
-  ti->color[3] = {GetColor(0x000000ff)};
-  ti->color[2] = {GetColor(0xffffffff)};
-  ti->color[1] = {GetColor(0x000000ff)};
-  ti->color[0] = {GetColor(0xccccccff)};
+
+  ti->color[0] = {GetColor(0xFAD5A5FF)};
+  ti->color[1] = {GetColor(0x8B4000ff)};
+  ti->color[2] = {GetColor(0xE49B0FFF)};
+  ti->color[3] = {GetColor(0xFAD5A5ff)};
   ti->buffer = buffer;
   ti->active_id = &engine->active;
   ti->calculate_rec();
@@ -346,10 +362,10 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
   btn->callback = callback;
   btn->font = &engine->font;
   btn->draw_in_canvas = false;
-  btn->color[0] = {GetColor(0xffffffff)};
-  btn->color[1] = {GetColor(0x000000ff)};
-  btn->color[2] = {GetColor(0x999999ff)};
-  btn->color[3] = {GetColor(0xffffffff)};
+  btn->color[0] = {GetColor(0xFAD5A5FF)};
+  btn->color[1] = {GetColor(0x8B4000ff)};
+  btn->color[2] = {GetColor(0xE49B0FFF)};
+  btn->color[3] = {GetColor(0x8B4000ff)};
   return btn;
 }
 
@@ -659,7 +675,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   (void)kh_id;
   GameState state = GameState::MENU;
   size_t title_size = 64;
-  Color title_color = WHITE;
+  Color title_color = GetColor(0xFAD5A5FF);
 
   Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0, 0});
   Vector2 title1_len = title1->calculate_len();
@@ -667,6 +683,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
   engine->om.add_object(title1, (*z)++);
 
+  title_color = GetColor(0xE49B0FFF);
   Text *title2 =
       cText(engine, state, "Roullete", title_size, title_color, {0, 0});
   Vector2 title2_len = title2->calculate_len();
@@ -1015,15 +1032,24 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     // NOTE: This will be bad for performance but i guess for simplicity and
     // for the result of my bad design
     //       legit this is so bad...
-    if (gd->player.ready && btn2->str != "Ready") {
+    if (gd->player.ready) {
       btn2->str = "Ready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
-    } else if (!gd->player.ready && btn2->str != "Unready") {
+    } else if (!gd->player.ready) {
       btn2->str = "Unready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
     }
+    // if (gd->player.ready && btn2->str != "Ready") {
+    //   btn2->str = "Ready";
+    //   btn2->calculate_rec();
+    //   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    // } else if (!gd->player.ready && btn2->str != "Unready") {
+    //   btn2->str = "Unready";
+    //   btn2->calculate_rec();
+    //   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    // }
   };
 
   engine->om.add_object(sc, (*z)++);
@@ -1034,7 +1060,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   ;
   Vector2 pcounttxt_len = pcounttxt->calculate_len();
   pcounttxt->rec.x = wsize.x - pcounttxt_len.x;
-  pcounttxt->rec.y = wsize.y - pcounttxt_len.y;
+  pcounttxt->rec.y = btn2->rec.y + pcounttxt_len.y + padding * 5;
   engine->om.add_object(pcounttxt, (*z)++);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(100);
@@ -1045,7 +1071,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
     if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
       pcounttxt->text = count_update;
-      pcounttxt->rec.x = wsize.x - pcounttxt->calculate_len().x;
+      pcounttxt->rec.x = (wsize.x - pcounttxt->calculate_len().x) * 0.5f;
     }
   };
   engine->om.add_object(tu_timer, (*z)++);
@@ -1126,6 +1152,17 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
                    (float)engine->bigcanvas.texture.height};
   (void)kh_id;
   GameState state = GameState::ALL;
+
+  // background
+  Texture *bgtxt = engine->tm.load_texture("bg", "./assets/background.png");
+  if (!bgtxt) TraceLog(LOG_INFO, "Could not load the background texture.");
+  Object *bg = new Object();
+  bg->state = state;
+  bg->rec = Rectangle{0, 0, engine->canvas_size.x, engine->canvas_size.y};
+  bg->text = bgtxt;
+  bg->color = GetColor(0x777777ff);
+  engine->om.add_object(bg, (*z)++);
+
   Script *sc = new Script();
   sc->state = state;
   GameData *gd = (GameData *)engine->additional_data;
@@ -1178,7 +1215,12 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   t->btext = &gd->text_buffer;
   t->rec.y = wsize.y - text_size;
   t->show = false;
-  engine->om.add_object(t, (*z)++);
+  engine->om.add_object(t, 998);
+
+  int version_size = 16;
+  Text *version = cText(engine, state, "Version " VERSION, version_size, WHITE, {0, wsize.y - version_size});
+  version->rec.x = wsize.x - version->calculate_len().x;
+  engine->om.add_object(version, 997);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
   Timer *ttimer = new Timer(ms);
@@ -1243,8 +1285,13 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   int kh_id = engine->om.add_object(kh, z++);
 
   if (!engine->som.load_sound("./assets/button-click.wav", "btn")) TraceLog(LOG_INFO, "Failed to load the button sound");
+  if (!engine->som.load_sound("./assets/hurt.wav", "hurt")) TraceLog(LOG_INFO, "Failed to load the hurt sound");
   ManagedSound *btn = engine->som.get_sound("btn");
-  SetSoundVolume(btn->mData, 0.4f);
+  ManagedSound *hurt = engine->som.get_sound("hurt");
+  gd->hurt_sound = hurt;
+
+  SetSoundVolume(btn->mData, 0.2f);
+  SetSoundVolume(hurt->mData, 0.4f);
 
   // Load Object
   initALLObject(engine, kh_id, &z);

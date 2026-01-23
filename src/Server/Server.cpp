@@ -355,6 +355,13 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                    "Cannot find the room or opponent.");
           break;
         }
+        if (r->turn != p->turn) {
+          reply.type = MessageType::ERROR;
+          reply.response = MessageType::GAME_PLAYER_UPDATE;
+          snprintf(reply.data.String, MAX_MESSAGE_STRING_SIZE,
+                   "Not the player turn to do anything");
+          break;
+        }
 
         bool action_processed = false;
         GameAction action = {};

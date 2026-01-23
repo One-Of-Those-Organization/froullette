@@ -28,4 +28,5 @@ struct Player {
   bool ready;
   PlayerState turn;
   MinimalItems items[PLAYER_MAX_ITEMS_COUNT];
+  uint8_t _last_ph;
 };
