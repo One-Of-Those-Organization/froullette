@@ -2,8 +2,6 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
-// TODO: make the needle pos shared between all the client (if all done)
-
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -158,7 +156,17 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
       } break;
 
       case GAME_REVEALED_ITEMS: {
-        TraceLog(LOG_INFO, "Needle with %d id is live.", pd.data.Int);
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->needle_container) {
+          for (size_t i = 0; i < gd->needle_container->needles.size(); ++i) {
+              if (gd->needle_container->needles[i]->shared_id == pd.data.Int) {
+                gd->needle_container->needles[i]->revealed = true;
+               break;
+            }
+          }
+        }
      } break;
 
       case EXIT_ROOM: {
@@ -220,14 +228,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         size_t count = pd.data.Byte.len / sizeof(MinimalItems);
         for (size_t i = 0; i < count; ++i) {
           gd->player.items[i] = items[i];
-          // NOTE: map to the object
-          for (auto &t: gd->items) {
-            if (t->shared_id == items[i].shared_id) {
-              t->type = (ItemType) items[i].type;
-              t->used = items[i].used;
-              break;
-            }
-          }
+          gd->items[i]->shared_id = i;
+          gd->items[i]->type = (ItemType) items[i].type;
+          gd->items[i]->used = items[i].used;
+          gd->items[i]->show = true;
         }
       } break;
       case GAME_NEEDLE_DATA: {
@@ -599,7 +603,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
-    it->callback = [it, gd, i]() {
+    it->callback = [gd, i]() {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif

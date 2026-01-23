@@ -48,7 +48,7 @@ initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
   // NOTE: plaese sync the id with the client right now it is since
   // the 2 of them use 0..4
   for (size_t i = 0; i < needle_count; ++i) {
-    _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
+    _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i], false};
     r->needles.push_back(needle);
     mn.push_back({needle.id, needle.used});
   }
@@ -413,21 +413,15 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 // we can add break.
                 for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
                   if (p->items[a].used) {
-                    p->items[a] = {
-                      .shared_id = a,
-                      .type = rand_range(0, 1),
-                      .used = false,
-                    };
+                    p->items[a].type = rand_range(0, 1);
+                    p->items[a].used = false;
                   }
                 }
 
                 for (int a = 0; a < PLAYER_MAX_ITEMS_COUNT; a++) {
                   if (op->items[a].used) {
-                    op->items[a] = {
-                      .shared_id = a,
-                      .type = rand_range(0, 1),
-                      .used = false,
-                    };
+                    op->items[a].type = rand_range(0, 1);
+                    op->items[a].used = false;
                   }
                 }
                 reply = {};
@@ -440,6 +434,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
                 memcpy(reply.data.Byte.data, op->items, reply.data.Byte.len);
                 ws_send(op->con, &reply);
+
+                //-----------------
 
                 const int needle_count = 5;
                 const int live_needles = rand_range(1, 4);
@@ -504,7 +500,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 ws_send(p->con, &reply);
                 return;
               }
-              it.used = true;
               mn = &it;
               break;
             }
@@ -538,7 +533,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             _MinimalNeedle *n = nullptr;
             for (size_t a = 0; a < r->needles.size(); a++) {
               _MinimalNeedle *in = &r->needles[a];
-              if (in && in->type == 1 && !in->used) {
+              if (in && in->type == 1 && !in->used && !in->revealed) {
+                in->revealed = true;
                 n = in;
                 break;
               }
