@@ -1,4 +1,3 @@
 .cache
 build
-build_web
-emsdk
+webbuild
