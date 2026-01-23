@@ -592,7 +592,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
-    it->callback = [it, gd, i]() {
+    it->callback = [gd, i]() {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -613,7 +613,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 
   Script *ingame_sc = new Script();
   ingame_sc->state = state;
-  ingame_sc->callback = [gd, tturn, all_brain, hbox]() {
+  ingame_sc->callback = [gd, tturn, all_brain]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -705,7 +705,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   (void)exit_icon;
 #endif
 
-  engine->musics.push_back(LoadMusicStream("assets/eerie-dark-ambience-for-tension-and-suspense-303395.mp3"));
+  engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
   engine->music = &engine->musics[0];
   PlayMusicStream(*engine->music);
   SetMusicVolume(*engine->music, VOLUME_NORMAL);
