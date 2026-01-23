@@ -4,6 +4,7 @@
 #include <functional>
 #include <raylib.h>
 #include <string>
+#include "../Sound/ManagedSound.hpp"
 
 class Button : public Object {
 public:
@@ -16,6 +17,7 @@ public:
   std::function<void()> callback;
   bool _hovered;
   int _spacing;
+  ManagedSound *sound = nullptr;
 
   Button() { this->_spacing = 1; }
   virtual ~Button() = default;
@@ -52,11 +54,15 @@ public:
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
 #ifdef MOBILE
-      if (IsGestureDetected(GESTURE_TAP))
+      if (IsGestureDetected(GESTURE_TAP)) {
+        if (this->sound) this->sound->play_sound();
         this->callback();
+      }
 #else
-      if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+      if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+        if (this->sound) this->sound->play_sound();
         this->callback();
+      }
 #endif
     } else
       this->_hovered = false;

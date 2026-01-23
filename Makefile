@@ -37,5 +37,13 @@ web-run: web
 	source ./web/emsdk/emsdk_env.sh && \
 	emrun --no_browser --port 8080 webbuild/
 
-web-android: web
+webm-config: ./webmbuild
+	source ./web/emsdk/emsdk_env.sh && \
+	emcmake cmake -S . -B webmbuild -DEMSCRIPTEN=1 -DMOBILE=1
+
+webm: webm-config
+	source ./web/emsdk/emsdk_env.sh && \
+	cmake --build webmbuild -j$(JOBS)
+
+web-dep: web
 	cp webbuild/froullete.{data,wasm,js} /home/goad/Documents/dev/web-static

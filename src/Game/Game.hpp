@@ -326,10 +326,11 @@ static TextInput *cTextInput(ArsEng *engine, const char *placeholder,
 
 static Button *cButton(ArsEng *engine, std::string text, int text_size,
                        int padding, GameState state, Vector2 pos,
-                       std::function<void()> callback) {
+                       std::function<void()> callback, ManagedSound *sound) {
   auto btn = new Button();
   btn->rec = {pos.x, pos.y, 1, 1};
   btn->state = state;
+  btn->sound = sound;
   btn->str = text;
   btn->str_size = text_size;
   btn->curpos = &engine->bigcanvas_cursor;
@@ -390,6 +391,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     });
   }
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   int text_size = 32;
   int padding = 20;
   Texture2D *exit_icon = engine->tm.get_texture("exit");
@@ -405,7 +407,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
                               // but yeah...
         }
         engine->revert_state();
-      });
+      }, btn);
   btnexit->text = exit_icon;
   btnexit->calculate_rec();
   btnexit->rec.x = padding;
@@ -668,6 +670,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   size_t text_size = 36;
   size_t padding = 20;
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btn1 =
       cButton(engine, "Start", text_size, padding, state, {0, 0}, [engine]() {
 #ifdef __EMSCRIPTEN__
@@ -680,7 +683,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
         }
 #endif
         engine->request_change_state(GameState::PLAYMENU);
-      });
+      }, btn);
   btn1->calculate_rec();
   btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
   btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
@@ -691,7 +694,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   Button *btn2 =
       cButton(engine, "", text_size, padding, state, {0, 0}, [engine]() {
         engine->request_change_state(GameState::SETTINGS);
-      });
+      }, btn);
   btn2->text = settings_cog;
   btn2->calculate_rec();
   btn2->rec.x = btn1->rec.x + btn1->rec.width + padding;
@@ -703,7 +706,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   Texture2D *exit_icon = engine->tm.load_texture("exit", "./assets/exit.png");
 #ifndef __EMSCRIPTEN__
   Button *btn3 = cButton(engine, "", text_size, padding, state, {0, 0},
-                         [engine]() { engine->req_close = true; });
+                         [engine]() { engine->req_close = true; }, btn);
   btn3->text = exit_icon;
   btn3->calculate_rec();
   btn3->rec.x = btn1->rec.x - (btn1->rec.height + padding);
@@ -714,7 +717,6 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 #else
   (void)exit_icon;
 #endif
-
 #ifndef __EMSCRIPTEN__
   engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
   engine->music = &engine->musics[0];
@@ -783,6 +785,8 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   hbox->draw_in_canvas = false;
   engine->om.add_object(hbox, (*z)++);
 
+
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btncreate = cButton(engine, "Create room", text_size, padding, state,
                               {0, 0}, [engine, gd]() {
                                 if (!gd->client->c) {
@@ -793,7 +797,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
                                 msg.type = CREATE_ROOM;
                                 msg.response = NONE;
                                 gd->client->send(msg);
-                              });
+  }, btn);
   btncreate->calculate_rec();
   engine->om.add_object(btncreate, (*z)++);
   hbox->add_child(btncreate);
@@ -811,7 +815,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
                                  strncpy(msg.data.String, gd->buffer.data(),
                                          MAX_MESSAGE_STRING_SIZE);
                                  gd->client->send(msg);
-                               });
+  }, btn);
   btnconnect->calculate_rec();
   engine->om.add_object(btnconnect, (*z)++);
   hbox->add_child(btnconnect);
@@ -819,7 +823,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0}, [engine]() {
     engine->request_change_state(GameState::MENU);
-  });
+  }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -874,16 +878,17 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   hbox->draw_in_canvas = false;
   engine->om.add_object(hbox, (*z)++);
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btnfull =
       cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0, 0},
-              [engine]() { engine->request_fullscreen(); });
+              [engine]() { engine->request_fullscreen(); }, btn);
   btnfull->calculate_rec();
   engine->om.add_object(btnfull, (*z)++);
   hbox->add_child(btnfull);
   hbox->position_child();
 
   Button *btnhd = cButton(engine, "720p", text_size, padding, state, {0, 0},
-                          [engine]() { engine->request_resize({1280, 720}); });
+                          [engine]() { engine->request_resize({1280, 720}); }, btn);
   btnhd->calculate_rec();
   engine->om.add_object(btnhd, (*z)++);
   hbox->add_child(btnhd);
@@ -891,7 +896,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnfhd =
       cButton(engine, "1080p", text_size, padding, state, {0, 0},
-              [engine]() { engine->request_resize({1920, 1080}); });
+              [engine]() { engine->request_resize({1920, 1080}); }, btn);
   btnfhd->calculate_rec();
   engine->om.add_object(btnfhd, (*z)++);
   hbox->add_child(btnfhd);
@@ -904,7 +909,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     return;
   }
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0},
-                         [engine]() { engine->revert_state(); });
+                         [engine]() { engine->revert_state(); }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -954,6 +959,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     return;
   }
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0}, [engine]() {
     GameData *gd = (GameData *)engine->additional_data;
     Message msg = {};
@@ -965,7 +971,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
       gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
     }
     engine->revert_state();
-  });
+  }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -980,7 +986,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         msg.type = TOGGLE_READY;
         msg.response = NONE;
         gd->client->send(msg);
-      });
+      }, btn);
   btn2->calculate_rec();
   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
   btn2->rec.y = (wsize.y - btn2->rec.width) / 2.0f;
@@ -1091,6 +1097,7 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
   };
   engine->om.add_object(sc, (*z)++);
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   int text_size = 32;
   int padding = 20;
   Button *btn1 = cButton(engine, "Continue", text_size, padding, state, {0, 0},
@@ -1100,7 +1107,7 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
                            std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
                            gd->winner_id = -1;
-                         });
+                         }, btn);
   btn1->calculate_rec();
   btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
   btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
@@ -1227,6 +1234,10 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   KeyHandler *kh = new KeyHandler();
   kh->engine_state = &engine->state;
   int kh_id = engine->om.add_object(kh, z++);
+
+  if (!engine->som.load_sound("./assets/button-click.wav", "btn")) TraceLog(LOG_INFO, "Failed to load the button sound");
+  ManagedSound *btn = engine->som.get_sound("btn");
+  SetSoundVolume(btn->mData, 0.4f);
 
   // Load Object
   initALLObject(engine, kh_id, &z);
