@@ -670,6 +670,15 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btn1 =
       cButton(engine, "Start", text_size, padding, state, {0, 0}, [engine]() {
+#ifdef __EMSCRIPTEN__
+        if (!IsAudioDeviceReady()) {
+          InitAudioDevice();
+          engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
+          engine->music = &engine->musics[0];
+          PlayMusicStream(*engine->music);
+          SetMusicVolume(*engine->music, VOLUME_NORMAL);
+        }
+#endif
         engine->request_change_state(GameState::PLAYMENU);
       });
   btn1->calculate_rec();
@@ -706,10 +715,12 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   (void)exit_icon;
 #endif
 
+#ifndef __EMSCRIPTEN__
   engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
   engine->music = &engine->musics[0];
   PlayMusicStream(*engine->music);
   SetMusicVolume(*engine->music, VOLUME_NORMAL);
+#endif
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {

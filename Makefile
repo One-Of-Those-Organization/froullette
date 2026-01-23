@@ -36,3 +36,6 @@ web: web-config
 web-run: web
 	source ./web/emsdk/emsdk_env.sh && \
 	emrun --no_browser --port 8080 webbuild/
+
+web-android: web
+	cp webbuild/froullete.{data,wasm,js} /home/goad/Documents/dev/web-static

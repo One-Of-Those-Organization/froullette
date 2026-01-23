@@ -16,7 +16,9 @@ public:
   Window(Vector2 size, uint32_t fps, const char *name)
       : size(size), oldsize(size), fps(fps), name(name) {
     InitWindow(size.x, size.y, name);
+#ifndef __EMSCRIPTEN__
     InitAudioDevice();
+#endif
     SetTargetFPS(fps);
 
     engine = new ArsEng(size);
