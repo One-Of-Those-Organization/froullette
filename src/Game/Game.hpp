@@ -29,6 +29,7 @@
 #include <thread>
 
 #define VOLUME_NORMAL 1.0f
+#define VOLUME_SMALL 0.6f
 
 struct GameData {
 #ifndef __EMSCRIPTEN__
@@ -1107,6 +1108,8 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+    if (engine->state == GameState::INGAME) SetMusicVolume(*engine->music, VOLUME_SMALL);
+    else SetMusicVolume(*engine->music, VOLUME_NORMAL);
     if (gd->room &&
         !has_flag(engine->state, GameState::ROOMMENU | GameState::INGAME |
                                      GameState::FINISHED)) {
