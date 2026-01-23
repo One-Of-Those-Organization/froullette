@@ -11,7 +11,16 @@ struct _MinimalNeedle {
 };
 #endif
 
+#ifdef _SERVER
+struct Vector2 {
+  float x, y;
+};
+#else
+#include <raylib.h>
+#endif
+
 struct MinimalNeedle {
   int id;
   uint8_t used;
+  Vector2 pos;
 };

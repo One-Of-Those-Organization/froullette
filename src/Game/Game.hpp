@@ -108,6 +108,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         gd->player._last_ph = MAX_PLAYER_HEALTH;
+        gd->player.health = MAX_PLAYER_HEALTH;
+        gd->player.ready = false;
         gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
         TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
       } break;
@@ -258,8 +260,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
             for (Needle *n : gd->needle_container->needles) {
               if (n->shared_id == needles_info[i].id) {
                 n->used = (uint8_t)needles_info[i].used;
-                // TODO: reset the pos. maybe only active player can move around
-                // and synced.
+                n->rec.x = needles_info[i].pos.x;
+                n->rec.y = needles_info[i].pos.y;
                 break;
               }
             }
@@ -447,7 +449,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   p2->rec.y = (wsize.y - p2->rec.height) / 2;
 
   p2->state = state;
-  p2->color = WHITE;
+  p2->color = GetColor(0x888888ff);
   p2->text = player2_text;
   engine->om.add_object(p2, (*z)++);
 
@@ -597,7 +599,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   item_box->rec.width = (icon_size * MAX_PLAYER_HEALTH);
   item_box->rec.height = icon_size + padding;
   item_box->rec.x = bigcanvas_size.x - item_box->rec.width - padding;
-  item_box->rec.y = bigcanvas_size.y - item_box->rec.height;
+  item_box->rec.y = bigcanvas_size.y - item_box->rec.height - (padding * 2);
   item_box->draw_in_canvas = false;
   item_box->padding = padding;
 
@@ -655,6 +657,30 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     }
   };
   engine->om.add_object(ingame_sc, (*z)++);
+
+  std::chrono::milliseconds ntimer_ms = std::chrono::milliseconds(50);
+  Timer *ntimer = new Timer(ntimer_ms);
+  ntimer->tt = LOOP;
+  ntimer->state = state;
+  ntimer->callback = [gd]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+    std::vector<MinimalNeedle> mn;
+    if (gd->room && gd->room->turn == gd->player.turn) {
+      for (const auto &n: gd->needle_container->needles) {
+        mn.push_back(MinimalNeedle{.id = n->shared_id, .used = n->used, .pos = Vector2{n->rec.x, n->rec.y}});
+      }
+      Message msg = {};
+      msg.type = MessageType::GAME_NEEDLE_DATA;
+      msg.response = MessageType::NONE;
+      msg.data.Byte.len = sizeof(MinimalNeedle) * 5;
+      memcpy(msg.data.Byte.data, mn.data(), msg.data.Byte.len);
+      gd->client->send(msg);
+    }
+  };
+  engine->om.add_object(ntimer, (*z)++);
+  ntimer->start_timer();
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -959,6 +985,8 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         gd->room = nullptr; // NOTE: IDK if this is the best approach
                             // but yeah...
       }
+      gd->player.ready = false;
+      gd->oplayer = {};
       engine->request_change_state(GameState::PLAYMENU);
     });
   }
@@ -992,6 +1020,8 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
       delete gd->room;
       gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
     }
+    gd->player.ready = false;
+    gd->oplayer = {};
     engine->revert_state();
   }, btn);
   btn1->text = exit_icon;
