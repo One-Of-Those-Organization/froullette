@@ -558,6 +558,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               .used = false,
             };
           } break;
+          // TODO: There is a bug sometimes it will not give the correct data (not sending anything)
           case 1: { // revealer
             _MinimalNeedle *n = nullptr;
             for (size_t a = 0; a < r->needles.size(); a++) {

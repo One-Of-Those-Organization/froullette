@@ -160,6 +160,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           strcpy(name, "ME");
         }
         uint8_t old_hp = target->_last_ph;
+        uint8_t current_hp = target->health;
         TraceLog(LOG_INFO,
                  "Get %s player info with the content: id(%d), hp(%d)", name,
                  pd.data.Player_obj->id, pd.data.Player_obj->health);
@@ -168,10 +169,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         target->_last_ph = old_hp;
         TraceLog(LOG_INFO, "the last hp: %d and the current one: %d", target->_last_ph, target->health);
         if (target->_last_ph > target->health && target->id == gd->player.id) {
-          TraceLog(LOG_INFO, "here");
           if (gd->hurt_sound) gd->hurt_sound->play_sound();
           target->_last_ph = target->health;
         }
+        if (current_hp < target->health) target->_last_ph = target->health;
       } break;
 
       case GAME_REVEALED_ITEMS: {
