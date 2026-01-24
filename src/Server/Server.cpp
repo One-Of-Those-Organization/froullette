@@ -49,7 +49,7 @@ initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
 
   // NOTE: plaese sync the id with the client right now it is since
   // the 2 of them use 0..4
-  for (size_t i = 0; i < needle_count; ++i) {
+  for (size_t i = 0; i < needle_count; i++) {
     _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i], false};
     r->needles.push_back(needle);
     Vector2 pos = {
@@ -383,8 +383,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 break;
               }
               n.used = true;
+              bool used_booster = (p->pe.type == 0 && !p->pe.used);
               if (n.type == 1) {
-                bool used_booster = (p->pe.type == 0 && !p->pe.used);
                 int count = used_booster ? 1 * p->pe.data : 1;
                 if (used_booster) {
                   // NOTE: reset the booster items 1 time use
@@ -416,7 +416,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 }
               } else {
                 if (p->health < MAX_PLAYER_HEALTH) {
-                  bool used_booster = (p->pe.type == 0 && !p->pe.used);
                   if (used_booster) {
                     // NOTE: reset the booster items 1 time use
                     p->pe.used = true;
@@ -495,7 +494,12 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 ws_send(op->con, &reply);
 
               reply = {};
-              MinimalNeedle mn = {n.id, n.used, default_pos};
+              const int padding = 5;
+              Vector2 pos = {
+                default_pos.x + padding + n.id * 6,
+                default_pos.y
+              };
+              MinimalNeedle mn = {n.id, n.used, pos};
               reply.type = GAME_NEEDLE_DATA;
               reply.response = GAME_PLAYER_UPDATE;
               reply.data.Byte.len = sizeof(MinimalNeedle);
@@ -592,6 +596,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         }
         return;
       } break;
+      // TODO: This shit broken idk why.
+      //       i feels like the flow is correct
       case GAME_NEEDLE_DATA: {
         Room *r = nullptr;
         Player *p = nullptr;
@@ -627,7 +633,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
           size_t count = pd.data.Byte.len / sizeof(MinimalNeedle);
           for (size_t i = 0; i < count; i++) {
             cl[i].used = r->needles[i].used;
-            cl[i].id = r->needles[i].id;
           }
           ws_send(op->con, &pd);
           return;

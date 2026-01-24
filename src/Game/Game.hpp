@@ -2,6 +2,9 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
+//TODO: indicator if you use some items
+//TODO: sound if you use items
+
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -45,7 +48,6 @@ struct GameData {
 
   Player player;
   Player oplayer;
-  int round_counter = 1;
 
   std::string url_buffer;
   std::string buffer;
@@ -667,9 +669,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
     std::vector<MinimalNeedle> mn;
-    if (gd->room && gd->room->turn == gd->player.turn) {
-      for (const auto &n: gd->needle_container->needles) {
-        mn.push_back(MinimalNeedle{.id = n->shared_id, .used = n->used, .pos = Vector2{n->rec.x, n->rec.y}});
+    if (gd->room && gd->room->turn == gd->player.turn && !gd->lock_action) {
+      for (const auto &n : gd->needle_container->needles) {
+        mn.push_back(MinimalNeedle{
+            .id = n->shared_id, .used = n->used, .pos = {n->rec.x, n->rec.y}});
       }
       Message msg = {};
       msg.type = MessageType::GAME_NEEDLE_DATA;
