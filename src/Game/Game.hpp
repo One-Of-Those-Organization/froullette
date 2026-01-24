@@ -693,23 +693,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   };
   engine->om.add_object(ntimer, (*z)++);
   ntimer->start_timer();
-
-  // Init the shadedobject for the vignete effect
-  Shader *vignete = engine->sm.add_shader_from_mem("vignete", vignete_vs, vignete_fs);
-  if (!vignete) {
-    TraceLog(LOG_FATAL, "Failed to load the vignete shaders");
-    return;
-  }
-  ShadedObject *so = new ShadedObject();
-  so->shader = vignete;
-  // so->state = state;
-  so->state = GameState::ALL;
-  so->draw_in_canvas = false;
-  so->rec = Rectangle{0, 0, (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height};
-  int resLoc   = GetShaderLocation(*vignete, "iResolution");
-  Vector2 res = { so->rec.width, so->rec.height };
-  SetShaderValue(*vignete, resLoc, &res, SHADER_UNIFORM_VEC2);
-  engine->om.add_object(so, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -1273,12 +1256,12 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   t->btext = &gd->text_buffer;
   t->rec.y = wsize.y - text_size;
   t->show = false;
-  engine->om.add_object(t, 998);
+  engine->om.add_object(t, 9997);
 
   int version_size = 16;
   Text *version = cText(engine, state, "Version " VERSION, version_size, WHITE, {0, wsize.y - version_size});
   version->rec.x = wsize.x - version->calculate_len().x;
-  engine->om.add_object(version, 997);
+  engine->om.add_object(version, 9998);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
   Timer *ttimer = new Timer(ms);
@@ -1309,6 +1292,29 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   cr->draw_in_canvas = false;
   engine->om.add_object(cr, 9999);
 #endif
+
+  // Init the shadedobject for the vignete effect
+  Shader *vignete = engine->sm.add_shader_from_mem("vignete", vignete_vs, vignete_fs);
+  if (!vignete) {
+    TraceLog(LOG_FATAL, "Failed to load the vignete shaders");
+    return;
+  }
+  ShadedObject *so = new ShadedObject();
+  so->shader = vignete;
+  so->state = state;
+  so->draw_in_canvas = false;
+  so->rec = Rectangle{0, 0, (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height};
+  int resLoc   = GetShaderLocation(*vignete, "iResolution");
+  int strLoc   = GetShaderLocation(*vignete, "uStr");
+  int colLoc   = GetShaderLocation(*vignete, "uColor");
+  Vector2 res = { so->rec.width, so->rec.height };
+  float strength = .7f;
+  float color[3] = { 0.0f, 0.0f, 0.0f };
+  SetShaderValue(*vignete, resLoc, &res, SHADER_UNIFORM_VEC2);
+  SetShaderValue(*vignete, strLoc, &strength, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(*vignete, colLoc, &color, SHADER_UNIFORM_VEC3);
+  engine->om.add_object(so, 9996);
+
 }
 
 [[maybe_unused]] static void gameInit(ArsEng *engine) {

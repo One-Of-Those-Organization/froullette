@@ -11,15 +11,17 @@ static const char *vignete_fs =
 #endif
     "\n"
     "uniform vec2 iResolution;\n"
+    "uniform float uStr;\n"
+    "uniform vec3 uColor;\n"
     "\n"
     "void main() {\n"
     "    vec2 U = gl_FragCoord.xy / iResolution.xy;\n"
     "    U *= 1.0 - U.yx;\n"
     "\n"
     "    float v = sqrt(sqrt(U.x * U.y * 15.0));\n"
-    "    float dark = 1.0 - v;\n"
+    "    float dark = clamp((1.0 - v) * uStr, 0.0, 1.0);\n"
     "\n"
-    "    FRAG_COLOR = vec4(0.0, 0.0, 0.0, dark);\n"
+    "    FRAG_COLOR = vec4(uColor, dark);\n"
     "}\n";
 
 static const char *vignete_vs =
