@@ -389,6 +389,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                 if (used_booster) {
                   // NOTE: reset the booster items 1 time use
                   p->pe.used = true;
+                  p->pe.type = 3;
+                  p->pe.data = 0;
                 }
                 p->health -= count;
                 if (p->health <= 0) {
@@ -415,12 +417,12 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   return;
                 }
               } else {
-                if (p->health < MAX_PLAYER_HEALTH) {
-                  if (used_booster) {
-                    // NOTE: reset the booster items 1 time use
-                    p->pe.used = true;
-                    p->health = p->health + 1;
-                  }
+                if (p->health < MAX_PLAYER_HEALTH && used_booster) {
+                  // NOTE: reset the booster items 1 time use
+                  p->pe.used = true;
+                  p->pe.data = 0;
+                  p->pe.type = 3;
+                  p->health = p->health + 1;
                 }
               }
 
@@ -596,8 +598,6 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
         }
         return;
       } break;
-      // TODO: This shit broken idk why.
-      //       i feels like the flow is correct
       case GAME_NEEDLE_DATA: {
         Room *r = nullptr;
         Player *p = nullptr;
