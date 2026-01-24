@@ -419,8 +419,8 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
                   if (used_booster) {
                     // NOTE: reset the booster items 1 time use
                     p->pe.used = true;
+                    p->health = p->health + 1;
                   }
-                  p->health = p->health + 1;
                 }
               }
 
