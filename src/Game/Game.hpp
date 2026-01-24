@@ -909,6 +909,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
+  ManagedSound *btn = engine->som.get_sound("btn");
 #ifndef __EMSCRIPTEN__
   Text *restext =
       cText(engine, state, "Resolution", text_size, title_color, {0, 0});
@@ -929,7 +930,6 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   hbox->draw_in_canvas = false;
   engine->om.add_object(hbox, (*z)++);
 
-  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btnfull =
       cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0, 0},
               [engine]() { engine->request_fullscreen(); }, btn);
@@ -959,6 +959,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
     return;
   }
+
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0},
                          [engine]() { engine->revert_state(); }, btn);
   btn1->text = exit_icon;
