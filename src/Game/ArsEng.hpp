@@ -68,7 +68,7 @@ public:
     this->canvas_size.x = this->canvas.texture.width;
     this->canvas_size.y = this->canvas.texture.height;
     this->font =
-        LoadFontEx("assets/Pixelify_Sans/PixelifySans-VariableFont_wght.ttf",
+        LoadFontEx("assets/alagard.ttf",
                    120, NULL, 95);
 
     if (this->font.texture.id == 0)

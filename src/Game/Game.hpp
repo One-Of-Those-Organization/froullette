@@ -2,7 +2,8 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
-// TODO: make the needle pos shared between all the client (if all done)
+//TODO: indicator if you use some items
+//TODO: sound if you use items
 
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
@@ -28,8 +29,11 @@
 #include <queue>
 #include <thread>
 
+#define VERSION "1.0-alpha"
 #define VOLUME_NORMAL 1.0f
 #define VOLUME_SMALL 0.6f
+#undef WHITE
+#define WHITE GetColor(0xFAD5A5FF)
 
 struct GameData {
 #ifndef __EMSCRIPTEN__
@@ -44,7 +48,6 @@ struct GameData {
 
   Player player;
   Player oplayer;
-  int round_counter = 1;
 
   std::string url_buffer;
   std::string buffer;
@@ -59,6 +62,7 @@ struct GameData {
   NeedleContainer *needle_container;
   std::vector<Items*> items; // sync this with gd->player.items (MinimalItems)
   int winner_id;
+  ManagedSound *hurt_sound = nullptr;
 };
 
 static void client_handler(mg_connection *c, int ev, void *ev_data) {
@@ -98,12 +102,16 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         gd->player.id = pd.data.Int;
+        gd->player._last_ph = MAX_PLAYER_HEALTH;
         TraceLog(LOG_INFO, "NET: assigned id %d", gd->player.id);
       } break;
       case HERE_ROOM: {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+        gd->player._last_ph = MAX_PLAYER_HEALTH;
+        gd->player.health = MAX_PLAYER_HEALTH;
+        gd->player.ready = false;
         gd->room = pd.data.Room_obj; // this allocate mem dont forget to free
         TraceLog(LOG_INFO, "NET: room id %s", gd->room->id);
       } break;
@@ -112,8 +120,7 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         gd->ls.count = pd.data.LobbyStatus_obj.count;
-        memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready,
-               2); // ready index 0 is the current client.
+        memcpy(gd->ls.ready, pd.data.LobbyStatus_obj.ready, 2);
       } break;
 
       case READY_STATUS: {
@@ -150,12 +157,34 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
           target = &gd->player;
           strcpy(name, "ME");
         }
+        uint8_t old_hp = target->_last_ph;
         TraceLog(LOG_INFO,
                  "Get %s player info with the content: id(%d), hp(%d)", name,
                  pd.data.Player_obj->id, pd.data.Player_obj->health);
         *target = *pd.data.Player_obj;
         delete pd.data.Player_obj;
+        target->_last_ph = old_hp;
+        TraceLog(LOG_INFO, "the last hp: %d and the current one: %d", target->_last_ph, target->health);
+        if (target->_last_ph > target->health && target->id == gd->player.id) {
+          TraceLog(LOG_INFO, "here");
+          if (gd->hurt_sound) gd->hurt_sound->play_sound();
+          target->_last_ph = target->health;
+        }
       } break;
+
+      case GAME_REVEALED_ITEMS: {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->needle_container) {
+          for (size_t i = 0; i < gd->needle_container->needles.size(); ++i) {
+              if (gd->needle_container->needles[i]->shared_id == pd.data.Int) {
+                gd->needle_container->needles[i]->revealed = true;
+               break;
+            }
+          }
+        }
+     } break;
 
       case EXIT_ROOM: {
 #ifndef __EMSCRIPTEN__
@@ -216,14 +245,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         size_t count = pd.data.Byte.len / sizeof(MinimalItems);
         for (size_t i = 0; i < count; ++i) {
           gd->player.items[i] = items[i];
-          // NOTE: map to the object
-          for (auto &t: gd->items) {
-            if (t->shared_id == items[i].shared_id) {
-              t->type = (ItemType) items[i].type;
-              t->used = items[i].used;
-              break;
-            }
-          }
+          gd->items[i]->shared_id = i;
+          gd->items[i]->type = (ItemType) items[i].type;
+          gd->items[i]->used = items[i].used;
+          gd->items[i]->show = true;
         }
       } break;
       case GAME_NEEDLE_DATA: {
@@ -237,8 +262,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
             for (Needle *n : gd->needle_container->needles) {
               if (n->shared_id == needles_info[i].id) {
                 n->used = (uint8_t)needles_info[i].used;
-                // TODO: reset the pos. maybe only active player can move around
-                // and synced.
+                n->rec.x = needles_info[i].pos.x;
+                n->rec.y = needles_info[i].pos.y;
                 break;
               }
             }
@@ -314,10 +339,11 @@ static TextInput *cTextInput(ArsEng *engine, const char *placeholder,
   ti->curpos = &engine->bigcanvas_cursor;
   ti->padding = padding;
   ti->draw_in_canvas = false;
-  ti->color[3] = {GetColor(0x000000ff)};
-  ti->color[2] = {GetColor(0xffffffff)};
-  ti->color[1] = {GetColor(0x000000ff)};
-  ti->color[0] = {GetColor(0xccccccff)};
+
+  ti->color[0] = {GetColor(0xFAD5A5FF)};
+  ti->color[1] = {GetColor(0x8B4000ff)};
+  ti->color[2] = {GetColor(0xE49B0FFF)};
+  ti->color[3] = {GetColor(0xFAD5A5ff)};
   ti->buffer = buffer;
   ti->active_id = &engine->active;
   ti->calculate_rec();
@@ -326,10 +352,11 @@ static TextInput *cTextInput(ArsEng *engine, const char *placeholder,
 
 static Button *cButton(ArsEng *engine, std::string text, int text_size,
                        int padding, GameState state, Vector2 pos,
-                       std::function<void()> callback) {
+                       std::function<void()> callback, ManagedSound *sound) {
   auto btn = new Button();
   btn->rec = {pos.x, pos.y, 1, 1};
   btn->state = state;
+  btn->sound = sound;
   btn->str = text;
   btn->str_size = text_size;
   btn->curpos = &engine->bigcanvas_cursor;
@@ -337,10 +364,10 @@ static Button *cButton(ArsEng *engine, std::string text, int text_size,
   btn->callback = callback;
   btn->font = &engine->font;
   btn->draw_in_canvas = false;
-  btn->color[0] = {GetColor(0xffffffff)};
-  btn->color[1] = {GetColor(0x000000ff)};
-  btn->color[2] = {GetColor(0x999999ff)};
-  btn->color[3] = {GetColor(0xffffffff)};
+  btn->color[0] = {GetColor(0xFAD5A5FF)};
+  btn->color[1] = {GetColor(0x8B4000ff)};
+  btn->color[2] = {GetColor(0xE49B0FFF)};
+  btn->color[3] = {GetColor(0x8B4000ff)};
   return btn;
 }
 
@@ -390,6 +417,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     });
   }
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   int text_size = 32;
   int padding = 20;
   Texture2D *exit_icon = engine->tm.get_texture("exit");
@@ -405,7 +433,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
                               // but yeah...
         }
         engine->revert_state();
-      });
+      }, btn);
   btnexit->text = exit_icon;
   btnexit->calculate_rec();
   btnexit->rec.x = padding;
@@ -423,7 +451,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   p2->rec.y = (wsize.y - p2->rec.height) / 2;
 
   p2->state = state;
-  p2->color = WHITE;
+  p2->color = GetColor(0x888888ff);
   p2->text = player2_text;
   engine->om.add_object(p2, (*z)++);
 
@@ -573,7 +601,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   item_box->rec.width = (icon_size * MAX_PLAYER_HEALTH);
   item_box->rec.height = icon_size + padding;
   item_box->rec.x = bigcanvas_size.x - item_box->rec.width - padding;
-  item_box->rec.y = bigcanvas_size.y - item_box->rec.height;
+  item_box->rec.y = bigcanvas_size.y - item_box->rec.height - (padding * 2);
   item_box->draw_in_canvas = false;
   item_box->padding = padding;
 
@@ -599,7 +627,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
 #endif
       gd->action.type = GameActionType::USE_ITEM;
       gd->action.data = i;
-      gd->lock_action = true;
       Message msg = {};
       msg.type = GAME_PLAYER_UPDATE;
       msg.response = NONE;
@@ -632,6 +659,31 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     }
   };
   engine->om.add_object(ingame_sc, (*z)++);
+
+  std::chrono::milliseconds ntimer_ms = std::chrono::milliseconds(50);
+  Timer *ntimer = new Timer(ntimer_ms);
+  ntimer->tt = LOOP;
+  ntimer->state = state;
+  ntimer->callback = [gd]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+    std::vector<MinimalNeedle> mn;
+    if (gd->room && gd->room->turn == gd->player.turn && !gd->lock_action) {
+      for (const auto &n : gd->needle_container->needles) {
+        mn.push_back(MinimalNeedle{
+            .id = n->shared_id, .used = n->used, .pos = {n->rec.x, n->rec.y}});
+      }
+      Message msg = {};
+      msg.type = MessageType::GAME_NEEDLE_DATA;
+      msg.response = MessageType::NONE;
+      msg.data.Byte.len = sizeof(MinimalNeedle) * 5;
+      memcpy(msg.data.Byte.data, mn.data(), msg.data.Byte.len);
+      gd->client->send(msg);
+    }
+  };
+  engine->om.add_object(ntimer, (*z)++);
+  ntimer->start_timer();
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -650,7 +702,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   (void)kh_id;
   GameState state = GameState::MENU;
   size_t title_size = 64;
-  Color title_color = WHITE;
+  Color title_color = GetColor(0xFAD5A5FF);
 
   Text *title1 = cText(engine, state, "Fate", title_size, title_color, {0, 0});
   Vector2 title1_len = title1->calculate_len();
@@ -658,6 +710,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = (wsize.y / 2.0f) - title1_len.y;
   engine->om.add_object(title1, (*z)++);
 
+  title_color = GetColor(0xE49B0FFF);
   Text *title2 =
       cText(engine, state, "Roullete", title_size, title_color, {0, 0});
   Vector2 title2_len = title2->calculate_len();
@@ -668,10 +721,20 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   size_t text_size = 36;
   size_t padding = 20;
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btn1 =
       cButton(engine, "Start", text_size, padding, state, {0, 0}, [engine]() {
+#ifdef __EMSCRIPTEN__
+        if (!IsAudioDeviceReady()) {
+          InitAudioDevice();
+          engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
+          engine->music = &engine->musics[0];
+          PlayMusicStream(*engine->music);
+          SetMusicVolume(*engine->music, VOLUME_NORMAL);
+        }
+#endif
         engine->request_change_state(GameState::PLAYMENU);
-      });
+      }, btn);
   btn1->calculate_rec();
   btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
   btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
@@ -682,7 +745,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   Button *btn2 =
       cButton(engine, "", text_size, padding, state, {0, 0}, [engine]() {
         engine->request_change_state(GameState::SETTINGS);
-      });
+      }, btn);
   btn2->text = settings_cog;
   btn2->calculate_rec();
   btn2->rec.x = btn1->rec.x + btn1->rec.width + padding;
@@ -694,7 +757,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   Texture2D *exit_icon = engine->tm.load_texture("exit", "./assets/exit.png");
 #ifndef __EMSCRIPTEN__
   Button *btn3 = cButton(engine, "", text_size, padding, state, {0, 0},
-                         [engine]() { engine->req_close = true; });
+                         [engine]() { engine->req_close = true; }, btn);
   btn3->text = exit_icon;
   btn3->calculate_rec();
   btn3->rec.x = btn1->rec.x - (btn1->rec.height + padding);
@@ -705,11 +768,12 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 #else
   (void)exit_icon;
 #endif
-
+#ifndef __EMSCRIPTEN__
   engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
   engine->music = &engine->musics[0];
   PlayMusicStream(*engine->music);
   SetMusicVolume(*engine->music, VOLUME_NORMAL);
+#endif
 }
 
 static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
@@ -772,6 +836,8 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   hbox->draw_in_canvas = false;
   engine->om.add_object(hbox, (*z)++);
 
+
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btncreate = cButton(engine, "Create room", text_size, padding, state,
                               {0, 0}, [engine, gd]() {
                                 if (!gd->client->c) {
@@ -782,7 +848,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
                                 msg.type = CREATE_ROOM;
                                 msg.response = NONE;
                                 gd->client->send(msg);
-                              });
+  }, btn);
   btncreate->calculate_rec();
   engine->om.add_object(btncreate, (*z)++);
   hbox->add_child(btncreate);
@@ -800,7 +866,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
                                  strncpy(msg.data.String, gd->buffer.data(),
                                          MAX_MESSAGE_STRING_SIZE);
                                  gd->client->send(msg);
-                               });
+  }, btn);
   btnconnect->calculate_rec();
   engine->om.add_object(btnconnect, (*z)++);
   hbox->add_child(btnconnect);
@@ -808,7 +874,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0}, [engine]() {
     engine->request_change_state(GameState::MENU);
-  });
+  }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -843,6 +909,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
+  ManagedSound *btn = engine->som.get_sound("btn");
 #ifndef __EMSCRIPTEN__
   Text *restext =
       cText(engine, state, "Resolution", text_size, title_color, {0, 0});
@@ -865,14 +932,14 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnfull =
       cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0, 0},
-              [engine]() { engine->request_fullscreen(); });
+              [engine]() { engine->request_fullscreen(); }, btn);
   btnfull->calculate_rec();
   engine->om.add_object(btnfull, (*z)++);
   hbox->add_child(btnfull);
   hbox->position_child();
 
   Button *btnhd = cButton(engine, "720p", text_size, padding, state, {0, 0},
-                          [engine]() { engine->request_resize({1280, 720}); });
+                          [engine]() { engine->request_resize({1280, 720}); }, btn);
   btnhd->calculate_rec();
   engine->om.add_object(btnhd, (*z)++);
   hbox->add_child(btnhd);
@@ -880,7 +947,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnfhd =
       cButton(engine, "1080p", text_size, padding, state, {0, 0},
-              [engine]() { engine->request_resize({1920, 1080}); });
+              [engine]() { engine->request_resize({1920, 1080}); }, btn);
   btnfhd->calculate_rec();
   engine->om.add_object(btnfhd, (*z)++);
   hbox->add_child(btnfhd);
@@ -892,8 +959,9 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
     TraceLog(LOG_FATAL, "Failed to get the EXIT TEXTURE!");
     return;
   }
+
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0},
-                         [engine]() { engine->revert_state(); });
+                         [engine]() { engine->revert_state(); }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -921,6 +989,8 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         gd->room = nullptr; // NOTE: IDK if this is the best approach
                             // but yeah...
       }
+      gd->player.ready = false;
+      gd->oplayer = {};
       engine->request_change_state(GameState::PLAYMENU);
     });
   }
@@ -943,6 +1013,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     return;
   }
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   Button *btn1 = cButton(engine, "", 0, padding, state, {0, 0}, [engine]() {
     GameData *gd = (GameData *)engine->additional_data;
     Message msg = {};
@@ -953,8 +1024,10 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
       delete gd->room;
       gd->room = nullptr; // NOTE: IDK if this is the best approach but yeah...
     }
+    gd->player.ready = false;
+    gd->oplayer = {};
     engine->revert_state();
-  });
+  }, btn);
   btn1->text = exit_icon;
   btn1->rec.width = 64;
   btn1->rec.height = 64;
@@ -969,7 +1042,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
         msg.type = TOGGLE_READY;
         msg.response = NONE;
         gd->client->send(msg);
-      });
+      }, btn);
   btn2->calculate_rec();
   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
   btn2->rec.y = (wsize.y - btn2->rec.width) / 2.0f;
@@ -991,15 +1064,24 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     // NOTE: This will be bad for performance but i guess for simplicity and
     // for the result of my bad design
     //       legit this is so bad...
-    if (gd->player.ready && btn2->str != "Ready") {
+    if (gd->player.ready) {
       btn2->str = "Ready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
-    } else if (!gd->player.ready && btn2->str != "Unready") {
+    } else if (!gd->player.ready) {
       btn2->str = "Unready";
       btn2->calculate_rec();
       btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
     }
+    // if (gd->player.ready && btn2->str != "Ready") {
+    //   btn2->str = "Ready";
+    //   btn2->calculate_rec();
+    //   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    // } else if (!gd->player.ready && btn2->str != "Unready") {
+    //   btn2->str = "Unready";
+    //   btn2->calculate_rec();
+    //   btn2->rec.x = (wsize.x - btn2->rec.width) / 2.0f;
+    // }
   };
 
   engine->om.add_object(sc, (*z)++);
@@ -1010,7 +1092,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   ;
   Vector2 pcounttxt_len = pcounttxt->calculate_len();
   pcounttxt->rec.x = wsize.x - pcounttxt_len.x;
-  pcounttxt->rec.y = wsize.y - pcounttxt_len.y;
+  pcounttxt->rec.y = btn2->rec.y + pcounttxt_len.y + padding * 5;
   engine->om.add_object(pcounttxt, (*z)++);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(100);
@@ -1021,7 +1103,7 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
     const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
     if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
       pcounttxt->text = count_update;
-      pcounttxt->rec.x = wsize.x - pcounttxt->calculate_len().x;
+      pcounttxt->rec.x = (wsize.x - pcounttxt->calculate_len().x) * 0.5f;
     }
   };
   engine->om.add_object(tu_timer, (*z)++);
@@ -1080,6 +1162,7 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
   };
   engine->om.add_object(sc, (*z)++);
 
+  ManagedSound *btn = engine->som.get_sound("btn");
   int text_size = 32;
   int padding = 20;
   Button *btn1 = cButton(engine, "Continue", text_size, padding, state, {0, 0},
@@ -1089,7 +1172,7 @@ static void initFinishMenu(ArsEng *engine, int kh_id, int *z) {
                            std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
                            gd->winner_id = -1;
-                         });
+                         }, btn);
   btn1->calculate_rec();
   btn1->rec.x = (wsize.x - btn1->rec.width) / 2.0f;
   btn1->rec.y = wsize.y - (btn1->rec.height + padding * 5);
@@ -1101,6 +1184,17 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
                    (float)engine->bigcanvas.texture.height};
   (void)kh_id;
   GameState state = GameState::ALL;
+
+  // background
+  Texture *bgtxt = engine->tm.load_texture("bg", "./assets/background.png");
+  if (!bgtxt) TraceLog(LOG_INFO, "Could not load the background texture.");
+  Object *bg = new Object();
+  bg->state = state;
+  bg->rec = Rectangle{0, 0, engine->canvas_size.x, engine->canvas_size.y};
+  bg->text = bgtxt;
+  bg->color = GetColor(0x777777ff);
+  engine->om.add_object(bg, (*z)++);
+
   Script *sc = new Script();
   sc->state = state;
   GameData *gd = (GameData *)engine->additional_data;
@@ -1153,7 +1247,12 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   t->btext = &gd->text_buffer;
   t->rec.y = wsize.y - text_size;
   t->show = false;
-  engine->om.add_object(t, (*z)++);
+  engine->om.add_object(t, 998);
+
+  int version_size = 16;
+  Text *version = cText(engine, state, "Version " VERSION, version_size, WHITE, {0, wsize.y - version_size});
+  version->rec.x = wsize.x - version->calculate_len().x;
+  engine->om.add_object(version, 997);
 
   std::chrono::milliseconds ms = std::chrono::milliseconds(5000);
   Timer *ttimer = new Timer(ms);
@@ -1216,6 +1315,15 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   KeyHandler *kh = new KeyHandler();
   kh->engine_state = &engine->state;
   int kh_id = engine->om.add_object(kh, z++);
+
+  if (!engine->som.load_sound("./assets/button-click.wav", "btn")) TraceLog(LOG_INFO, "Failed to load the button sound");
+  if (!engine->som.load_sound("./assets/hurt.wav", "hurt")) TraceLog(LOG_INFO, "Failed to load the hurt sound");
+  ManagedSound *btn = engine->som.get_sound("btn");
+  ManagedSound *hurt = engine->som.get_sound("hurt");
+  gd->hurt_sound = hurt;
+
+  SetSoundVolume(btn->mData, 0.2f);
+  SetSoundVolume(hurt->mData, 0.4f);
 
   // Load Object
   initALLObject(engine, kh_id, &z);

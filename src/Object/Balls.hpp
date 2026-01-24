@@ -13,11 +13,12 @@ public:
     if (!show)
       return;
 
+    Color c = GetColor(0x444444aa);
     if (text != nullptr && text->width > 0 && text->height > 0) {
       DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height), rec,
-                     Vector2(0, 0), 0.0f, GRAY);
+                     Vector2(0, 0), 0.0f, c);
     } else {
-      DrawCircleV(Vector2{rec.x, rec.y}, rec.width, GRAY);
+      DrawCircleV(Vector2{rec.x, rec.y}, rec.width, c);
     }
   }
 

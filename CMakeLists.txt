@@ -59,14 +59,16 @@ if(EMSCRIPTEN)
     add_compile_definitions(PLATFORM_WEB)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
     target_link_options(${PROJECT_NAME} PRIVATE
-    "-sUSE_GLFW=3"
+    "--preload-file"
+    "../assets@/assets"
     "-sASYNCIFY"
+    "-sASSERTIONS=0"
     "-sALLOW_MEMORY_GROWTH=1"
     "-sUSE_WEBGL2=1"
     "-sGL_ENABLE_GET_PROC_ADDRESS=1"
     "-lwebsocket.js"
-    "--preload-file"
-    "../assets@/assets"
+    "-sFORCE_FILESYSTEM=1"
+    "-sEXPORTED_RUNTIME_METHODS=['HEAPF32', 'HEAPU8']"
 )
 endif()
 

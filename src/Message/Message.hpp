@@ -10,7 +10,7 @@
 // protocol: le
 // [msg_len][MSG][MSG][TYPE][len][bytes]
 
-#define MAX_MESSAGE_BIN_SIZE 512
+#define MAX_MESSAGE_BIN_SIZE 1024
 #define MAX_MESSAGE_STRING_SIZE 512
 
 static inline void write_u16(uint8_t **pp, uint32_t v) {

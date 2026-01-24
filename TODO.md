@@ -1,12 +1,14 @@
 # FOCUS
-- [x] Client        : Sound (background sound done)
-- [ ] Client        : Sound fix on web(if possible) 
-- [ ] Client        : Shaders stuff to make it pretty
+- [x] Client        : Sound (background sound done, button done, damage done, item use , needle use)
 
 # BACK BURNER
-- [ ] Client        : Android fix the html for it right now its so broken..
+- [ ] Client        : Shaders stuff to make it pretty
 
 # FINISHED
+- [x] Client&Server : Making the needle pos sync between client
+- [x] Client&Server : Item regeneration broken
+- [x] Client        : Sound fix on web(if possible)
+- [x] Client        : Android fix the html for it right now its so broken..
 - [x] Android       : Compile to android using raymob
 - [x] Server&Client : when leaving the other player is not disconnected
 - [x] Base          : The item
