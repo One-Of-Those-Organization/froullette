@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object.hpp"
+#include "../Sound/ManagedSound.hpp"
 #include <functional>
 
 enum ItemType { BOOSTER = 0 , REVEALER = 1 };
@@ -14,6 +15,7 @@ public:
   bool used = false;
   bool _hovered = false;
   std::function<void(Items *item)> callback = nullptr;
+  ManagedSound *sound = nullptr;
   Items(ItemType type, int id) : Object(), shared_id(id), type(type) {};
   virtual ~Items() = default;
   void logic(float dt) override {
@@ -32,10 +34,12 @@ public:
       this->_hovered = true;
 #ifdef MOBILE
       if (IsGestureDetected(GESTURE_TAP))
-        this->callback();
+        this->callback(this);
+      if (this->sound) this->sound->play_sound();
 #else
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
         this->callback(this);
+      if (this->sound) this->sound->play_sound();
 #endif
     } else
       this->_hovered = false;

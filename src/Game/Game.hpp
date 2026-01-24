@@ -2,9 +2,6 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
-// TODO: indicator if you use some items (use gd->using_booster)
-// TODO: sound if you use items
-
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -24,6 +21,7 @@
 #include "../Shared/Player.hpp"
 #include "../Shared/Room.hpp"
 #include "../Shader/vignete.h"
+#include "../Shader/spotlight.h"
 #include "ArsEng.hpp"
 #include "Client.hpp"
 #include "GameState.hpp"
@@ -456,7 +454,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   p2->rec.y = (wsize.y - p2->rec.height) / 2;
 
   p2->state = state;
-  p2->color = GetColor(0x888888ff);
+  p2->color = WHITE;
   p2->text = player2_text;
   engine->om.add_object(p2, (*z)++);
 
@@ -500,6 +498,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       .height = desk->rec.height - (desk->rec.height / 6.0f),
   };
 
+  if (!engine->som.load_sound("./assets/inject.wav", "needle")) TraceLog(LOG_FATAL, "Failed to load the needle use sound");
+  ManagedSound *inject = engine->som.get_sound("needle");
+  SetSoundVolume(inject->mData, 0.6f);
+
   ns->rec = needle_pos;
   ns->color = GetColor(0xf0f0f055);
   ns->state = state;
@@ -526,6 +528,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     needle->curpos = &engine->canvas_cursor;
     needle->type = NeedleType::NT_BLANK;
     needle->state = state;
+    needle->sound = inject;
     needle->used = true; // NOTE: default set to true so it only rendered when
                          // the server give it a go.
     needle->callback = [gd](Needle *n) {
@@ -599,6 +602,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   }
   hbox->position_child();
 
+  if (!engine->som.load_sound("./assets/item-use.wav", "item")) TraceLog(LOG_FATAL, "Failed to load the item use sound");
+  ManagedSound *item_use = engine->som.get_sound("item");
+  SetSoundVolume(item_use->mData, 0.6f);
   // create the items object that will be reusable
   icon_size = 96;
   padding = 10;
@@ -627,6 +633,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
+    it->sound = item_use;
     it->callback = [gd, i](Items *items) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
@@ -698,8 +705,39 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   Object *dimmer = new Object();
   dimmer->rec = Rectangle {0, 0, (float)wsize.x, (float)wsize.y };
   dimmer->state = state;
-  dimmer->color = GetColor(0x00000044);
+  dimmer->color = GetColor(0x22222266);
   engine->om.add_object(dimmer, (*z)++);
+
+  Shader *spotlight = engine->sm.add_shader_from_mem("spotlight", spotlight_vs, spotlight_fs);
+  if (!spotlight) {
+    TraceLog(LOG_FATAL, "Failed to load the spotlight shaders");
+    return;
+  }
+  ShadedObject *chand = new ShadedObject();
+  chand->rec = Rectangle {0, 0, wsize.x, wsize.y};
+  chand->shader = spotlight;
+  chand->state = state;
+  chand->use_blend = true;
+  chand->blend_type = BLEND_ADDITIVE;
+  int locRes   = GetShaderLocation(*spotlight, "iResolution");
+  int locMouse = GetShaderLocation(*spotlight, "iMouse");
+  int locColor = GetShaderLocation(*spotlight, "lightColor");
+  int locRad   = GetShaderLocation(*spotlight, "radius");
+  int locStr   = GetShaderLocation(*spotlight, "str");
+  SetShaderValue(*spotlight, locRes, &wsize, SHADER_UNIFORM_VEC2);
+  Vector3 warm = { 1.0f, 0.8f, 0.6f };
+  SetShaderValue(*spotlight, locColor, &warm, SHADER_UNIFORM_VEC3);
+  float radius = 260.0f;
+  SetShaderValue(*spotlight, locRad, &radius, SHADER_UNIFORM_FLOAT);
+  float str = .4f;
+  SetShaderValue(*spotlight, locStr, &str, SHADER_UNIFORM_FLOAT);
+  chand->shaders_update_callback = [spotlight, locMouse, engine](ShadedObject *s) {
+    (void)s;
+    Vector2 pos = {engine->canvas_cursor.x, engine->canvas.texture.height / 2.0f};
+    // Vector2 pos = {engine->canvas_cursor.x, engine->canvas.texture.height - engine->canvas_cursor.y};
+    SetShaderValue(*spotlight, locMouse, &pos, SHADER_UNIFORM_VEC2);
+  };
+  engine->om.add_object(chand, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -1315,7 +1353,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   int strLoc   = GetShaderLocation(*vignete, "uStr");
   int colLoc   = GetShaderLocation(*vignete, "uColor");
   Vector2 res = { so->rec.width, so->rec.height };
-  float strength = .7f;
+  float strength = .8f;
   float color[3] = { 0.0f, 0.0f, 0.0f };
   SetShaderValue(*vignete, resLoc, &res, SHADER_UNIFORM_VEC2);
   SetShaderValue(*vignete, strLoc, &strength, SHADER_UNIFORM_FLOAT);
@@ -1327,7 +1365,7 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
       const int colLoc   = GetShaderLocation(*s->shader, "uColor");
       const int strLoc   = GetShaderLocation(*s->shader, "uStr");
       float color[3] = { 0.0f, 0.0f, 0.0f };
-      float str = .7f;
+      float str = .8f;
       if (engine->state == GameState::INGAME) {
 #ifndef __EMSCRIPTEN__
         std::lock_guard<std::mutex> lock(gd->mutex);
