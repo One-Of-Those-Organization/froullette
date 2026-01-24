@@ -417,6 +417,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
         gd->room = nullptr; // NOTE: IDK if this is the best approach
         // but yeah...
       }
+      gd->using_booster = false;
       engine->request_change_state(GameState::ROOMMENU);
     });
   }
@@ -648,9 +649,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     gd->items.push_back(it);
   }
 
+  Shader *vignete = engine->sm.get_shader("vignete");
   Script *ingame_sc = new Script();
   ingame_sc->state = state;
-  ingame_sc->callback = [gd, tturn, all_brain]() {
+  ingame_sc->callback = [engine, gd, tturn, all_brain, vignete]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -666,6 +668,16 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       else
         brain->color = BLACK;
     }
+
+    // check if using booster
+    int colLoc   = GetShaderLocation(*vignete, "uColor");
+    float color[3] = { 0.0f, 0.0f, 0.0f };
+    if (gd->using_booster) {
+      color[0] = 1.0f;
+      color[1] = 0.0f;
+      color[2] = 0.0f;
+    }
+    SetShaderValue(*vignete, colLoc, &color, SHADER_UNIFORM_VEC3);
   };
   engine->om.add_object(ingame_sc, (*z)++);
 
