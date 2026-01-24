@@ -393,7 +393,7 @@ static void initTestObject(ArsEng *engine, int kh_id, int *z) {
   ball->rec = {10, 10, 10, 10};
   ball->engine = engine;
   ball->speed = {50, 50};
-  ball->state = GameState::MENU | GameState::SETTINGS;
+  ball->state = GameState::MENU | GameState::SETTINGS | GameState::PLAYMENU | GameState::ROOMMENU;
   engine->om.add_object(ball, (*z)++);
 }
 
@@ -649,10 +649,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     gd->items.push_back(it);
   }
 
-  Shader *vignete = engine->sm.get_shader("vignete");
   Script *ingame_sc = new Script();
   ingame_sc->state = state;
-  ingame_sc->callback = [engine, gd, tturn, all_brain, vignete]() {
+  ingame_sc->callback = [gd, tturn, all_brain]() {
 #ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
@@ -668,16 +667,6 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       else
         brain->color = BLACK;
     }
-
-    // check if using booster
-    int colLoc   = GetShaderLocation(*vignete, "uColor");
-    float color[3] = { 0.0f, 0.0f, 0.0f };
-    if (gd->using_booster) {
-      color[0] = 1.0f;
-      color[1] = 0.0f;
-      color[2] = 0.0f;
-    }
-    SetShaderValue(*vignete, colLoc, &color, SHADER_UNIFORM_VEC3);
   };
   engine->om.add_object(ingame_sc, (*z)++);
 
@@ -705,6 +694,12 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   };
   engine->om.add_object(ntimer, (*z)++);
   ntimer->start_timer();
+
+  Object *dimmer = new Object();
+  dimmer->rec = Rectangle {0, 0, (float)wsize.x, (float)wsize.y };
+  dimmer->state = state;
+  dimmer->color = GetColor(0x00000044);
+  engine->om.add_object(dimmer, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {
@@ -1327,6 +1322,27 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   SetShaderValue(*vignete, colLoc, &color, SHADER_UNIFORM_VEC3);
   engine->om.add_object(so, 9996);
 
+  so->shaders_update_callback = [engine, gd](ShadedObject*s) {
+    if (s->shader) {
+      const int colLoc   = GetShaderLocation(*s->shader, "uColor");
+      const int strLoc   = GetShaderLocation(*s->shader, "uStr");
+      float color[3] = { 0.0f, 0.0f, 0.0f };
+      float str = .7f;
+      if (engine->state == GameState::INGAME) {
+#ifndef __EMSCRIPTEN__
+        std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+        if (gd->using_booster) {
+          color[0] = 1.0f;
+          color[1] = 0.0f;
+          color[2] = 0.0f;
+          str = 1.2f;
+        }
+      }
+      SetShaderValue(*s->shader, colLoc, &color, SHADER_UNIFORM_VEC3);
+      SetShaderValue(*s->shader, strLoc, &str, SHADER_UNIFORM_FLOAT);
+    }
+  };
 }
 
 [[maybe_unused]] static void gameInit(ArsEng *engine) {
