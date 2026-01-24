@@ -30,7 +30,7 @@
 #include <queue>
 #include <thread>
 
-#define VERSION "1.0-alpha"
+#define VERSION "1.0"
 #define VOLUME_NORMAL 1.0f
 #define VOLUME_SMALL 0.6f
 #undef WHITE
@@ -781,7 +781,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
 #ifdef __EMSCRIPTEN__
         if (!IsAudioDeviceReady()) {
           InitAudioDevice();
-          engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
+          engine->musics.push_back(LoadMusicStream("assets/eerie.ogg"));
           engine->music = &engine->musics[0];
           PlayMusicStream(*engine->music);
           SetMusicVolume(*engine->music, VOLUME_NORMAL);
