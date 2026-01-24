@@ -823,7 +823,7 @@ static void initMenu(ArsEng *engine, int kh_id, int *z) {
   (void)exit_icon;
 #endif
 #ifndef __EMSCRIPTEN__
-  engine->musics.push_back(LoadMusicStream("assets/eerie.wav"));
+  engine->musics.push_back(LoadMusicStream("assets/eerie.ogg"));
   engine->music = &engine->musics[0];
   PlayMusicStream(*engine->music);
   SetMusicVolume(*engine->music, VOLUME_NORMAL);
