@@ -2,13 +2,14 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
-//TODO: indicator if you use some items
-//TODO: sound if you use items
+// TODO: indicator if you use some items (use gd->using_booster)
+// TODO: sound if you use items
 
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
 #include "../Object/Cursor.hpp"
+#include "../Object/ShadedObject.hpp"
 #include "../Object/Desk.hpp"
 #include "../Object/Hbox.hpp"
 #include "../Object/KeyHandler.hpp"
@@ -22,9 +23,11 @@
 #include "../Shared/LobbyStatus.hpp"
 #include "../Shared/Player.hpp"
 #include "../Shared/Room.hpp"
+#include "../Shader/vignete.h"
 #include "ArsEng.hpp"
 #include "Client.hpp"
 #include "GameState.hpp"
+#include "raylib.h"
 #include <ctime>
 #include <queue>
 #include <thread>
@@ -63,6 +66,7 @@ struct GameData {
   std::vector<Items*> items; // sync this with gd->player.items (MinimalItems)
   int winner_id;
   ManagedSound *hurt_sound = nullptr;
+  bool using_booster = false;
 };
 
 static void client_handler(mg_connection *c, int ev, void *ev_data) {
@@ -540,6 +544,7 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       msg.response = NONE;
       msg.data.action = &gd->action;
       gd->client->send(msg);
+      if (gd->using_booster) gd->using_booster = false;
     };
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
@@ -621,10 +626,11 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     it->rec = {0,0, (float)icon_size, (float)icon_size};
     it->dtext[1] = revealer_txt;
     it->dtext[0] = deadpil_txt;
-    it->callback = [gd, i]() {
+    it->callback = [gd, i](Items *items) {
 #ifndef __EMSCRIPTEN__
       std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
+      if (gd->lock_action) return;
       gd->action.type = GameActionType::USE_ITEM;
       gd->action.data = i;
       Message msg = {};
@@ -632,6 +638,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       msg.response = NONE;
       msg.data.action = &gd->action;
       gd->client->send(msg);
+      if (items->type == BOOSTER) {
+        gd->using_booster = true;
+      }
     };
     engine->om.add_object(it, (*z)++);
     item_box->add_child(it);
@@ -684,6 +693,23 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   };
   engine->om.add_object(ntimer, (*z)++);
   ntimer->start_timer();
+
+  // Init the shadedobject for the vignete effect
+  Shader *vignete = engine->sm.add_shader_from_mem("vignete", vignete_vs, vignete_fs);
+  if (!vignete) {
+    TraceLog(LOG_FATAL, "Failed to load the vignete shaders");
+    return;
+  }
+  ShadedObject *so = new ShadedObject();
+  so->shader = vignete;
+  // so->state = state;
+  so->state = GameState::ALL;
+  so->draw_in_canvas = false;
+  so->rec = Rectangle{0, 0, (float)engine->bigcanvas.texture.width, (float)engine->bigcanvas.texture.height};
+  int resLoc   = GetShaderLocation(*vignete, "iResolution");
+  Vector2 res = { so->rec.width, so->rec.height };
+  SetShaderValue(*vignete, resLoc, &res, SHADER_UNIFORM_VEC2);
+  engine->om.add_object(so, (*z)++);
 }
 
 static void initMenu(ArsEng *engine, int kh_id, int *z) {

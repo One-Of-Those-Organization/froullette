@@ -13,7 +13,7 @@ public:
   Vector2 *curpos = nullptr;
   bool used = false;
   bool _hovered = false;
-  std::function<void()> callback = nullptr;
+  std::function<void(Items *item)> callback = nullptr;
   Items(ItemType type, int id) : Object(), shared_id(id), type(type) {};
   virtual ~Items() = default;
   void logic(float dt) override {
@@ -35,7 +35,7 @@ public:
         this->callback();
 #else
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
-        this->callback();
+        this->callback(this);
 #endif
     } else
       this->_hovered = false;
