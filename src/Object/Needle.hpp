@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object.hpp"
+#include "../Sound/ManagedSound.hpp"
 #include <functional>
 #include <queue>
 #include <chrono>
@@ -24,6 +25,7 @@ class Needle : public Object {
     bool used = false;
     int shared_id;
     bool revealed = false;
+    ManagedSound *sound = nullptr;
 
     std::chrono::time_point<std::chrono::steady_clock> _start;
     std::chrono::milliseconds _target{1000 * 5};
@@ -124,8 +126,10 @@ class Needle : public Object {
         {
           if (*this->engine_dragged_id != this->id)
             this->dragged_qq->push(this->id);
-          else if (this->callback)
+          else if (this->callback) {
+            if (this->sound) sound->play_sound();
             this->callback(this);
+          }
         }
     };
 

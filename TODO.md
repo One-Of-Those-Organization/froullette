@@ -1,10 +1,11 @@
 # FOCUS
-- [x] Client        : Sound (background sound done, button done, damage done, item use , needle use)
 
 # BACK BURNER
-- [ ] Client        : Shaders stuff to make it pretty
+- [ ] Help?
 
 # FINISHED
+- [x] Client        : Sound (background sound done, button done, damage done, item use , needle use)
+- [x] Client        : Shaders stuff to make it pretty
 - [x] Client&Server : Making the needle pos sync between client
 - [x] Client&Server : Item regeneration broken
 - [x] Client        : Sound fix on web(if possible)
