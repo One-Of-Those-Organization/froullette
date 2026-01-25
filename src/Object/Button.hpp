@@ -53,17 +53,10 @@ public:
       return;
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
-#ifdef MOBILE
-      if (IsGestureDetected(GESTURE_TAP)) {
-        if (this->sound) this->sound->play_sound();
-        this->callback();
-      }
-#else
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
         if (this->sound) this->sound->play_sound();
         this->callback();
       }
-#endif
     } else
       this->_hovered = false;
   }

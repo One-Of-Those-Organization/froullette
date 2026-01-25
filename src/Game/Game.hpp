@@ -180,10 +180,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         if (gd->needle_container) {
-          for (size_t i = 0; i < gd->needle_container->needles.size(); ++i) {
-              if (gd->needle_container->needles[i]->shared_id == pd.data.Int) {
-                gd->needle_container->needles[i]->revealed = true;
-               break;
+          for (auto &n: gd->needle_container->needles) {
+            if (n->shared_id == pd.data.Int) {
+                n->revealed = true;
+                break;
             }
           }
         }
@@ -267,6 +267,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
                 n->used = (uint8_t)needles_info[i].used;
                 n->rec.x = needles_info[i].pos.x;
                 n->rec.y = needles_info[i].pos.y;
+                n->revealed = false; // NOTE: hacky hack i dont like but maybe it will fix that bug..
+                n->show = !(bool)needles_info[i].used;
                 break;
               }
             }
@@ -479,6 +481,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   drag_timer->tt = LOOP;
   drag_timer->state = state;
   drag_timer->callback = [engine, gd]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     if (gd->dragged_obj_qq.empty())
       return;
     int id = gd->dragged_obj_qq.front();
@@ -499,7 +504,13 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
       .height = desk->rec.height - (desk->rec.height / 6.0f),
   };
 
-  if (!engine->som.load_sound("./assets/inject.wav", "needle")) TraceLog(LOG_FATAL, "Failed to load the needle use sound");
+
+#ifdef __EMSCRIPTEN__
+  if (!IsAudioDeviceReady()) {
+    InitAudioDevice();
+  }
+#endif
+  if (!engine->som.load_sound("./assets/inject.wav", "needle")) TraceLog(LOG_INFO, "Failed to load the needle use sound");
   ManagedSound *inject = engine->som.get_sound("needle");
   SetSoundVolume(inject->mData, 0.6f);
 
@@ -603,7 +614,13 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   }
   hbox->position_child();
 
-  if (!engine->som.load_sound("./assets/item-use.wav", "item")) TraceLog(LOG_FATAL, "Failed to load the item use sound");
+
+#ifdef __EMSCRIPTEN__
+  if (!IsAudioDeviceReady()) {
+    InitAudioDevice();
+  }
+#endif
+  if (!engine->som.load_sound("./assets/item-use.wav", "item")) TraceLog(LOG_INFO, "Failed to load the item use sound");
   ManagedSound *item_use = engine->som.get_sound("item");
   SetSoundVolume(item_use->mData, 0.6f);
   // create the items object that will be reusable
@@ -864,7 +881,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
-  gd->url_buffer = "127.0.0.1:8000";
+  gd->url_buffer = "";
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
                  state, {wsize.x / 2.0f, title1->rec.y + title1->rec.height});
@@ -944,9 +961,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   GameState state = GameState::SETTINGS;
   size_t title_size = 64;
 
-#ifndef __EMSCRIPTEN__
   size_t text_size = 32;
-#endif
   size_t padding = 20;
   Color title_color = WHITE;
 
@@ -965,7 +980,6 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   engine->om.add_object(title1, (*z)++);
 
   ManagedSound *btn = engine->som.get_sound("btn");
-#ifndef __EMSCRIPTEN__
   Text *restext =
       cText(engine, state, "Resolution", text_size, title_color, {0, 0});
   Vector2 restext_len = restext->calculate_len();
@@ -985,6 +999,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   hbox->draw_in_canvas = false;
   engine->om.add_object(hbox, (*z)++);
 
+#ifndef __EMSCRIPTEN__
   Button *btnfull =
       cButton(engine, "Toggle Fullscreen", text_size, padding, state, {0, 0},
               [engine]() { engine->request_fullscreen(); }, btn);
@@ -992,6 +1007,7 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   engine->om.add_object(btnfull, (*z)++);
   hbox->add_child(btnfull);
   hbox->position_child();
+#endif // __EMSCRIPTEN__
 
   Button *btnhd = cButton(engine, "720p", text_size, padding, state, {0, 0},
                           [engine]() { engine->request_resize({1280, 720}); }, btn);
@@ -1007,7 +1023,6 @@ static void initSettings(ArsEng *engine, int kh_id, int *z) {
   engine->om.add_object(btnfhd, (*z)++);
   hbox->add_child(btnfhd);
   hbox->position_child();
-#endif // __EMSCRIPTEN__
 
   Texture2D *exit_icon = engine->tm.get_texture("exit");
   if (!exit_icon) {
@@ -1155,6 +1170,9 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   tu_timer->tt = LOOP;
   tu_timer->state = state;
   tu_timer->callback = [pcounttxt, gd, wsize]() {
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
     if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
       pcounttxt->text = count_update;
@@ -1415,6 +1433,11 @@ static void initALLObject(ArsEng *engine, int kh_id, int *z) {
   kh->engine_state = &engine->state;
   int kh_id = engine->om.add_object(kh, z++);
 
+#ifdef __EMSCRIPTEN__
+  if (!IsAudioDeviceReady()) {
+    InitAudioDevice();
+  }
+#endif
   if (!engine->som.load_sound("./assets/button-click.wav", "btn")) TraceLog(LOG_INFO, "Failed to load the button sound");
   if (!engine->som.load_sound("./assets/hurt.wav", "hurt")) TraceLog(LOG_INFO, "Failed to load the hurt sound");
   ManagedSound *btn = engine->som.get_sound("btn");
