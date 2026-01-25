@@ -35,7 +35,6 @@ public:
   std::chrono::milliseconds _target{5000};
   bool _timer_started = false;
 
-  // ---- mobile double tap ----
   float _tap_timer = 0.0f;
   int _tap_count = 0;
 
@@ -43,8 +42,6 @@ public:
 
   Needle() : Object() {}
   virtual ~Needle() = default;
-
-  /* ================= RENDER ================= */
 
   void render() override {
     if (!show || used) return;
@@ -62,8 +59,6 @@ public:
     }
   }
 
-  /* ================= LOGIC ================= */
-
   void logic(float dt) override {
     (void)dt;
     if (!curpos || !engine_dragging || !engine_dragged_id || !dragged_qq)
@@ -71,7 +66,6 @@ public:
     if (used || !show)
       return;
 
-    /* ---------- reveal timer ---------- */
     if (!_timer_started && revealed) {
       _timer_started = true;
       _start = std::chrono::steady_clock::now();
@@ -160,8 +154,6 @@ public:
   }
 #endif
   }
-
-  /* ================= MOVE ================= */
 
   void _move_rec() {
     Vector2 newpos {

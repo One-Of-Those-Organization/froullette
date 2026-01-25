@@ -180,10 +180,10 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
         std::lock_guard<std::mutex> lock(gd->mutex);
 #endif
         if (gd->needle_container) {
-          for (size_t i = 0; i < gd->needle_container->needles.size(); ++i) {
-              if (gd->needle_container->needles[i]->shared_id == pd.data.Int) {
-                gd->needle_container->needles[i]->revealed = true;
-               break;
+          for (auto &n: gd->needle_container->needles) {
+            if (n->shared_id == pd.data.Int) {
+                n->revealed = true;
+                break;
             }
           }
         }
@@ -267,6 +267,8 @@ static void client_handler(mg_connection *c, int ev, void *ev_data) {
                 n->used = (uint8_t)needles_info[i].used;
                 n->rec.x = needles_info[i].pos.x;
                 n->rec.y = needles_info[i].pos.y;
+                n->revealed = false; // NOTE: hacky hack i dont like but maybe it will fix that bug..
+                n->show = !(bool)needles_info[i].used;
                 break;
               }
             }
@@ -479,6 +481,9 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
   drag_timer->tt = LOOP;
   drag_timer->state = state;
   drag_timer->callback = [engine, gd]() {
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     if (gd->dragged_obj_qq.empty())
       return;
     int id = gd->dragged_obj_qq.front();
@@ -1165,6 +1170,9 @@ static void initRoomMenu(ArsEng *engine, int kh_id, int *z) {
   tu_timer->tt = LOOP;
   tu_timer->state = state;
   tu_timer->callback = [pcounttxt, gd, wsize]() {
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
     const char *count_update = TextFormat("Player(%d/2)", gd->ls.count);
     if (strcmp(count_update, pcounttxt->text.c_str()) != 0) {
       pcounttxt->text = count_update;

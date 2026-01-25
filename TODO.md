@@ -1,7 +1,7 @@
 # FOCUS
 - [ ] Test the mobile version if there is any bug
 - [ ] Compile release to windows
-- [x] Compile release to linux
+- [ ] Compile release to linux
 - [ ] Update the webversion
 
 
