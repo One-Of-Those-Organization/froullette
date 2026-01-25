@@ -1,4 +1,4 @@
-package com.example.androidWebViewOfflineApplication
+package org.ootoz.fateroullete
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
 
             settings.apply {
                 javaScriptEnabled = true
+                javaScriptCanOpenWindowsAutomatically = true
                 domStorageEnabled = true
                 
                 // These are still good to have for local files
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
             // 3. Load the virtual URL
             loadUrl(applicationUrl)
         }
+        webView.requestFocusFromTouch()
 
         setContentView(webView)
     }

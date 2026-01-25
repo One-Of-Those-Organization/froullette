@@ -1,4 +1,4 @@
-package com.example.androidWebViewOfflineApplication.ui.theme
+package org.ootoz.fateroullete.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -54,42 +54,61 @@ public:
       return;
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
-#ifdef MOBILE
-      if (IsGestureDetected(GESTURE_TAP))
-#else
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
-#endif
       {
         *this->active_id = this->id;
-
 #if defined(MOBILE) && defined(__EMSCRIPTEN__)
-        // EM_ASM allows inline JavaScript.
-        // We create a hidden textarea and focus it to trigger the mobile keyboard.
+        // EM_ASM({
+        //   var input = document.getElementById('hiddenInput');
+        //   input.focus();
+        //   input.value = "";
+        // });
+        // EM_ASM({
+        //   setTimeout(function() {
+        //     var input = document.getElementById('hiddenInput');
+        //     input.focus();
+        //     input.click(); // Some WebViews need an extra click trigger
+        //   }, 50);
+        // });
+
         EM_ASM({
-            var inputId = 'raylib-hidden-input';
-            var input = document.getElementById(inputId);
-
-            if (!input) {
-                input = document.createElement('textarea');
-                input.id = inputId;
-                input.style.position = 'absolute';
-                input.style.opacity = '0';
-                input.style.top = '-10000px';
-                input.style.left = '-10000px';
-                // Prevent zooming on focus by setting font size > 16px
-                input.style.fontSize = '16px';
-                document.body.appendChild(input);
-            }
-
-            input.focus();
-            input.click(); // Sometimes needed for specific mobile browsers
-        });
+          var input = document.getElementById('hiddenInput');
+          input.value = UTF8ToString($0); // Push current text to HTML
+          input.focus();
+          // Small delay helps Android WebView realize it's a real user intent
+          setTimeout(function() { input.click(); }, 10);
+        }, buffer->c_str());
 #endif
       }
     } else
       this->_hovered = false;
 
     if (*this->active_id == id) {
+
+#if defined(MOBILE) && defined(__EMSCRIPTEN__)
+      char* currentText = (char*)EM_ASM_INT({
+        var val = document.getElementById('hiddenInput').value;
+        var bufferSize = lengthBytesUTF8(val) + 1;
+        var buffer = _malloc(bufferSize);
+        stringToUTF8(val, buffer, bufferSize);
+        return buffer;
+      });
+
+      bool is_nl = false;
+      if (currentText[strlen(currentText) - 1] == '\n') is_nl = true;
+      if (currentText) {
+        if (!is_nl) *buffer = currentText;
+        free(currentText);
+      }
+      if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE) || is_nl) {
+        EM_ASM({
+          var input = document.getElementById('hiddenInput');
+          input.blur();
+          input.value = ""
+        });
+        *this->active_id = -1;
+      }
+#else
       int key = GetCharPressed();
       if (key >= 32 && key <= 126) {
         char c = (char)key;
@@ -100,14 +119,8 @@ public:
       }
       if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
         *this->active_id = -1;
-#if defined(MOBILE) && defined(__EMSCRIPTEN__)
-        // Blur the input to hide keyboard when done
-        EM_ASM({
-            var input = document.getElementById('raylib-hidden-input');
-            if (input) input.blur();
-        });
-#endif
       }
+#endif
     }
   }
 

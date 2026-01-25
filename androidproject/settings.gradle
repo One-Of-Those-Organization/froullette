@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "androidWebViewOfflineApplication"
+rootProject.name = "FateRoullete"
 include ':app'

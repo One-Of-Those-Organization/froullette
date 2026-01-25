@@ -59,9 +59,7 @@ initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
     mn.push_back({needle.id, needle.used, pos});
   }
   for (auto p: r->players) {
-    if (p) {
-      memset(p->revealed, 0, sizeof(bool) * 5);
-    }
+    if (p) { memset(p->revealed, false, sizeof(bool) * 5); }
   }
   return mn;
 }
