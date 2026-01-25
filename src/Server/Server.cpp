@@ -50,13 +50,18 @@ initialize_needle(size_t needle_count, size_t live_needles_count, Room *r) {
   // NOTE: plaese sync the id with the client right now it is since
   // the 2 of them use 0..4
   for (size_t i = 0; i < needle_count; i++) {
-    _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i], false};
+    _MinimalNeedle needle = {(uint8_t)i, false, needle_types[i]};
     r->needles.push_back(needle);
     Vector2 pos = {
       default_pos.x + padding + i * 6,
       default_pos.y
     };
     mn.push_back({needle.id, needle.used, pos});
+  }
+  for (auto p: r->players) {
+    if (p) {
+      memset(p->revealed, 0, sizeof(bool) * 5);
+    }
   }
   return mn;
 }
@@ -126,6 +131,7 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
             .health = MAX_PLAYER_HEALTH,
             .con = c,
             .pe = { .type = 3, .data = 0, .used = false },
+            .revealed = {},
             .ready = false,
             .turn = PlayerState::PLAYER1, // NOTE: update this on room
                                           // enter.
@@ -558,13 +564,12 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
               .used = false,
             };
           } break;
-          // TODO: There is a bug sometimes it will not give the correct data (not sending anything)
           case 1: { // revealer
             _MinimalNeedle *n = nullptr;
             for (size_t a = 0; a < r->needles.size(); a++) {
               _MinimalNeedle *in = &r->needles[a];
-              if (in && in->type == 1 && !in->used && !in->revealed) {
-                in->revealed = true;
+              if (in && in->type == 1 && !in->used && !p->revealed[a]) {
+                p->revealed[a] = true;
                 n = in;
                 break;
               }

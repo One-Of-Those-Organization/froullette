@@ -24,6 +24,7 @@ struct Player {
 #ifdef _SERVER
   mg_connection *con;
   PlayerEffect pe;
+  bool revealed[5];
 #endif // _SERVER
   bool ready;
   PlayerState turn;
