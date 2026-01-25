@@ -35,9 +35,6 @@ public:
   std::chrono::milliseconds _target{5000};
   bool _timer_started = false;
 
-  float _tap_timer = 0.0f;
-  int _tap_count = 0;
-
   std::function<void(Needle *)> callback;
 
   Needle() : Object() {}
@@ -108,7 +105,6 @@ public:
           offset.y = curpos->y - rec.y;
         }
 
-    /* ---------- dragging ---------- */
 #ifdef MOBILE
     if (_dragging && GetTouchPointCount() == 1)
       #else
@@ -118,26 +114,11 @@ public:
           _move_rec();
         }
 
-    /* ---------- USE ACTION ---------- */
 #ifdef MOBILE
   // double tap
-  if (_hovered && IsGestureDetected(GESTURE_TAP)) {
-    _tap_count++;
-    _tap_timer = 0.0f;
-  }
-
-  if (_tap_count > 0) {
-    _tap_timer += GetFrameTime();
-    if (_tap_timer > 0.3f) {
-      _tap_count = 0;
-    }
-  }
-
-  if (_tap_count == 2) {
-    _tap_count = 0;
-    if (*engine_dragged_id != id)
-      dragged_qq->push(id);
-    else if (callback) {
+  if (_hovered && GetTouchPointCount() == 2) {
+    if (*engine_dragged_id != id) dragged_qq->push(id);
+    if (callback) {
       if (sound) sound->play_sound();
       callback(this);
     }

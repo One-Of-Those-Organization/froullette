@@ -58,25 +58,12 @@ public:
       {
         *this->active_id = this->id;
 #if defined(MOBILE) && defined(__EMSCRIPTEN__)
-        // EM_ASM({
-        //   var input = document.getElementById('hiddenInput');
-        //   input.focus();
-        //   input.value = "";
-        // });
-        // EM_ASM({
-        //   setTimeout(function() {
-        //     var input = document.getElementById('hiddenInput');
-        //     input.focus();
-        //     input.click(); // Some WebViews need an extra click trigger
-        //   }, 50);
-        // });
-
         EM_ASM({
           var input = document.getElementById('hiddenInput');
           input.value = UTF8ToString($0); // Push current text to HTML
           input.focus();
           // Small delay helps Android WebView realize it's a real user intent
-          setTimeout(function() { input.click(); }, 10);
+          setTimeout(function() { input.click(); }, 20);
         }, buffer->c_str());
 #endif
       }
