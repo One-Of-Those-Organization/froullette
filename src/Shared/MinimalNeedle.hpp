@@ -7,7 +7,7 @@ struct _MinimalNeedle {
   int id;
   uint8_t used;
   uint8_t type;
-  bool revealed;
+  // bool revealed;
 };
 #endif
 

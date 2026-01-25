@@ -25,8 +25,6 @@ public:
     if (this->text && (this->rec.width <= 0 && this->rec.height <= 0)) {
       this->rec.width = this->text->width;
       this->rec.height = this->text->height;
-      // TODO: another web gotcha... when hiden it just broken use css to hide:
-      // `cursor: none`
 #ifndef __EMSCRIPTEN__
       HideCursor();
 #endif

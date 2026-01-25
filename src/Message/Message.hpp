@@ -86,7 +86,7 @@ enum MessageType {
   GAME_TURN_UPDATE,   // send the turn update after player done
                       // GAME_PLAYER_UPDATE
   GAME_PLAYER_UPDATE, // send what player do what action they take it will
-                      // need new struct def. TODO: WORKING ON THIS
+                      // need new struct def.
   GAME_FINISHED_PREMATURELY,
   GAME_END, // send back winner id
 };
