@@ -10,6 +10,8 @@ set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
 
+option(MOBILE "Build for mobile platforms" OFF)
+
 if(EMSCRIPTEN)
     set(PLATFORM Web)
 else()
@@ -19,7 +21,6 @@ endif()
 if(NOT WIN32)
     add_compile_options(-Wall -Wextra)
 endif()
-
 FetchContent_Declare(
     raylib
     URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz
@@ -54,6 +55,9 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
 endif()
 
+if(MOBILE)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE MOBILE)
+endif()
 
 if(EMSCRIPTEN)
     add_compile_definitions(PLATFORM_WEB)

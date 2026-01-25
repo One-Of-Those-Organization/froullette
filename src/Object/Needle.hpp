@@ -12,139 +12,170 @@ enum class NeedleType : int32_t {
 };
 
 class Needle : public Object {
-  public:
-    NeedleType type;
-    bool _hovered = false;
-    bool _dragging = false;
-    bool *engine_dragging = nullptr;
-    const int *engine_dragged_id = nullptr;
-    std::queue<int> *dragged_qq;
-    Vector2 *curpos = nullptr;
-    Vector2 offset = {};
-    Rectangle max_rec = {};
-    bool used = false;
-    int shared_id;
-    bool revealed = false;
-    ManagedSound *sound = nullptr;
+public:
+  NeedleType type;
+  bool _hovered = false;
+  bool _dragging = false;
 
-    std::chrono::time_point<std::chrono::steady_clock> _start;
-    std::chrono::milliseconds _target{1000 * 5};
-    bool _timer_started = false;
+  bool *engine_dragging = nullptr;
+  const int *engine_dragged_id = nullptr;
+  std::queue<int> *dragged_qq = nullptr;
 
-    std::function<void(Needle *)> callback;
+  Vector2 *curpos = nullptr;
+  Vector2 offset = {};
+  Rectangle max_rec = {};
 
-    Needle() : Object() {};
-    virtual ~Needle() = default;
-    void render() override {
-      if (!this->show || this->used)
-        return;
+  bool used = false;
+  int shared_id = 0;
+  bool revealed = false;
 
-      if (this->text) {
-        if (this->revealed) {
-          DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height), rec,
-              Vector2(0, 0), 0.0f, GetColor(0xff1111ff));
-          return;
-        }
-        if (this->_hovered) {
-          DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height), rec,
-              Vector2(0, 0), 0.0f, GetColor(0xf0f0f0ff));
-        } else {
-          DrawTexturePro(*text, Rectangle(0, 0, text->width, text->height), rec,
-              Vector2(0, 0), 0.0f, WHITE);
-        }
-      } else {
-        if (this->_hovered)
-          DrawRectangleRec(this->rec, PURPLE);
-        else
-          DrawRectangleRec(this->rec, PINK);
+  ManagedSound *sound = nullptr;
+
+  std::chrono::time_point<std::chrono::steady_clock> _start;
+  std::chrono::milliseconds _target{5000};
+  bool _timer_started = false;
+
+  // ---- mobile double tap ----
+  float _tap_timer = 0.0f;
+  int _tap_count = 0;
+
+  std::function<void(Needle *)> callback;
+
+  Needle() : Object() {}
+  virtual ~Needle() = default;
+
+  /* ================= RENDER ================= */
+
+  void render() override {
+    if (!show || used) return;
+
+    if (text) {
+      Color col = WHITE;
+      if (revealed) col = GetColor(0xff1111ff);
+      else if (_hovered) col = GetColor(0xf0f0f0ff);
+
+      DrawTexturePro(*text,
+                     Rectangle{0, 0, (float)text->width, (float)text->height},
+                     rec, Vector2{0, 0}, 0.0f, col);
+    } else {
+      DrawRectangleRec(rec, _hovered ? PURPLE : PINK);
+    }
+  }
+
+  /* ================= LOGIC ================= */
+
+  void logic(float dt) override {
+    (void)dt;
+    if (!curpos || !engine_dragging || !engine_dragged_id || !dragged_qq)
+      return;
+    if (used || !show)
+      return;
+
+    /* ---------- reveal timer ---------- */
+    if (!_timer_started && revealed) {
+      _timer_started = true;
+      _start = std::chrono::steady_clock::now();
+    }
+
+    if (_timer_started && revealed) {
+      if (std::chrono::steady_clock::now() - _start >= _target) {
+        revealed = false;
+        _timer_started = false;
       }
-    };
+    }
 
-    void logic(float dt) override {
-      (void)dt;
-      if (!curpos)
-        return;
-      if (!this->engine_dragging && !this->engine_dragged_id && !this->dragged_qq)
-        return;
-      if (this->used || !this->show)
-        return;
+    _hovered = CheckCollisionPointRec(*curpos, rec);
 
-      if (!_timer_started && revealed) {
-        _timer_started = true;
-        _start = std::chrono::steady_clock::now();
-      }
-
-      if (_timer_started && revealed) {
-        std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-        auto elapsed = now - _start;
-        if (elapsed >= _target) {
-          _timer_started = false;
-          revealed = false;
-        }
-      }
-
+    /* ---------- release drag ---------- */
 #ifdef MOBILE
-      if (IsGestureDetected(GESTURE_NONE))
-#else
+    if (GetTouchPointCount() == 0)
+      #else
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
-#endif
+        #endif
         {
-          this->_dragging = false;
-          *this->engine_dragging = false;
-        }
-      this->_hovered = CheckCollisionPointRec(*curpos, this->rec);
-#ifdef MOBILE
-      if (this->_hovered && !*this->engine_dragging &&
-          IsGestureDetected(GESTURE_DRAG))
-#else
-        if (this->_hovered && !*this->engine_dragging &&
-            IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-#endif
-        {
-          this->_dragging = true;
-          *this->engine_dragging = true;
-          if (*this->engine_dragged_id != this->id)
-            this->dragged_qq->push(this->id);
-
-          this->offset.x = curpos->x - this->rec.x;
-          this->offset.y = curpos->y - this->rec.y;
+          _dragging = false;
+          *engine_dragging = false;
         }
 
+    /* ---------- start drag (hold) ---------- */
 #ifdef MOBILE
-      if (this->_dragging && IsGestureDetected(GESTURE_DRAG))
-#else
-        if (this->_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
-#endif
+    if (_hovered && !*engine_dragging && GetTouchPointCount() == 1)
+      #else
+      if (_hovered && !*engine_dragging && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        #endif
+        {
+          _dragging = true;
+          *engine_dragging = true;
+
+          if (*engine_dragged_id != id)
+            dragged_qq->push(id);
+
+          offset.x = curpos->x - rec.x;
+          offset.y = curpos->y - rec.y;
+        }
+
+    /* ---------- dragging ---------- */
+#ifdef MOBILE
+    if (_dragging && GetTouchPointCount() == 1)
+      #else
+      if (_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+        #endif
         {
           _move_rec();
         }
+
+    /* ---------- USE ACTION ---------- */
 #ifdef MOBILE
-      if (this->_hovered && IsGestureDetected(GESTURE_TAP))
+  // double tap
+  if (_hovered && IsGestureDetected(GESTURE_TAP)) {
+    _tap_count++;
+    _tap_timer = 0.0f;
+  }
+
+  if (_tap_count > 0) {
+    _tap_timer += GetFrameTime();
+    if (_tap_timer > 0.3f) {
+      _tap_count = 0;
+    }
+  }
+
+  if (_tap_count == 2) {
+    _tap_count = 0;
+    if (*engine_dragged_id != id)
+      dragged_qq->push(id);
+    else if (callback) {
+      if (sound) sound->play_sound();
+      callback(this);
+    }
+  }
 #else
-        if (this->_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON))
+  // desktop right click
+  if (_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+    if (*engine_dragged_id != id)
+      dragged_qq->push(id);
+    else if (callback) {
+      if (sound) sound->play_sound();
+      callback(this);
+    }
+  }
 #endif
-        {
-          if (*this->engine_dragged_id != this->id)
-            this->dragged_qq->push(this->id);
-          else if (this->callback) {
-            if (this->sound) sound->play_sound();
-            this->callback(this);
-          }
-        }
+  }
+
+  /* ================= MOVE ================= */
+
+  void _move_rec() {
+    Vector2 newpos {
+      curpos->x - offset.x,
+      curpos->y - offset.y
     };
 
-    void _move_rec() {
-      Vector2 newpos = {};
-      newpos.x = this->curpos->x - this->offset.x;
-      newpos.y = this->curpos->y - this->offset.y;
+    if (newpos.x < max_rec.x ||
+        newpos.y < max_rec.y ||
+        newpos.x + rec.width  > max_rec.x + max_rec.width ||
+        newpos.y + rec.height > max_rec.y + max_rec.height)
+      return;
 
-      if (newpos.x <= this->max_rec.x || newpos.y <= this->max_rec.y ||
-          newpos.x >= this->max_rec.width || newpos.y >= this->max_rec.height) {
-        this->offset.x = curpos->x - this->rec.x;
-        this->offset.y = curpos->y - this->rec.y;
-        return;
-      }
-      rec.x = newpos.x;
-      rec.y = newpos.y;
-    }
+    rec.x = newpos.x;
+    rec.y = newpos.y;
+  }
 };

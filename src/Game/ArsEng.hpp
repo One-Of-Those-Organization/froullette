@@ -135,7 +135,7 @@ public:
   void update(float dt) {
     if (this->music) UpdateMusicStream(*this->music);
 #ifdef MOBILE
-    this->cursor = GetTouchPosition();
+    this->cursor = GetTouchPosition(0);
 #else
     this->cursor = GetMousePosition();
 #endif
