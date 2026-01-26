@@ -2,6 +2,11 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
+#if defined(_WIN32)
+    #define NOGDI             // All GDI defines and routines
+    #define NOUSER            // All USER defines and routines
+#endif
+
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -29,6 +34,12 @@
 #include <ctime>
 #include <queue>
 #include <thread>
+
+#if defined(_WIN32)
+    #undef Rectangle
+    #undef CloseWindow
+    #undef ShowCursor
+#endif
 
 #define VERSION "1.0"
 #define VOLUME_NORMAL 1.0f
@@ -881,7 +892,7 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
-  gd->url_buffer = "192.168.1.4:8000";
+  gd->url_buffer = "servo.tailf5d620.ts.net";
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
                  state, {wsize.x / 2.0f, title1->rec.y + title1->rec.height});

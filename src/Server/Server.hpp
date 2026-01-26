@@ -4,7 +4,6 @@
 #include <atomic>
 #include <iostream>
 #include <unordered_map>
-#include <vector>
 
 #define STR_BUFFER_SIZE 64
 
@@ -27,7 +26,7 @@ public:
     if (!this->buffer) {
       std::cerr << "ERROR: Failed to allocate buffer." << std::endl;
     }
-    if (snprintf(buffer, buffer_size, "ws://%s:%u", ip, port) < 0) {
+    if (snprintf(buffer, buffer_size, "http://%s:%u", ip, port) < 0) {
       std::cerr << "ERROR: Failed to built the address string." << std::endl;
     }
     mg_mgr_init(&this->mgr);
