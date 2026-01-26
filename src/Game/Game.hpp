@@ -892,7 +892,11 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
+#ifdef __EMSCRIPTEN__
   gd->url_buffer = "servo.tailf5d620.ts.net";
+#else
+  gd->url_buffer = "";
+#endif
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
                  state, {wsize.x / 2.0f, title1->rec.y + title1->rec.height});

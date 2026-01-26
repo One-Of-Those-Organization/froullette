@@ -1,8 +1,10 @@
 #pragma once
 #include "../Message/Message.hpp"
+#include "../Shared/Player.hpp"
 #include "../mongoose.h"
 #include <atomic>
 #include <cstdio>
+#include <iostream>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -78,26 +80,23 @@ public:
   ~Client() { this->cleanup(); };
 
   bool connect(void *data) {
-    if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "wss://%s",
+#ifndef __EMSCRIPTEN__
+    if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s",
                  this->url.c_str()) < 0) {
       TraceLog(LOG_INFO, "NET: Failed to built the address string.");
       return false;
     }
 
-#ifndef __EMSCRIPTEN__
     mg_mgr_init(&this->mgr);
-    this->c = mg_ws_connect(&this->mgr, this->_buffer, this->callback, data, NULL);
-    if (this->c == nullptr) {
-      if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s",
-                   this->url.c_str()) < 0) {
-        TraceLog(LOG_INFO, "NET: Failed to built the address string.");
-        return false;
-      }
-      this->c =
+    this->c =
         mg_ws_connect(&this->mgr, this->_buffer, this->callback, data, NULL);
-    };
     return this->c != nullptr;
 #else
+    if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "wss://%s",
+                 this->url.c_str()) < 0) {
+      TraceLog(LOG_INFO, "NET: Failed to built the address string.");
+      return false;
+    }
     if (!emscripten_websocket_is_supported()) {
       TraceLog(LOG_INFO, "NET: Emscripten WebSocket not supported.");
       return false;
@@ -110,9 +109,8 @@ public:
     attr.createOnMainThread = EM_TRUE;
 
     g_ws_handle = emscripten_websocket_new(&attr);
-     if (g_ws_handle <= 0) {
+    if (g_ws_handle <= 0) {
       TraceLog(LOG_INFO, "NET: Failed to create WebSocket.");
-
       if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s",
                    this->url.c_str()) < 0) {
         TraceLog(LOG_INFO, "NET: Failed to built the address string.");
