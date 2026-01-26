@@ -10,7 +10,7 @@
             margin: 0;
             padding: 0;
             background-color: #000;
-            overflow: hidden; /* Prevent scrolling on mobile */
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -19,7 +19,6 @@
             width: 100vw;
         }
 
-        /* Loading Spinner */
         .spinner {
             height: 30px;
             width: 30px;
@@ -43,7 +42,6 @@
             margin-bottom: 10px;
         }
 
-        /* The Canvas container */
         .emscripten_border {
             border: none;
             display: flex;
@@ -56,107 +54,152 @@
         canvas.emscripten {
             border: 0 none;
             background-color: #000;
-            /* Maintain Aspect Ratio Logic */
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            /* Hide Cursor */
             cursor: none;
         }
 
-        /* Hide the text output and progress bar for a cleaner mobile look */
         #output, #progress, #controls {
             display: none !important;
         }
     </style>
-
-    <script>
-        Module.onRuntimeInitialized = function () {
-            const canvas = document.getElementById("canvas");
-
-            function unlock() {
-                // Simulate a key press to the game
-                canvas.dispatchEvent(
-                    new KeyboardEvent("keydown", { key: " ", code: "Space" })
-                );
-                canvas.dispatchEvent(
-                    new KeyboardEvent("keyup", { key: " ", code: "Space" })
-                );
-
-                document.removeEventListener("click", unlock);
-                document.removeEventListener("touchstart", unlock);
-            }
-
-            document.addEventListener("click", unlock);
-            document.addEventListener("touchstart", unlock);
-        };
-    </script>
 </head>
 <body>
-    <textarea id="hiddenInput" style="position: absolute; left: -9999px; top: 0; width: 1px; height: 1px; font-size: 16px;"></textarea>
 
+<input type="text" id="hiddenInput"
+       style="opacity: 0.01; position: absolute; z-index: -1; top: 0; left: 0; width: 100px; height: 30px; pointer-events: auto;"
+       autocomplete="off"
+       autocorrect="off"
+       autocapitalize="off"
+       spellcheck="false"
+       inputmode="text">
 
-    <div class="spinner" id="spinner"></div>
-    <div id="status">Downloading...</div>
-    <progress hidden id="progress" max="100" value="0"></progress>
+<div class="spinner" id="spinner"></div>
+<div id="status">Downloading...</div>
+<progress hidden id="progress" max="100" value="0"></progress>
 
-    <div class="emscripten_border">
-        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
-    </div>
+<div class="emscripten_border">
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+</div>
 
-    <textarea id="output" rows="8" style="display:none"></textarea>
+<textarea id="output" rows="8" style="display:none"></textarea>
 
-    <script>
-        var statusElement = document.getElementById("status"),
-            progressElement = document.getElementById("progress"),
-            spinnerElement = document.getElementById("spinner"),
-            canvasElement = document.getElementById("canvas");
+<script>
+    var hiddenInput = document.getElementById("hiddenInput");
 
-        var Module = {
-            print: function(text) { console.log(text); },
-            canvas: canvasElement,
-            setStatus: function(text) {
-                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: "" };
-                if (text === Module.setStatus.last.text) return;
-                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-                var now = Date.now();
-                if (m && now - Module.setStatus.last.time < 30) return; 
-                Module.setStatus.last.time = now;
-                Module.setStatus.last.text = text;
-                if (m) {
-                    text = m[1];
-                    progressElement.value = parseInt(m[2]) * 100;
-                    progressElement.max = parseInt(m[4]) * 100;
-                    progressElement.hidden = false;
-                    spinnerElement.hidden = false;
-                } else {
-                    progressElement.value = null;
-                    progressElement.max = null;
-                    progressElement.hidden = true;
-                    if (!text) {
-                        spinnerElement.style.display = "none";
-                        statusElement.style.display = "none";
-                    }
+    // 1. CEGAH RAYLIB MEMBAJAK TOMBOL
+    ['keydown', 'keyup', 'keypress'].forEach(function(evt) {
+        hiddenInput.addEventListener(evt, function(e) {
+            e.stopPropagation();
+        });
+    });
+
+    // 2. SOLUSI BACKSPACE MANUAL (JURUS PAMUNGKAS)
+    hiddenInput.addEventListener("keydown", function(e) {
+        // Jika tombol Backspace ditekan
+        if (e.key === "Backspace" || e.keyCode === 8) {
+
+            var valueBefore = hiddenInput.value;
+
+            // Kita tunggu sekejap (0ms) untuk melihat apakah browser menghapusnya sendiri?
+            setTimeout(function() {
+                // Jika isinya MASIH SAMA (berarti browser gagal menghapus karena kursor macet di awal)
+                // DAN panjang teks > 0
+                if (hiddenInput.value === valueBefore && hiddenInput.value.length > 0) {
+
+                    // KITA HAPUS PAKSA HURUF TERAKHIR LEWAT SCRIPT
+                    hiddenInput.value = valueBefore.slice(0, -1);
+
+                    // Console log untuk debug
+                    console.log("Manual Backspace Triggered!");
                 }
-                statusElement.innerHTML = text;
-            },
-            totalDependencies: 0,
-            monitorRunDependencies: function(left) {
-                this.totalDependencies = Math.max(this.totalDependencies, left);
-                Module.setStatus(left ? "Preparing... (" + (this.totalDependencies - left) + "/" + this.totalDependencies + ")" : "All downloads complete.");
-            }
-        };
 
-        Module.setStatus("Downloading...");
-        
-        window.onerror = function(event) {
-            Module.setStatus("Exception thrown, see JavaScript console");
-            spinnerElement.style.display = "none";
-            Module.setStatus = function(text) {
-                if (text) console.error("[post-exception status] " + text);
-            };
+                // Apapun yang terjadi, kembalikan kursor ke paling ujung kanan
+                var len = hiddenInput.value.length;
+                hiddenInput.setSelectionRange(len, len);
+
+            }, 0);
+        }
+    });
+
+    // 3. PAKSA KURSOR KE UJUNG SAAT DI-KLIK / FOKUS
+    function forceCursorEnd() {
+        // Delay sedikit agar keyboard muncul dulu
+        setTimeout(function() {
+            var len = hiddenInput.value.length;
+            hiddenInput.setSelectionRange(len, len);
+            // Scroll ke kanan mentok biar kelihatan (jika input panjang)
+            hiddenInput.scrollLeft = hiddenInput.scrollWidth;
+        }, 100);
+    }
+
+    hiddenInput.addEventListener("focus", forceCursorEnd);
+    hiddenInput.addEventListener("click", forceCursorEnd);
+    hiddenInput.addEventListener("touchstart", forceCursorEnd); // Tambahan untuk mobile
+
+    // --- KONFIGURASI EMSCRIPTEN ---
+    var statusElement = document.getElementById("status"),
+        progressElement = document.getElementById("progress"),
+        spinnerElement = document.getElementById("spinner"),
+        canvasElement = document.getElementById("canvas");
+
+    var Module = {
+        print: function(text) { console.log(text); },
+        canvas: canvasElement,
+        setStatus: function(text) {
+            if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: "" };
+            if (text === Module.setStatus.last.text) return;
+            var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+            var now = Date.now();
+            if (m && now - Module.setStatus.last.time < 30) return;
+            Module.setStatus.last.time = now;
+            Module.setStatus.last.text = text;
+            if (m) {
+                text = m[1];
+                progressElement.value = parseInt(m[2]) * 100;
+                progressElement.max = parseInt(m[4]) * 100;
+                progressElement.hidden = false;
+                spinnerElement.hidden = false;
+            } else {
+                progressElement.value = null;
+                progressElement.max = null;
+                progressElement.hidden = true;
+                if (!text) {
+                    spinnerElement.style.display = "none";
+                    statusElement.style.display = "none";
+                }
+            }
+            statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+            this.totalDependencies = Math.max(this.totalDependencies, left);
+            Module.setStatus(left ? "Preparing... (" + (this.totalDependencies - left) + "/" + this.totalDependencies + ")" : "All downloads complete.");
+        }
+    };
+
+    Module.onRuntimeInitialized = function () {
+        const canvas = document.getElementById("canvas");
+        function unlock() {
+            canvas.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space" }));
+            canvas.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space" }));
+            document.removeEventListener("click", unlock);
+            document.removeEventListener("touchstart", unlock);
+        }
+        document.addEventListener("click", unlock);
+        document.addEventListener("touchstart", unlock);
+    };
+
+    Module.setStatus("Downloading...");
+    window.onerror = function(event) {
+        Module.setStatus("Exception thrown, see JavaScript console");
+        spinnerElement.style.display = "none";
+        Module.setStatus = function(text) {
+            if (text) console.error("[post-exception status] " + text);
         };
-    </script>
-    <script async src="froullete.js"></script>
+    };
+</script>
+<script async src="froullete.js"></script>
 </body>
 </html>
