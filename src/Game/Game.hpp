@@ -586,23 +586,21 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     engine->tm.load_texture("use-needle", "./assets/use-needle.png");
   Button *btnNUse =
     cButton(engine, "", text_size, padding, state, {0, 0}, [engine, gd]() {
-#ifndef __EMSCRIPTEN__
-      std::lock_guard<std::mutex> lock(gd->mutex);
-#endif
-      if (gd->room->turn != gd->player.turn && engine->dragged_obj < 0)
+      if (gd->room->turn != gd->player.turn || engine->dragged_obj < 0)
         return;
       if (gd->lock_action)
         return;
 
       Needle *n = nullptr;
       for (auto &in: gd->needle_container->needles) {
-        if (n->id == engine->dragged_obj) {
-          n  = in;
+        if (in->id == engine->dragged_obj) {
+          n = in;
           break;
         }
       }
       if (!n) return;
 
+      TraceLog(LOG_INFO, "got the n with this shared_id: %d", n->shared_id);
       gd->action.type = GameActionType::INJECT;
       gd->action.data = n->shared_id;
       gd->lock_action = true;
@@ -615,10 +613,10 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     }, btn);
   btnNUse->text = useNeedleIcon;
   btnNUse->calculate_rec();
-  btnNUse->rec.width = 64;
-  btnNUse->rec.height = 64;
+  btnNUse->rec.width = 128;
+  btnNUse->rec.height = 128;
   btnNUse->rec.x = bigcanvas_size.x - (padding + btnNUse->rec.width);
-  btnNUse->rec.y = padding + btnNUse->rec.height;
+  btnNUse->rec.y = padding;
   engine->om.add_object(btnNUse, (*z)++);
 #endif
 

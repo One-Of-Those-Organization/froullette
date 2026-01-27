@@ -116,9 +116,6 @@ public:
 
 #ifdef MOBILE
   // NOTE: on mobile dont do anything it handled by outside button
-  if (_hovered && *engine_dragged_id != id) {
-      dragged_qq->push(id);
-  }
 #else
   // desktop right click
   if (_hovered && IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
