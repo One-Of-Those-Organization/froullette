@@ -14,7 +14,6 @@ public:
   size_t buffer_size = STR_BUFFER_SIZE;
   mg_mgr mgr;
   char *buffer = nullptr;
-  char *secbuffer = nullptr;
   void (*callback)(mg_connection *c, int ev, void *ev_data);
   std::atomic<uint32_t> ccount = {1}; // to assign id
   Room rooms[MAX_ROOM_COUNT];
@@ -24,19 +23,14 @@ public:
          void (*callback)(mg_connection *c, int ev, void *ev_data)) {
     this->callback = callback;
     this->buffer = (char *)malloc(buffer_size);
-    this->secbuffer = (char *)malloc(buffer_size);
-    if (!this->buffer || ! this->secbuffer) {
+    if (!this->buffer) {
       std::cerr << "ERROR: Failed to allocate buffer." << std::endl;
     }
     if (snprintf(buffer, buffer_size, "http://%s:%u", ip, port) < 0) {
       std::cerr << "ERROR: Failed to built the address string." << std::endl;
     }
-    if (snprintf(secbuffer, buffer_size, "ws://%s:%u", ip, port + 1) < 0) {
-      std::cerr << "ERROR: Failed to built the address string." << std::endl;
-    }
     mg_mgr_init(&this->mgr);
     mg_http_listen(&this->mgr, buffer, callback, this);
-    mg_http_listen(&this->mgr, secbuffer, callback, this);
   };
 
   void add_timer(size_t timeout_ms, int flag, void (*callback)(void *data),

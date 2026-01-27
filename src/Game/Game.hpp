@@ -576,8 +576,51 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
   }
+
   Vector2 bigcanvas_size = {(float)engine->bigcanvas.texture.width,
                             (float)engine->bigcanvas.texture.height};
+
+#ifdef MOBILE
+  // NOTE: Create use button to use that needle
+  Texture2D *useNeedleIcon =
+    engine->tm.load_texture("use-needle", "./assets/use-needle.png");
+  Button *btnNUse =
+    cButton(engine, "", text_size, padding, state, {0, 0}, [engine, gd]() {
+#ifndef __EMSCRIPTEN__
+      std::lock_guard<std::mutex> lock(gd->mutex);
+#endif
+      if (gd->room->turn != gd->player.turn && engine->dragged_obj < 0)
+        return;
+      if (gd->lock_action)
+        return;
+
+      Needle *n = nullptr;
+      for (auto &in: gd->needle_container->needles) {
+        if (n->id == engine->dragged_obj) {
+          n  = in;
+          break;
+        }
+      }
+      if (!n) return;
+
+      gd->action.type = GameActionType::INJECT;
+      gd->action.data = n->shared_id;
+      gd->lock_action = true;
+      Message msg = {};
+      msg.type = GAME_PLAYER_UPDATE;
+      msg.response = NONE;
+      msg.data.action = &gd->action;
+      gd->client->send(msg);
+      if (gd->using_booster) gd->using_booster = false;
+    }, btn);
+  btnNUse->text = useNeedleIcon;
+  btnNUse->calculate_rec();
+  btnNUse->rec.width = 64;
+  btnNUse->rec.height = 64;
+  btnNUse->rec.x = bigcanvas_size.x - (padding + btnNUse->rec.width);
+  btnNUse->rec.y = padding + btnNUse->rec.height;
+  engine->om.add_object(btnNUse, (*z)++);
+#endif
 
   Color text_color = WHITE;
   text_size = 64;

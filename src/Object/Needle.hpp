@@ -107,21 +107,17 @@ public:
 
 #ifdef MOBILE
     if (_dragging && GetTouchPointCount() == 1)
-      #else
+#else
       if (_dragging && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
-        #endif
+#endif
         {
           _move_rec();
         }
 
 #ifdef MOBILE
-  // double tap
-  if (_hovered && GetTouchPointCount() == 2) {
-    if (*engine_dragged_id != id) dragged_qq->push(id);
-    if (callback) {
-      if (sound) sound->play_sound();
-      callback(this);
-    }
+  // NOTE: on mobile dont do anything it handled by outside button
+  if (_hovered && *engine_dragged_id != id) {
+      dragged_qq->push(id);
   }
 #else
   // desktop right click

@@ -22,6 +22,7 @@ public:
 
   TextInput(const char *ph) : Object(), placeholder(ph) {};
   virtual ~TextInput() = default;
+
   void render() override {
     if (!this->show || !font)
       return;
@@ -52,26 +53,48 @@ public:
     (void)dt;
     if (!curpos || !this->active_id)
       return;
+
     if (CheckCollisionPointRec(*curpos, this->rec)) {
       this->_hovered = true;
+
       if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
       {
         *this->active_id = this->id;
 #if defined(MOBILE) && defined(__EMSCRIPTEN__)
         EM_ASM({
           var input = document.getElementById('hiddenInput');
-          input.value = UTF8ToString($0); // Push current text to HTML
+          input.value = UTF8ToString($0);
           input.focus();
-          // Small delay helps Android WebView realize it's a real user intent
-          setTimeout(function() { input.click(); }, 20);
+
+          var len = input.value.length;
+          input.setSelectionRange(len, len);
+          setTimeout(function() {
+            input.click();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }, 20);
         }, buffer->c_str());
 #endif
       }
-    } else
+    }
+    else {
       this->_hovered = false;
 
-    if (*this->active_id == id) {
+      if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (*this->active_id == this->id) {
 
+          *this->active_id = -1;
+
+#if defined(MOBILE) && defined(__EMSCRIPTEN__)
+          EM_ASM({
+            var input = document.getElementById('hiddenInput');
+            input.blur();
+          });
+#endif
+        }
+      }
+    }
+
+    if (*this->active_id == id) {
 #if defined(MOBILE) && defined(__EMSCRIPTEN__)
       char* currentText = (char*)EM_ASM_INT({
         var val = document.getElementById('hiddenInput').value;
@@ -82,11 +105,15 @@ public:
       });
 
       bool is_nl = false;
-      if (currentText[strlen(currentText) - 1] == '\n') is_nl = true;
+      if (currentText && strlen(currentText) > 0) {
+        if (currentText[strlen(currentText) - 1] == '\n') is_nl = true;
+      }
+
       if (currentText) {
         if (!is_nl) *buffer = currentText;
         free(currentText);
       }
+
       if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE) || is_nl) {
         EM_ASM({
           var input = document.getElementById('hiddenInput');
