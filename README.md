@@ -63,6 +63,24 @@ Fate Roullette is available on multiple platforms:
 
 ---
 
+## 📺 Video Tutorial & Full Guide
+
+A complete step-by-step video guide is available for users who prefer visual instructions.
+
+This video documentation covers:
+- Game introduction and overview
+- Installation process on all supported platforms
+- How to access and play the game
+- Basic gameplay explanation
+
+👉 Watch the full tutorial here:  
+https://drive.google.com/drive/folders/1DdZ1ZZXddL1zp206rDfK3NgtOX3sAePA?usp=drive_link
+
+Users may follow the written installation steps below or use the video guide as a reference.
+
+
+---
+
 ## 🪟 Windows Installation
 
 1. Download **`froullete-win32.zip`** from the Releases page  
