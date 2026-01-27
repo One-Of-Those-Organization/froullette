@@ -61,6 +61,7 @@ struct GameData {
   Player player;
   Player oplayer;
 
+  std::string old_url_buffer;
   std::string url_buffer;
   std::string buffer;
 
@@ -329,6 +330,7 @@ static bool start_connection(ArsEng *engine) {
 #endif
   if (gd->url_buffer.empty())
     return false;
+  gd->old_url_buffer = gd->url_buffer;
   gd->client->url = gd->url_buffer.c_str();
   if (!gd->client->connect((void *)gd)) {
     const char *fm = "NET: Failed to connect to the specified server";
@@ -935,8 +937,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
 #ifdef __EMSCRIPTEN__
   gd->url_buffer = "servo.tailf5d620.ts.net";
+  gd->old_url_buffer = gd->url_buffer;
 #else
   gd->url_buffer = "";
+  gd->old_url_buffer = gd->url_buffer;
 #endif
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
@@ -968,10 +972,16 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   ManagedSound *btn = engine->som.get_sound("btn");
   Button *btncreate = cButton(engine, "Create room", text_size, padding, state,
                               {0, 0}, [engine, gd]() {
+                                if (gd->old_url_buffer != gd->buffer && gd->client->c) {
+                                  gd->client->cleanup();
+                                  gd->client->c = nullptr;
+                                  gd->old_url_buffer = gd->url_buffer;
+                                }
                                 if (!gd->client->c) {
                                   if (!start_connection(engine))
                                     return;
                                 }
+
                                 Message msg = {};
                                 msg.type = CREATE_ROOM;
                                 msg.response = NONE;
@@ -984,6 +994,11 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnconnect = cButton(engine, "Connect to room", text_size, padding,
                                state, {0, 0}, [engine, gd]() {
+                                 if (gd->old_url_buffer != gd->buffer && gd->client->c) {
+                                   gd->client->cleanup();
+                                   gd->client->c = nullptr;
+                                   gd->old_url_buffer = gd->url_buffer;
+                                 }
                                  if (!gd->client->c) {
                                    if (!start_connection(engine))
                                      return;
