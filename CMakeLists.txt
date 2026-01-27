@@ -42,8 +42,22 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 if(WIN32)
-    add_executable(${PROJECT_NAME} WIN32 ${FILE_IN})
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+	if (MSVC)
+		add_executable(${PROJECT_NAME} WIN32 ${FILE_IN})
+		set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+	else()
+		add_executable(${PROJECT_NAME} ${FILE_IN})
+		target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
+        target_link_options(${PROJECT_NAME} PRIVATE 
+            -static-libgcc 
+            -static-libstdc++ 
+            -static
+            -lpthread 
+        ) 
+	endif()
+    add_compile_definitions(PlaySound=PlaySoundA)
+	target_link_libraries(${PROJECT_NAME} PRIVATE 
+		ws2_32 crypt32 winmm gdi32)
 else()
     add_executable(${PROJECT_NAME} ${FILE_IN})
 endif()

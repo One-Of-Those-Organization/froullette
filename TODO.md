@@ -1,14 +1,13 @@
 # FOCUS
-- [ ] Test the mobile version if there is any bug
+- [ ] Test the mobile version if there is any bug (test the needle later)
 - [ ] Compile release to windows
-- [ ] Compile release to linux
-- [ ] Update the webversion
 
 
 # BACK BURNER
-- [ ] Help?
 
 # FINISHED
+- [x] Compile release to linux
+- [x] Update the webversion
 - [x] Client        : Sound (background sound done, button done, damage done, item use , needle use)
 - [x] Client        : Shaders stuff to make it pretty
 - [x] Client&Server : Making the needle pos sync between client

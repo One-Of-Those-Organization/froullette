@@ -2,6 +2,11 @@
 // NOTE: Future work or rewrite please use `clay` layouting lib to make it
 // easier
 
+#if defined(_WIN32)
+    #define NOGDI             // All GDI defines and routines
+    #define NOUSER            // All USER defines and routines
+#endif
+
 #include "../Message/Message.hpp"
 #include "../Object/Balls.hpp"
 #include "../Object/Button.hpp"
@@ -30,6 +35,12 @@
 #include <queue>
 #include <thread>
 
+#if defined(_WIN32)
+    #undef Rectangle
+    #undef CloseWindow
+    #undef ShowCursor
+#endif
+
 #define VERSION "1.0"
 #define VOLUME_NORMAL 1.0f
 #define VOLUME_SMALL 0.6f
@@ -50,6 +61,7 @@ struct GameData {
   Player player;
   Player oplayer;
 
+  std::string old_url_buffer;
   std::string url_buffer;
   std::string buffer;
 
@@ -318,6 +330,7 @@ static bool start_connection(ArsEng *engine) {
 #endif
   if (gd->url_buffer.empty())
     return false;
+  gd->old_url_buffer = gd->url_buffer;
   gd->client->url = gd->url_buffer.c_str();
   if (!gd->client->connect((void *)gd)) {
     const char *fm = "NET: Failed to connect to the specified server";
@@ -565,8 +578,49 @@ static void initInGame(ArsEng *engine, int kh_id, int *z) {
     engine->om.add_object(needle, (*z)++);
     ns->needles.push_back(needle);
   }
+
   Vector2 bigcanvas_size = {(float)engine->bigcanvas.texture.width,
                             (float)engine->bigcanvas.texture.height};
+
+#ifdef MOBILE
+  // NOTE: Create use button to use that needle
+  Texture2D *useNeedleIcon =
+    engine->tm.load_texture("use-needle", "./assets/use-needle.png");
+  Button *btnNUse =
+    cButton(engine, "", text_size, padding, state, {0, 0}, [engine, gd]() {
+      if (gd->room->turn != gd->player.turn || engine->dragged_obj < 0)
+        return;
+      if (gd->lock_action)
+        return;
+
+      Needle *n = nullptr;
+      for (auto &in: gd->needle_container->needles) {
+        if (in->id == engine->dragged_obj) {
+          n = in;
+          break;
+        }
+      }
+      if (!n) return;
+
+      TraceLog(LOG_INFO, "got the n with this shared_id: %d", n->shared_id);
+      gd->action.type = GameActionType::INJECT;
+      gd->action.data = n->shared_id;
+      gd->lock_action = true;
+      Message msg = {};
+      msg.type = GAME_PLAYER_UPDATE;
+      msg.response = NONE;
+      msg.data.action = &gd->action;
+      gd->client->send(msg);
+      if (gd->using_booster) gd->using_booster = false;
+    }, btn);
+  btnNUse->text = useNeedleIcon;
+  btnNUse->calculate_rec();
+  btnNUse->rec.width = 128;
+  btnNUse->rec.height = 128;
+  btnNUse->rec.x = bigcanvas_size.x - (padding + btnNUse->rec.width);
+  btnNUse->rec.y = padding;
+  engine->om.add_object(btnNUse, (*z)++);
+#endif
 
   Color text_color = WHITE;
   text_size = 64;
@@ -881,7 +935,13 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   title1->rec.y = title1_len.y + padding;
   engine->om.add_object(title1, (*z)++);
 
+#ifdef __EMSCRIPTEN__
+  gd->url_buffer = "servo.tailf5d620.ts.net";
+  gd->old_url_buffer = gd->url_buffer;
+#else
   gd->url_buffer = "";
+  gd->old_url_buffer = gd->url_buffer;
+#endif
   TextInput *url =
       cTextInput(engine, "Enter ip:port", &gd->url_buffer, text_size, padding,
                  state, {wsize.x / 2.0f, title1->rec.y + title1->rec.height});
@@ -912,10 +972,14 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   ManagedSound *btn = engine->som.get_sound("btn");
   Button *btncreate = cButton(engine, "Create room", text_size, padding, state,
                               {0, 0}, [engine, gd]() {
-                                if (!gd->client->c) {
+                                if (gd->old_url_buffer != gd->url_buffer && gd->client->ws_connected) {
+                                  gd->client->cleanup();
+                                }
+                                if (!gd->client->c || gd->client->done) {
                                   if (!start_connection(engine))
                                     return;
                                 }
+
                                 Message msg = {};
                                 msg.type = CREATE_ROOM;
                                 msg.response = NONE;
@@ -928,7 +992,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnconnect = cButton(engine, "Connect to room", text_size, padding,
                                state, {0, 0}, [engine, gd]() {
-                                 if (!gd->client->c) {
+                                 if (gd->old_url_buffer != gd->url_buffer && gd->client->ws_connected) {
+                                   gd->client->cleanup();
+                                 }
+                                 if (!gd->client->c || gd->client->done) {
                                    if (!start_connection(engine))
                                      return;
                                  }
