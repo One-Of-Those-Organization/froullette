@@ -318,6 +318,9 @@ static void ws_handler(mg_connection *c, int ev, void *ev_data) {
 
           reply.type = MessageType::EXIT_ROOM;
           reply.response = MessageType::EXIT_ROOM;
+          ws_send(c, &reply);
+          c->is_closing = 1;
+          return;
           break;
         }
         reply.type = MessageType::ERROR;
@@ -855,10 +858,10 @@ int main(int argc, char **argv) {
 
   for (int i = 1; i < argc; i++) {
     if (strncmp(argv[i], ipflag, strlen(ipflag)) == 0 && i + 1 < argc)
-      ip = argv[i++];
+      ip = argv[++i];
     else if (strncmp(argv[i], portflag, strlen(portflag)) == 0 &&
              i + 1 < argc) {
-      char *_now = argv[i++];
+      char *_now = argv[++i];
       int convert = atoi(_now);
       if (convert <= 0) {
         fprintf(stderr, "ERROR: Invalid port `%s`.\n", _now);

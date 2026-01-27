@@ -80,6 +80,7 @@ public:
   ~Client() { this->cleanup(); };
 
   bool connect(void *data) {
+    if (this->url.empty()) return false;
 #ifndef __EMSCRIPTEN__
     if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s",
                  this->url.c_str()) < 0) {
@@ -92,8 +93,9 @@ public:
         mg_ws_connect(&this->mgr, this->_buffer, this->callback, data, NULL);
     return this->c != nullptr;
 #else
-    if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "wss://%s",
-                 this->url.c_str()) < 0) {
+    const char *protocol = (this->url.find(':') != std::string::npos) ? "ws://" : "wss://";
+    if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "%s%s",
+                 protocol, this->url.c_str()) < 0) {
       TraceLog(LOG_INFO, "NET: Failed to built the address string.");
       return false;
     }
@@ -111,17 +113,7 @@ public:
     g_ws_handle = emscripten_websocket_new(&attr);
     if (g_ws_handle <= 0) {
       TraceLog(LOG_INFO, "NET: Failed to create WebSocket.");
-      if (snprintf(this->_buffer, DEFAULT_BUFFER_SIZE, "ws://%s",
-                   this->url.c_str()) < 0) {
-        TraceLog(LOG_INFO, "NET: Failed to built the address string.");
         return false;
-      }
-
-      attr.url = this->_buffer;
-      g_ws_handle = emscripten_websocket_new(&attr);
-      if (g_ws_handle <= 0) {
-        return false;
-      }
     }
 
     this->dummy_conn.fn_data = data;

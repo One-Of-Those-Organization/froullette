@@ -972,12 +972,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
   ManagedSound *btn = engine->som.get_sound("btn");
   Button *btncreate = cButton(engine, "Create room", text_size, padding, state,
                               {0, 0}, [engine, gd]() {
-                                if (gd->old_url_buffer != gd->buffer && gd->client->c) {
+                                if (gd->old_url_buffer != gd->url_buffer && gd->client->ws_connected) {
                                   gd->client->cleanup();
-                                  gd->client->c = nullptr;
-                                  gd->old_url_buffer = gd->url_buffer;
                                 }
-                                if (!gd->client->c) {
+                                if (!gd->client->c || gd->client->done) {
                                   if (!start_connection(engine))
                                     return;
                                 }
@@ -994,12 +992,10 @@ static void initPlayMenu(ArsEng *engine, int kh_id, int *z) {
 
   Button *btnconnect = cButton(engine, "Connect to room", text_size, padding,
                                state, {0, 0}, [engine, gd]() {
-                                 if (gd->old_url_buffer != gd->buffer && gd->client->c) {
+                                 if (gd->old_url_buffer != gd->url_buffer && gd->client->ws_connected) {
                                    gd->client->cleanup();
-                                   gd->client->c = nullptr;
-                                   gd->old_url_buffer = gd->url_buffer;
                                  }
-                                 if (!gd->client->c) {
+                                 if (!gd->client->c || gd->client->done) {
                                    if (!start_connection(engine))
                                      return;
                                  }
