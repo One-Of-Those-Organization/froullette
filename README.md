@@ -2,10 +2,10 @@
 
 ## 📌 Overview
 
-**Fate Roullette** is a multiplayer **Pixel Art** game inspired by *Buckshot Roulette*.  
+**Fate Roullette** is a multiplayer **Pixel Art** game inspired by *Buckshot Roulette*.
 In this game, players must test their **strategy, courage, and luck** to survive until the very end.
 
-Each round, players are forced to inject themselves using a **needle**.  
+Each round, players are forced to inject themselves using a **needle**.
 Every needle has a random outcome:
 
 - 🟢 **SAFE** — causes no harm
@@ -31,10 +31,10 @@ In addition to the core mechanic, the game provides several **items** that can h
 
 The game includes several items to support different playstyles:
 
-- 🔍 **Revealer**  
-  Reveals the type of the next needle (SAFE or DAMAGED)
+- 🔍 **Revealer**
+  Reveals the next DAMAGED needle that not revealed yet.
 
-- ⚡ **Booster**  
+- ⚡ **Booster**
   A conditional item that changes its effect based on the needle outcome:
     - **DAMAGED needle** → deals **2x damage**
     - **SAFE needle** → **heals 1 HP** instead of dealing damage
@@ -48,7 +48,7 @@ Using items at the right moment can completely change the flow of the game.
 Fate Roullette is available on multiple platforms:
 
 - 🪟 Windows
-- 🐧 Linux (Ubuntu)
+- 🐧 Linux (Ubuntu) (Other distro compile yourself)
 - 📱 Android (APK)
 - 🌍 Web Version (Browser-based)
 
@@ -73,7 +73,7 @@ This video documentation covers:
 - How to access and play the game
 - Basic gameplay explanation
 
-👉 Watch the full tutorial here:  
+👉 Watch the full tutorial here:
 https://drive.google.com/drive/folders/1DdZ1ZZXddL1zp206rDfK3NgtOX3sAePA?usp=drive_link
 
 Users may follow the written installation steps below or use the video guide as a reference.
@@ -83,21 +83,18 @@ Users may follow the written installation steps below or use the video guide as 
 
 ## 🪟 Windows Installation
 
-1. Download **`froullete-win32.zip`** from the Releases page  
+1. Download **`fate-roullete.exe`** from the Releases page
    👉 https://github.com/One-Of-Those-Organization/froullette/releases/tag/1.0-rc
-2. Extract the `.zip` file to any folder.
-3. Open the extracted folder.
-4. Double-click **`FateRoullette.exe`** to launch the game.
+2. Double-click **`fate-roullete.exe`** to launch the game.
 
 ---
 
 ## 🐧 Ubuntu / Linux Installation
 
-1. Download **`froullete-linux.zip`** from the Releases page  
+1. Download **`fate-roullete_0.1.0_amd64.deb`** from the Releases page
    👉 https://github.com/One-Of-Those-Organization/froullette/releases/tag/1.0-rc
-2. Extract the archive.
-3. Install the game using **Software Center** or your system installer.
-4. Launch the game from the Applications Menu.
+2. Install the game using **Software Center** or your system installer.
+3. Launch the game from the Applications Menu.
 
 > 💡 If the game does not start, make sure the executable permission is enabled.
 
@@ -105,7 +102,7 @@ Users may follow the written installation steps below or use the video guide as 
 
 ## 📱 Android / Mobile Installation
 
-1. Download **`app-release.apk`** from the Releases page  
+1. Download **`fate-roullete.apk`** from the Releases page
    👉 https://github.com/One-Of-Those-Organization/froullette/releases/tag/1.0-rc
 2. Transfer or download the APK file to your Android device.
 3. Enable **Install from Unknown Sources** in device settings.
@@ -131,15 +128,6 @@ Ideal for quick testing or instant multiplayer sessions.
 - Use **Booster** only when you can handle both outcomes
 - Watch how opponents play and manage their items
 - Good timing beats luck most of the time
-
----
-
-## 🛠️ Development Status
-
-- Status: **Release Candidate (RC)**
-- Mode: Multiplayer Client–Server
-- Genre: Strategy / Luck-based
-- Art Style: Pixel Art
 
 ---
 
